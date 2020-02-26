@@ -5,6 +5,15 @@ struct ActorService{TScheduler}
     scheduler::TScheduler
 end
 
+struct MigrationRequest
+    actor::AbstractActor
+end
+struct MigrationResponse
+    from::Address
+    to::Address
+    success::Bool
+end
+
 function send(service::ActorService{TScheduler}, message::AbstractMessage) where {TScheduler}
     deliver!(service.scheduler, message)
 end
@@ -21,6 +30,12 @@ end
 function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TScheduler}
     unschedule!(service.scheduler, actor)
 end
+
+function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
+    migrate!(service.scheduler, actor, topostcode)
+end
+
+function migrated(actor::AbstractActor, service) end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
@@ -65,22 +80,53 @@ function step!(scheduler::ActorScheduler)
     onmessage(scheduler.actorcache[target(message).box], body(message), scheduler.service)
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false)
-    deliver!(scheduler, message)
-    scheduler(process_external=process_external)
+function migrate!(scheduler::ActorScheduler, actor::AbstractActor, topostcode::PostCode)
+    send(scheduler.postoffice, Message{MigrationRequest}(
+        Address(postcode(scheduler.postoffice), 0),
+        Address(topostcode, 0),
+        MigrationRequest(actor)
+    ))
+    unschedule!(scheduler, actor)
 end
 
-function (scheduler::ActorScheduler)(;process_external=true)
+function handle_special!(scheduler::ActorScheduler, message) end
+function handle_special!(scheduler::ActorScheduler, message::Message{MigrationRequest})
+    actor = body(message).actor
+    fromaddress = address(actor)
+    schedule!(scheduler, actor)
+    migrated(actor, scheduler.service)
+    send(scheduler.postoffice, Message{MigrationResponse}(
+        address(actor),
+        Address(postcode(fromaddress), 0),
+        MigrationResponse(fromaddress, address(actor), true)
+    ))
+end
+
+function handle_special!(scheduler::ActorScheduler, message::Message{MigrationResponse})
+    println(body(message))
+end
+
+
+function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
+    deliver!(scheduler, message)
+    scheduler(process_external=process_external, exit_when_done=exit_when_done)
+end
+
+function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
     while true
         while !isempty(scheduler.messagequeue)
             step!(scheduler)
         end
         if !process_external || #testing here to avoid blocking at getmessage()
-            scheduler.actorcount == 0 
+            exit_when_done && scheduler.actorcount == 0 
             return
         end
         msg = getmessage(scheduler.postoffice)
-        deliver!(scheduler, msg)
+        if box(target(msg)) == 0
+            handle_special!(scheduler, msg)
+        else
+            deliver!(scheduler, msg)
+        end
     end
 end
 

@@ -14,12 +14,13 @@ struct Address <: AbstractAddress
     postcode::PostCode
     box::ActorId
 end
-postcode(address) = address.postcode
-box(adress) = address.box
+postcode(address::Address) = address.postcode
+box(address::Address) = address.box
 
 NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
+redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
 
 address(a::AbstractActor) = a.address::Address
 id(a::AbstractActor) = address(a).box::ActorId
@@ -61,6 +62,7 @@ export ActorId, id,
     send,
     spawn,
     die,
+    migrate,
     shutdown!
 
 end # module

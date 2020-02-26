@@ -1,6 +1,3 @@
-using CircoCore
-import CircoCore.onmessage
-
 REMOTE_TEST_PAYLOAD = "Sent remotely"
 MESSAGE_COUNT = 10
 
