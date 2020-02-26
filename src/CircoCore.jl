@@ -14,9 +14,12 @@ struct Address <: AbstractAddress
     postcode::PostCode
     box::ActorId
 end
+postcode(address) = address.postcode
+box(adress) = address.box
 
-Address(box::ActorId) = Address("", box)
 NullAddress = Address("", UInt64(0))
+Address() = NullAddress
+Address(box::ActorId) = Address("", box)
 
 address(a::AbstractActor) = a.address::Address
 id(a::AbstractActor) = address(a).box::ActorId
@@ -40,11 +43,13 @@ redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
 function onmessage(component, message, service) end
 
+include("postoffice.jl")
 include("scheduler.jl")
 
 export ActorId, id,
     AbstractActor,
     PostCode,
+    PostOffice,
     Address,
     address,
     Message,
@@ -54,6 +59,8 @@ export ActorId, id,
     deliver!,
     schedule!,
     send,
-    spawn
+    spawn,
+    die,
+    shutdown!
 
 end # module
