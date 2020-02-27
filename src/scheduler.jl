@@ -5,15 +5,6 @@ struct ActorService{TScheduler}
     scheduler::TScheduler
 end
 
-struct MigrationRequest
-    actor::AbstractActor
-end
-struct MigrationResponse
-    from::Address
-    to::Address
-    success::Bool
-end
-
 function send(service::ActorService{TScheduler}, message::AbstractMessage) where {TScheduler}
     deliver!(service.scheduler, message)
 end
@@ -30,12 +21,6 @@ end
 function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TScheduler}
     unschedule!(service.scheduler, actor)
 end
-
-function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
-    migrate!(service.scheduler, actor, topostcode)
-end
-
-function migrated(actor::AbstractActor, service) end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
@@ -79,33 +64,6 @@ function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
     onmessage(scheduler.actorcache[target(message).box], body(message), scheduler.service)
 end
-
-function migrate!(scheduler::ActorScheduler, actor::AbstractActor, topostcode::PostCode)
-    send(scheduler.postoffice, Message{MigrationRequest}(
-        Address(postcode(scheduler.postoffice), 0),
-        Address(topostcode, 0),
-        MigrationRequest(actor)
-    ))
-    unschedule!(scheduler, actor)
-end
-
-function handle_special!(scheduler::ActorScheduler, message) end
-function handle_special!(scheduler::ActorScheduler, message::Message{MigrationRequest})
-    actor = body(message).actor
-    fromaddress = address(actor)
-    schedule!(scheduler, actor)
-    migrated(actor, scheduler.service)
-    send(scheduler.postoffice, Message{MigrationResponse}(
-        address(actor),
-        Address(postcode(fromaddress), 0),
-        MigrationResponse(fromaddress, address(actor), true)
-    ))
-end
-
-function handle_special!(scheduler::ActorScheduler, message::Message{MigrationResponse})
-    println(body(message))
-end
-
 
 function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
     deliver!(scheduler, message)

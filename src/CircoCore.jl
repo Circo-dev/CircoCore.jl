@@ -46,6 +46,7 @@ function onmessage(component, message, service) end
 
 include("postoffice.jl")
 include("scheduler.jl")
+include("migration.jl")
 
 export ActorId, id,
     AbstractActor,
@@ -63,6 +64,7 @@ export ActorId, id,
     spawn,
     die,
     migrate,
+    migrated,
     shutdown!
 
 end # module

@@ -1,11 +1,13 @@
+# SPDX-License-Identifier: LGPL-3.0-only
 using Test
 using CircoCore
 import CircoCore.onmessage
+import CircoCore.migrated
 
 include("migrate-base.jl")
 
 function migrated(me::Migrant, service)
-    println("Migrated to $me")
+    println("Successfully migrated to $me")
 end
 
 function startsource()

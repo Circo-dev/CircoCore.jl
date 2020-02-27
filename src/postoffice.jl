@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: LGPL-3.0-only
 using ZMQ
-using Serialization
+using Serialization, Sockets
 
 const PORT_RANGE = 24721:24999
 
@@ -20,7 +21,10 @@ function allocate_postcode()
     socket = Socket(PULL)
     for port in PORT_RANGE
         try
-            postcode = "tcp://*:$port"
+            buf = IOBuffer()
+            print(buf, Sockets.getipaddr())
+            ipstr = String(take!(buf))
+            postcode = "tcp://$(ipstr):$port"
             bind(socket, postcode)
             println("Bound to $postcode")
             return postcode, socket

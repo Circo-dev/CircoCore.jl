@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LGPL-3.0-only
 using CircoCore
 
 struct MigrateCommand
@@ -5,6 +6,7 @@ struct MigrateCommand
 end
 
 mutable struct Migrant <: AbstractActor
+    data::Int
     address::Address
-    Migrant() = new()
+    Migrant() = new(42)
 end
