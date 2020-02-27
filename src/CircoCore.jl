@@ -42,20 +42,24 @@ target(m::AbstractMessage) = m.target::Address
 body(m::AbstractMessage) = m.body
 redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
-function onmessage(component, message, service) end
+
+# Actor lifecycle callbacks
+function onmessage(actor::AbstractActor, message, service) end
+function onmigrate(actor::AbstractActor, service) end
 
 include("postoffice.jl")
 include("scheduler.jl")
-include("migration.jl")
 
 export ActorId, id,
     AbstractActor,
     PostCode,
+    postcode,
     PostOffice,
     Address,
     address,
     Message,
     onmessage,
+    RecipientMoved,
     ActorService,
     ActorScheduler,
     deliver!,
@@ -64,7 +68,7 @@ export ActorId, id,
     spawn,
     die,
     migrate,
-    migrated,
+    onmigrate,
     shutdown!
 
 end # module

@@ -16,6 +16,7 @@ end
 PostOffice() = PostOffice(Dict{PostCode, Socket}(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
+address(post::PostOffice) = Address(postcode(post), 0)
 
 function allocate_postcode()
     socket = Socket(PULL)
@@ -66,6 +67,7 @@ function getsocket(post::PostOffice, target::Address)
 end
 
 function send(post::PostOffice, message)
+    #println("Sending out $message")
     socket = getsocket(post, target(message))
     io = IOBuffer()
     serialize(io, message)

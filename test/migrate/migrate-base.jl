@@ -3,10 +3,33 @@ using CircoCore
 
 struct MigrateCommand
     topostcode::PostCode
+    stayeraddress::Address
+end
+
+struct MigrateDone
+    newaddress::Address
+end
+
+mutable struct Stayer <: AbstractActor
+    oldmigrantaddress::Address
+    newaddressbyselfreport::Union{Address, Nothing}
+    newaddressbyrecepientmoved::Union{Address, Nothing}
+    responsereceived::Integer
+    address::Address
+    Stayer(migrantaddress) = new(migrantaddress, nothing, nothing, 0)
+end
+
+struct Request
+    responseto::Address
+end
+struct Response end
+struct Results
+    stayer::Stayer
 end
 
 mutable struct Migrant <: AbstractActor
-    data::Int
+    stayeraddress::Union{Address, Nothing}
+    stayercopy::Union{Stayer, Nothing}
     address::Address
-    Migrant() = new(42)
+    Migrant() = new(nothing, nothing)
 end

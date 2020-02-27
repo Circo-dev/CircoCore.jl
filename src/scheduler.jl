@@ -1,17 +1,31 @@
 # SPDX-License-Identifier: LGPL-3.0-only
+
 abstract type AbstractActorScheduler end
+
+postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
+address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
+postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
+
+function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 struct ActorService{TScheduler}
     scheduler::TScheduler
 end
+
+include("migration.jl")
 
 function send(service::ActorService{TScheduler}, message::AbstractMessage) where {TScheduler}
     deliver!(service.scheduler, message)
 end
 
 function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody, TScheduler}
+    message = Message(address(sender), to, messagebody)
+    if haskey(service.scheduler.actorcache, box(to))
+        deliver!(service.scheduler, message)
+    else
+        send(service.scheduler.postoffice, message)
+    end
     #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
-    deliver!(service.scheduler, Message{TBody}(address(sender), to, messagebody))
 end
 
 function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Address where {TScheduler}
@@ -22,14 +36,19 @@ function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TSc
     unschedule!(service.scheduler, actor)
 end
 
+function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
+    migrate!(service.scheduler, actor, topostcode)
+end
+
 mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Queue{AbstractMessage}
+    migration::MigrationService
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray)
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}())
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService())
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -41,7 +60,8 @@ function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
 end
 
 function fill_address!(scheduler::ActorScheduler, actor::AbstractActor)
-    actor.address = Address(postcode(scheduler.postoffice), rand(ActorId))
+    actorid = isdefined(actor, :address) ? id(actor) : rand(ActorId)
+    actor.address = Address(postcode(scheduler.postoffice), actorid)
 end
 
 isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
@@ -62,7 +82,10 @@ end
 
 function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
-    onmessage(scheduler.actorcache[target(message).box], body(message), scheduler.service)
+    targetactor = get(scheduler.actorcache, target(message).box, nothing)
+    isnothing(targetactor) ?
+        handle_invalidrecipient!(scheduler, message) :
+        onmessage(targetactor, body(message), scheduler.service)
 end
 
 function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
@@ -90,4 +113,5 @@ end
 
 function shutdown!(scheduler::ActorScheduler)
     shutdown!(scheduler.postoffice)
+    println("Scheduler at $(postcode(scheduler)) exited.")
 end
