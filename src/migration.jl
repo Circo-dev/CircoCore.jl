@@ -11,6 +11,7 @@ end
 struct RecipientMoved
     oldaddress::Address
     newaddress::Address
+    originalmessage::AbstractMessage
 end
 
 struct MigrationService
@@ -38,7 +39,6 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{MigrationResponse})
-    println("Migration response: $(body(message))")
     response = body(message)
     actor = pop!(scheduler.migration.movingactors, box(response.to))
     if response.success
@@ -49,7 +49,6 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
 end
 
 function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::AbstractMessage)
-    println("Invalid target: $message")
     if body(message) isa RecipientMoved
         println("Got a RecipientMoved with invalid recipient, dropping.")
         return
@@ -62,7 +61,7 @@ function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::Ab
         send(scheduler.postoffice, Message(
             address(scheduler),
             sender(message),
-            RecipientMoved(target(message), newaddress)
+            RecipientMoved(target(message), newaddress, message)
         ))
     end
 end

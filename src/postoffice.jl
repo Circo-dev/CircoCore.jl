@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-using ZMQ
 using Serialization, Sockets
+import ZMQ
 
 const PORT_RANGE = 24721:24999
 
@@ -9,28 +9,28 @@ struct PostException
 end
 
 struct PostOffice
-    outsockets::Dict{PostCode, Socket}
+    outsockets::Dict{PostCode, ZMQ.Socket}
     postcode::PostCode
-    socket::Socket
+    socket::ZMQ.Socket
 end
-PostOffice() = PostOffice(Dict{PostCode, Socket}(), allocate_postcode()...)
+PostOffice() = PostOffice(Dict{PostCode, ZMQ.Socket}(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
 address(post::PostOffice) = Address(postcode(post), 0)
 
 function allocate_postcode()
-    socket = Socket(PULL)
+    socket = ZMQ.Socket(ZMQ.PULL)
     for port in PORT_RANGE
         try
             buf = IOBuffer()
             print(buf, Sockets.getipaddr())
             ipstr = String(take!(buf))
             postcode = "tcp://$(ipstr):$port"
-            bind(socket, postcode)
+            ZMQ.bind(socket, postcode)
             println("Bound to $postcode")
             return postcode, socket
         catch e
-            isa(e, StateError) || rethrow()
+            isa(e, ZMQ.StateError) || rethrow()
         end
     end
     throw(PostException("No available port found for a Post Office"))
@@ -39,7 +39,7 @@ end
 function shutdown!(post::PostOffice)
     close(post.socket)
     for socket in values(post.outsockets)
-        close(socket)
+        ZMQ.close(socket)
     end
 end
 
@@ -52,7 +52,7 @@ end
 
 function createsocket!(post::PostOffice, targetpostcode::PostCode)
     socket = ZMQ.Socket(ZMQ.PUSH)
-    connect(socket, targetpostcode)
+    ZMQ.connect(socket, targetpostcode)
     post.outsockets[targetpostcode] = socket
     return socket
 end

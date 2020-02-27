@@ -30,7 +30,7 @@ function migratetoremote()
     scheduler = ActorScheduler([migrant])
     stayer = Stayer(address(migrant))
     schedule!(scheduler, stayer)
-    cmd = MigrateCommand("tcp://192.168.193.99:24721", address(stayer))
+    cmd = MigrateCommand("tcp://192.168.1.11:24721", address(stayer))#192.168.193.99
     source = Address()    
     message = Message{MigrateCommand}(source, address(migrant), cmd)
     scheduler(message; process_external=true)
