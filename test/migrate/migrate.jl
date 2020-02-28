@@ -21,17 +21,25 @@ function onmigrate(me::Migrant, service)
     send(service, me, me.stayeraddress, MigrateDone(address(me)))
 end
 
-function startsource()
-    source = "include(\"test/migrate/migrate-source.jl\");migratetoremote()"
+function onmessage(me::ResultsHolder, message::Results, service)
+    println("Got results $message")
+    me.results = message
+    die(service, me)
+end
+
+function startsource(targetpostcode, resultsholder_address)
+    source = "include(\"test/migrate/migrate-source.jl\");migratetoremote(\"$targetpostcode\", $resultsholder_address)"
     run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end
 
 @testset "Migration" begin
-    scheduler = ActorScheduler([])
-    startsource()
-    scheduler()
+    resultsholder = ResultsHolder()
+    scheduler = ActorScheduler([resultsholder])
+    startsource(postcode(scheduler),address(resultsholder))
+    scheduler(;exit_when_done=true)
     shutdown!(scheduler)
+    stayer = resultsholder.results.stayer
     @test stayer.responsereceived == 1
-    @test !isnothing(stayer.newaddressbyrecepientmoved)
-    @test stayer.newaddressbyrecepientmoved == stayer.newaddressbyselfreport
+    @test !isnothing(stayer.newaddress_recepientmoved)
+    @test stayer.newaddress_recepientmoved == stayer.newaddress_selfreport
 end

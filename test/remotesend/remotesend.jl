@@ -17,16 +17,16 @@ function onmessage(me::Receiver, message::TestMessage, service)
     end
 end
 
-function startsender(receiverid)
-    source = "include(\"test/remotesend/remotesend-sender.jl\");sendtoremote($receiverid)"
+function startsender(receiveraddress)
+    source = "include(\"test/remotesend/remotesend-sender.jl\");sendtoremote($receiveraddress)"
     run(Cmd(["julia", "--project", "-e", source]))
 end
 
 @testset "Remote Send" begin
     receiver = Receiver()
     scheduler = ActorScheduler([receiver])
-    startsender(id(receiver))
-    scheduler()
+    startsender(address(receiver))
+    scheduler(;exit_when_done=true)
     @test receiver.messages[end].data == REMOTE_TEST_PAYLOAD
     @test receiver.messages[1].id == 1
     @test receiver.messages[end].id == MESSAGE_COUNT

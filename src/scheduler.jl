@@ -22,10 +22,10 @@ function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr
     message = Message(address(sender), to, messagebody)
     if haskey(service.scheduler.actorcache, box(to))
         deliver!(service.scheduler, message)
+        #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
     else
         send(service.scheduler.postoffice, message)
     end
-    #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
 end
 
 function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Address where {TScheduler}
@@ -98,7 +98,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
         while !isempty(scheduler.messagequeue)
             step!(scheduler)
         end
-        if !process_external || #testing here to avoid blocking at getmessage()
+        if !process_external || # testing here to avoid blocking at getmessage(). Needs a better approach
             exit_when_done && scheduler.actorcount == 0 
             return
         end
