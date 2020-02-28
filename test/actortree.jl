@@ -63,5 +63,6 @@ end
             @time scheduler(Message{Start}(address(creator)))
             @test creator.nodecount == 2^(i+1)-1
         end
+        shutdown!(scheduler)
     end
 end

@@ -14,9 +14,13 @@ struct Address <: AbstractAddress
     postcode::PostCode
     box::ActorId
 end
+postcode(address::Address) = address.postcode
+box(address::Address) = address.box
 
-Address(box::ActorId) = Address("", box)
 NullAddress = Address("", UInt64(0))
+Address() = NullAddress
+Address(box::ActorId) = Address("", box)
+redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
 
 address(a::AbstractActor) = a.address::Address
 id(a::AbstractActor) = address(a).box::ActorId
@@ -38,22 +42,33 @@ target(m::AbstractMessage) = m.target::Address
 body(m::AbstractMessage) = m.body
 redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
-function onmessage(component, message, service) end
 
+# Actor lifecycle callbacks
+function onmessage(actor::AbstractActor, message, service) end
+function onmigrate(actor::AbstractActor, service) end
+
+include("postoffice.jl")
 include("scheduler.jl")
 
 export ActorId, id,
     AbstractActor,
     PostCode,
+    postcode,
+    PostOffice,
     Address,
     address,
     Message,
     onmessage,
+    RecipientMoved,
     ActorService,
     ActorScheduler,
     deliver!,
     schedule!,
     send,
-    spawn
+    spawn,
+    die,
+    migrate,
+    onmigrate,
+    shutdown!
 
 end # module

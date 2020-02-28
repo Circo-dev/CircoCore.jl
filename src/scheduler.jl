@@ -1,30 +1,54 @@
 # SPDX-License-Identifier: LGPL-3.0-only
+
 abstract type AbstractActorScheduler end
+
+postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
+address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
+postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
+
+function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 struct ActorService{TScheduler}
     scheduler::TScheduler
 end
+
+include("migration.jl")
 
 function send(service::ActorService{TScheduler}, message::AbstractMessage) where {TScheduler}
     deliver!(service.scheduler, message)
 end
 
 function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody, TScheduler}
-    #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
-    deliver!(service.scheduler, Message{TBody}(address(sender), to, messagebody))
+    message = Message(address(sender), to, messagebody)
+    if haskey(service.scheduler.actorcache, box(to))
+        deliver!(service.scheduler, message)
+        #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
+    else
+        send(service.scheduler.postoffice, message)
+    end
 end
 
 function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Address where {TScheduler}
     schedule!(service.scheduler, actor)
 end
 
+function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TScheduler}
+    unschedule!(service.scheduler, actor)
+end
+
+function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
+    migrate!(service.scheduler, actor, topostcode)
+end
+
 mutable struct ActorScheduler <: AbstractActorScheduler
-    actors::Array{AbstractActor}
+    postoffice::PostOffice
+    actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Queue{AbstractMessage}
+    migration::MigrationService
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray)
-        scheduler = new(actors, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}())
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService())
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -35,29 +59,59 @@ function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
     enqueue!(scheduler.messagequeue, message)
 end
 
-function fill_address!(actor::AbstractActor)
-    actor.address = Address(rand(ActorId))
+function fill_address!(scheduler::ActorScheduler, actor::AbstractActor)
+    actorid = isdefined(actor, :address) ? id(actor) : rand(ActorId)
+    actor.address = Address(postcode(scheduler.postoffice), actorid)
 end
 
+isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
+
 function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Address
-    fill_address!(actor)
+    isdefined(actor, :address) && isscheduled(scheduler, actor) && return address(actor)
+    fill_address!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
-    push!(scheduler.actors, actor)
+    scheduler.actorcount += 1
     return address(actor)
+end
+
+function unschedule!(scheduler::ActorScheduler, actor::AbstractActor)
+    isscheduled(scheduler, actor) || return nothing
+    pop!(scheduler.actorcache, id(actor))
+    scheduler.actorcount -= 1
 end
 
 function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
-    onmessage(scheduler.actorcache[target(message).box], body(message), scheduler.service)
+    targetactor = get(scheduler.actorcache, target(message).box, nothing)
+    isnothing(targetactor) ?
+        handle_invalidrecipient!(scheduler, message) :
+        onmessage(targetactor, body(message), scheduler.service)
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMessage)
+function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
     deliver!(scheduler, message)
-    scheduler()
+    scheduler(process_external=process_external, exit_when_done=exit_when_done)
 end
 
-function (scheduler::ActorScheduler)()
-    while !isempty(scheduler.messagequeue)
-        step!(scheduler)
+function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
+    while true
+        while !isempty(scheduler.messagequeue)
+            step!(scheduler)
+        end
+        if !process_external || # testing here to avoid blocking at getmessage(). Needs a better approach
+            exit_when_done && scheduler.actorcount == 0 
+            return
+        end
+        msg = getmessage(scheduler.postoffice)
+        if box(target(msg)) == 0
+            handle_special!(scheduler, msg)
+        else
+            deliver!(scheduler, msg)
+        end
     end
+end
+
+function shutdown!(scheduler::ActorScheduler)
+    shutdown!(scheduler.postoffice)
+    println("Scheduler at $(postcode(scheduler)) exited.")
 end
