@@ -7,6 +7,8 @@ ActorId = UInt64
 abstract type AbstractActor end
 
 abstract type AbstractAddress end
+postcode(address::AbstractAddress) = address.postcode
+box(address::AbstractAddress) = address.box
 
 PostCode = String
 
@@ -14,9 +16,6 @@ struct Address <: AbstractAddress
     postcode::PostCode
     box::ActorId
 end
-postcode(address::Address) = address.postcode
-box(address::Address) = address.box
-
 NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
@@ -42,7 +41,6 @@ target(m::AbstractMessage) = m.target::Address
 body(m::AbstractMessage) = m.body
 redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
-
 # Actor lifecycle callbacks
 function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
@@ -50,25 +48,17 @@ function onmigrate(actor::AbstractActor, service) end
 include("postoffice.jl")
 include("scheduler.jl")
 
-export ActorId, id,
-    AbstractActor,
-    PostCode,
-    postcode,
-    PostOffice,
-    Address,
-    address,
-    Message,
-    onmessage,
-    RecipientMoved,
-    ActorService,
-    ActorScheduler,
-    deliver!,
-    schedule!,
-    send,
-    spawn,
-    die,
-    migrate,
-    onmigrate,
-    shutdown!
+export AbstractActor, ActorId, id, ActorService, ActorScheduler,
+    deliver!, schedule!, shutdown!,
 
-end # module
+    # Messaging
+    PostCode, postcode, PostOffice, Address, address, Message, redirect,
+    RecipientMoved,
+
+    # Actor API
+    send, spawn, die, migrate,
+
+    # Actor lifecycle callbacks
+    onmessage, onmigrate
+
+end
