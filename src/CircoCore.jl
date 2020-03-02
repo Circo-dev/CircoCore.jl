@@ -42,11 +42,13 @@ body(m::AbstractMessage) = m.body
 redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
 # Actor lifecycle callbacks
+function onschedule(actor::AbstractActor, service) end
 function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
 include("postoffice.jl")
 include("scheduler.jl")
+include("cluster.jl")
 
 export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     deliver!, schedule!, shutdown!,
@@ -59,6 +61,8 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     send, spawn, die, migrate,
 
     # Actor lifecycle callbacks
-    onmessage, onmigrate
+    onschedule, onmessage, onmigrate,
 
+    # User space
+    ClusterActor, SchedulerInfo
 end
