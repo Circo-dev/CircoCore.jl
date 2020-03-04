@@ -71,6 +71,7 @@ function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Address
     fill_address!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
     scheduler.actorcount += 1
+    onschedule(actor, scheduler.service)
     return address(actor)
 end
 

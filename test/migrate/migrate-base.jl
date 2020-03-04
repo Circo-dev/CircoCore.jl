@@ -13,11 +13,11 @@ end
 mutable struct Stayer <: AbstractActor
     oldmigrantaddress::Address
     resultsholder_address::Address
-    newaddress_selfreport::Union{Address, Nothing}
-    newaddress_recepientmoved::Union{Address, Nothing}
     responsereceived::Integer
+    newaddress_selfreport::Address
+    newaddress_recepientmoved::Address
     address::Address
-    Stayer(migrantaddress, resultsholder_address) = new(migrantaddress, resultsholder_address, nothing, nothing, 0)
+    Stayer(migrantaddress, resultsholder_address) = new(migrantaddress, resultsholder_address, 0)
 end
 
 struct Request
@@ -37,8 +37,7 @@ mutable struct ResultsHolder <: AbstractActor
 end
 
 mutable struct Migrant <: AbstractActor
-    stayeraddress::Union{Address, Nothing}
-    stayercopy::Union{Stayer, Nothing}
+    stayeraddress::Address
     address::Address
-    Migrant() = new(nothing, nothing)
+    Migrant() = new()
 end

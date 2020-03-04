@@ -44,7 +44,7 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
     if response.success
         scheduler.migration.movedactors[box(response.from)] = response.to
     else
-        schedule!(scheduler, actor)
+        schedule!(scheduler, actor) # TODO callback + tests
     end
 end
 
@@ -55,7 +55,8 @@ function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::Ab
     end
     newaddress = get(scheduler.migration.movedactors, box(target(message)), nothing)
     if isnothing(newaddress)
-        println("TODO handle unknown address")
+        println("TODO handle unknown address") # TODO
+        println("Message send to invalid address: $message")
         return
     else
         send(scheduler.postoffice, Message(

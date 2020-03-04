@@ -18,15 +18,17 @@ function onmessage(me::Receiver, message::TestMessage, service)
 end
 
 function startsender(receiveraddress)
-    source = "include(\"test/remotesend/remotesend-sender.jl\");sendtoremote($receiveraddress)"
-    run(Cmd(["julia", "--project", "-e", source]))
+    source = "include(\"remotesend/remotesend-sender.jl\");sendtoremote($receiveraddress)"
+    run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end
 
 @testset "Remote Send" begin
     receiver = Receiver()
     scheduler = ActorScheduler([receiver])
-    startsender(address(receiver))
+    sender = startsender(address(receiver))
     scheduler(;exit_when_done=true)
+    wait(sender) # Do not print test results before sender exit logs
+    @test length(receiver.messages) == MESSAGE_COUNT
     @test receiver.messages[end].data == REMOTE_TEST_PAYLOAD
     @test receiver.messages[1].id == 1
     @test receiver.messages[end].id == MESSAGE_COUNT
