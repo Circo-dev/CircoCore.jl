@@ -64,5 +64,5 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     onschedule, onmessage, onmigrate,
 
     # User space
-    ClusterActor, SchedulerInfo
+    ClusterActor, NodeInfo
 end
