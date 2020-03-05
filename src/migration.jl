@@ -55,8 +55,7 @@ function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::Ab
     end
     newaddress = get(scheduler.migration.movedactors, box(target(message)), nothing)
     if isnothing(newaddress)
-        println("TODO handle unknown address") # TODO
-        println("Message send to invalid address: $message")
+        println("TODO: handle message sent to invalid address: $message")
         return
     else
         send(scheduler.postoffice, Message(
