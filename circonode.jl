@@ -67,7 +67,7 @@ function startfirstnode()
     root = ClusterActor("First Node")
     scheduler = ActorScheduler([root])
     println("First node started. To add nodes to this cluster, run")
-    println("startnode.sh --roots $(address(root))")
+    println("./circonode.sh --roots $(address(root))")
     scheduler()
 end
 
