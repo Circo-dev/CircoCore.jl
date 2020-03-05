@@ -26,7 +26,8 @@ function onmessage(me::ResultsHolder, message::Results, service)
 end
 
 function startsource(targetpostcode, resultsholder_address)
-    source = "include(\"migrate/migrate-source.jl\");migratetoremote(\"$targetpostcode\", $resultsholder_address)"
+    source = "include(\"migrate/migrate-source.jl\");migratetoremote(\"$targetpostcode\", \"$resultsholder_address\")"
+    println(source)
     run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end
 

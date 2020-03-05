@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
+import Base.show
 
 using DataStructures
 
@@ -19,6 +20,13 @@ end
 NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
+Address(readable_address::String) = begin
+    parts = split(readable_address, "/")
+    return Address(join(parts[1:end-1], "/"), parse(ActorId, parts[end]))
+end
+function Base.show(io::IO, a::Address)
+    print(io, "$(a.postcode)/$(a.box)")
+end
 redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
 
 address(a::AbstractActor) = a.address::Address

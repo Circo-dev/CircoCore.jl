@@ -4,7 +4,7 @@ using CircoCore
 import CircoCore.onmessage
 import CircoCore.onmigrate
 
-const PEER_COUNT = 1000
+const PEER_COUNT = 100
 const ROOT_COUNT = 3
 
 @testset "Cluster" begin

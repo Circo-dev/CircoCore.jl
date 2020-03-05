@@ -74,7 +74,6 @@ end
 
 function requestjoin(me, service)
     if length(me.roots) == 0
-        println("I am the first actor: $(address(me))")
         registerpeer(me, me.myinfo, service)
         return
     end
@@ -121,9 +120,9 @@ function onmessage(me::ClusterActor, message::JoinRequest, service)
 end
 
 function onmessage(me::ClusterActor, message::JoinResponse, service)
-    println(message)
     if message.accepted
         me.joined = true
+        println("Joined successfully.")
         send(service, me, message.responderinfo.address, PeerListRequest(address(me)))
     else
         requestjoin(me, service)
