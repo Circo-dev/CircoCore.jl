@@ -66,15 +66,16 @@ end
 function startfirstnode()
     root = ClusterActor("First Node")
     scheduler = ActorScheduler([root])
-    println("First node started. To join to this cluster, use the address:")
-    println(address(root))
+    println("First node started. To add nodes to this cluster, run")
+    println("startnode.sh --roots $(address(root))")
     scheduler()
 end
 
 function startnodeandconnect(roots)
     root = ClusterActor(NodeInfo("Another Node"), roots)
     scheduler = ActorScheduler([root])
-    println("Node started.")
+    println("Node started. Address of this node:")
+    println(address(root))
     scheduler()
 end
 

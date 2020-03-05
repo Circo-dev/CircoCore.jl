@@ -18,7 +18,7 @@ function onmessage(me::Receiver, message::TestMessage, service)
 end
 
 function startsender(receiveraddress)
-    source = "include(\"remotesend/remotesend-sender.jl\");sendtoremote($receiveraddress)"
+    source = "include(\"remotesend/remotesend-sender.jl\");sendtoremote(\"$receiveraddress\")"
     run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end
 

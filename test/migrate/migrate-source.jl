@@ -29,7 +29,7 @@ end
 function migratetoremote(targetpostcode, resultsholder_address)
     migrant = Migrant()
     scheduler = ActorScheduler([migrant])
-    stayer = Stayer(address(migrant), resultsholder_address)
+    stayer = Stayer(address(migrant), Address(resultsholder_address))
     schedule!(scheduler, stayer)
     cmd = MigrateCommand(targetpostcode, address(stayer))
     message = Message(Address(), address(migrant), cmd)
