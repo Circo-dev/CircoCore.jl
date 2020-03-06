@@ -101,7 +101,6 @@ end
 
 function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     if setpeer(me, newpeer)
-        #@debug "Got new peer $(newpeer.address), notifying friends:" me.downstream_friends 
         for friend in me.downstream_friends
             send(service, me, friend, PeerJoinedNotification(newpeer, address(me)))
         end
@@ -116,6 +115,7 @@ function onmessage(me::ClusterActor, message::JoinRequest, service)
     if (length(me.upstream_friends) < TARGET_FRIEND_COUNT)
        send(service, me, newpeer.address, FriendRequest(address(me)))
     end
+    @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
     registerpeer(me, newpeer, service)
 end
 

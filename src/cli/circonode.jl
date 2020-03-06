@@ -100,7 +100,7 @@ function appendaddress(filename, address)
     end
 end
 
-function startfirstnode(rootsfilename)
+function startfirstnode(rootsfilename=nothing)
     root = ClusterActor("First Node")
     scheduler = ActorScheduler([root])
     println("Starting first node. To add nodes to this cluster, run:")
