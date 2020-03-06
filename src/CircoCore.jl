@@ -22,10 +22,10 @@ Address() = NullAddress
 Address(box::ActorId) = Address("", box)
 Address(readable_address::String) = begin
     parts = split(readable_address, "/")
-    return Address(join(parts[1:end-1], "/"), parse(ActorId, parts[end]))
+    return Address(join(parts[1:end-1], "/"), parse(ActorId, parts[end], base=16))
 end
 function Base.show(io::IO, a::Address)
-    print(io, "$(a.postcode)/$(a.box)")
+    print(io, "$(a.postcode)/$(string(a.box, base=16))")
 end
 redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
 
