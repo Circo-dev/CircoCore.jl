@@ -1,2 +1,2 @@
 #!/bin/bash
-julia --project circonode.jl "$@"
+julia --project -e "using CircoCore.cli;circonode()" -- "$@"
