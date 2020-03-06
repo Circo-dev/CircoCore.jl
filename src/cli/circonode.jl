@@ -5,21 +5,24 @@ const VERSION = v"0.1.0"
 doc = """Start a Circo cluster node.
 
 Usage:
-  circonode [--roots CIRCO_POSTCODE1,...]
+  circonode.sh [--roots CIRCO_POSTCODE1,...]
 
 Options:
   -r --roots      Connect to an existing cluster using one of the listed nodes.
-  -f --rootsfile   Read the list of roots from a file. Separator: comma or newline.
-  -a --add        Add the address of this node to the roots file, create the file if needed.
+  -f --rootsfile  Read the list of roots from a file. Separator: comma or newline.
+  -a --add        Add the address of this node to the roots file, create the file if missing.
   -h --help       Show this screen.
   --version       Show version.
 
 Examples:
-  circonode --roots tcp://192.168.193.2:24721,tcp://192.168.193.3:24721
+  circonode.sh --roots tcp://192.168.1.11:24721/345d60e5554274be,tcp://192.168.1.11:24722/9e1e5b208732de32 
+  Starts a node and connects it to the cluster through one of the listed roots
 
-  circonode -f roots.txt
+  circonode -f roots.txt -a
+  Starts a node using the roots read from roots.txt and appends its own adress to the file.
+  Also creates the file (-a) if it does not exists.
 
-  Where roots
+  A single root is enough to build a cluster but you can use as many as you want.
 """
 function usage()
     println(doc)
