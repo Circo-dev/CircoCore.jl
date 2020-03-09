@@ -76,4 +76,8 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     ClusterActor, NodeInfo,
 
     cli
+
+include("queries.jl")
+
 end
+
