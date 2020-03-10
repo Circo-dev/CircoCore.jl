@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: LGPL-3.0-only
 module cli
-using CircoCore
+using ..CircoCore
 
 const VERSION = v"0.1.0"
 doc = """Start a Circo cluster node.
@@ -39,6 +40,7 @@ function parse_args(args)
             try
                 key = startswith(arg, "--") ? arg[3:end] : arg
                 key in longs || (key = shorts[arg])
+                key = Symbol(key)
                 parsed[key] = nothing
             catch
                 throw("Invalid argument: $arg")
@@ -51,18 +53,18 @@ function parse_args(args)
     return parsed
 end
 
-function circonode()
+function circonode(;kvargs...)
     try
-        args = parse_args(ARGS)
+        args = merge(parse_args(ARGS), kvargs)
         roots = []
         rootsfilename = nothing
         addmetoroots = false
-        haskey(args, "help") && (println(doc); return 0)
-        haskey(args, "version") && (println(VERSION); return 0)
-        haskey(args, "roots") && (append!(roots, parseroots(args["roots"])))
-        addmetoroots = haskey(args, "add") && args["add"] != "false"
-        if haskey(args, "rootsfile")
-            rootsfilename = args["rootsfile"]
+        haskey(args, :help) && (println(doc); return 0)
+        haskey(args, :version) && (println(VERSION); return 0)
+        haskey(args, :roots) && (append!(roots, parseroots(args[:roots])))
+        addmetoroots = haskey(args, :add) && args[:add] != "false"
+        if haskey(args, :rootsfile)
+            rootsfilename = args[:rootsfile]
             isnothing(rootsfilename) && throw("No roots file provided for --rootsfile or -f")
             append!(roots, readroots(rootsfilename;allow_missing=addmetoroots))
         end

@@ -56,7 +56,7 @@ function onmigrate(actor::AbstractActor, service) end
 
 include("postoffice.jl")
 include("scheduler.jl")
-include("cluster.jl")
+include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
 export AbstractActor, ActorId, id, ActorService, ActorScheduler,
@@ -72,8 +72,12 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     # Actor lifecycle callbacks
     onschedule, onmessage, onmigrate,
 
-    # User space
+    # Cluster management
     ClusterActor, NodeInfo,
 
     cli
+
+include("queries.jl")
+
 end
+

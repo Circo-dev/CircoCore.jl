@@ -22,7 +22,7 @@ function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr
     message = Message(address(sender), to, messagebody)
     if haskey(service.scheduler.actorcache, box(to))
         deliver!(service.scheduler, message)
-        #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow prevention is needed
+        #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow and reenter prevention is needed which may slow it down too much
     else
         send(service.scheduler.postoffice, message)
     end

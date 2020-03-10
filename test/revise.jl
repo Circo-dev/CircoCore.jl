@@ -3,7 +3,7 @@
 # julia -i -q --color=yes --project revise.jl example
 
 using Revise, Jive
-using Circo
+using CircoCore
 
 trigger = function (path)
     printstyled("changed ", color=:cyan)
