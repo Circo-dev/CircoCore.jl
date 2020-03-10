@@ -124,7 +124,7 @@ function startnodeandconnect(roots; rootsfilename=nothing, addmetoroots=false)
     if addmetoroots
         appendpostcode(rootsfilename, address(root))
     end
-    println("Node started. Postcode of this node $(addmetoroots ? "(added to $rootsfilename)": ""):")
+    println("Node started. Postcode of this node$(addmetoroots ? " (added to $rootsfilename)" : ""):")
     println(postcode(root))
     scheduler()
 end
