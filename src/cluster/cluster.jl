@@ -2,7 +2,8 @@
 using Logging
 import Base.isless
 
-const MAX_JOINREQUEST_COUNT = 100
+const NAME = "cluster"
+const MAX_JOINREQUEST_COUNT = 10
 const MAX_DOWNSTREAM_FRIENDS = 25
 const TARGET_FRIEND_COUNT = 5
 const MIN_FRIEND_COUNT = 3
@@ -23,15 +24,16 @@ isless(a::Friend,b::Friend) = isless(a.score, b.score)
 
 mutable struct ClusterActor <: AbstractActor
     myinfo::NodeInfo
-    roots::Array{Address}
+    roots::Array{PostCode}
     joined::Bool
     joinrequestcount::UInt16
     peers::Dict{Address,NodeInfo}
     upstream_friends::Dict{Address,Friend}
     downstream_friends::Set{Address}
     peerupdate_count::UInt
+    servicename::String
     address::Address
-    ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0)
+    ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
     ClusterActor(name::String) = ClusterActor(NodeInfo(name))
 end
@@ -73,6 +75,9 @@ struct UnfriendRequest
 end
 
 function requestjoin(me, service)
+    if !isempty(me.servicename)
+        registername(service, NAME, me)
+    end
     if length(me.roots) == 0
         registerpeer(me, me.myinfo, service)
         return
@@ -82,7 +87,12 @@ function requestjoin(me, service)
         error("Cannot join: $(me.joinrequestcount) unsuccesful attempt.")
     end
     me.joinrequestcount += 1
-    send(service, me, root, JoinRequest(me.myinfo))
+    rootaddr = Address(root)
+    if isbaseaddress(rootaddr)
+        send(service, me, Address(root), NameQuery("cluster"))
+    else
+        send(service, me, rootaddr, JoinRequest(me.myinfo))
+    end
 end
 
 function onschedule(me::ClusterActor, service)
@@ -109,14 +119,24 @@ function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     return false
 end
 
+function onmessage(me::ClusterActor, message::NameResponse, service)
+    root = message.handler
+    if isnothing(root)
+        requestjoin(me, service)
+    else
+        send(service, me, root, JoinRequest(me.myinfo))
+    end
+end
+
 function onmessage(me::ClusterActor, message::JoinRequest, service)
     newpeer = message.info
     send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, true))
     if (length(me.upstream_friends) < TARGET_FRIEND_COUNT)
        send(service, me, newpeer.address, FriendRequest(address(me)))
     end
-    @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
-    registerpeer(me, newpeer, service)
+    if registerpeer(me, newpeer, service)
+        @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
+    end
 end
 
 function onmessage(me::ClusterActor, message::JoinResponse, service)

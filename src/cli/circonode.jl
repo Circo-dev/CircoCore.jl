@@ -80,7 +80,7 @@ end
 
 function parseroots(rootstr)
     isnothing(rootstr) && throw("No root given after --roots (aka -r)")
-    parts = map(s -> Address(String(s)), split(rootstr, ","))
+    parts = map(s -> strip(String(s)), split(rootstr, ","))
     return parts
 end
 
@@ -99,9 +99,9 @@ function readroots(rootsfilename; allow_missing=false)
     return roots
 end
 
-function appendaddress(filename, address)
+function appendpostcode(filename, po)
     open(filename, "a") do f
-        write(f, "$address\n")
+        write(f, "$po\n")
     end
 end
 
@@ -110,9 +110,9 @@ function startfirstnode(rootsfilename=nothing)
     scheduler = ActorScheduler([root])
     println("Starting first node. To add nodes to this cluster, run:")
     if isnothing(rootsfilename)
-        println("./circonode.sh --roots $(address(root))")
+        println("./circonode.sh --roots $(postcode(root))")
     else
-        appendaddress(rootsfilename, address(root))
+        appendpostcode(rootsfilename, postcode(root))
         println("./circonode.sh --rootsfile $rootsfilename")
     end
     scheduler()
@@ -122,10 +122,10 @@ function startnodeandconnect(roots; rootsfilename=nothing, addmetoroots=false)
     root = ClusterActor(NodeInfo("Another Node"), roots)
     scheduler = ActorScheduler([root])
     if addmetoroots
-        appendaddress(rootsfilename, address(root))
+        appendpostcode(rootsfilename, address(root))
     end
-    println("Node started. Address of this node $(addmetoroots ? "(added to $rootsfilename)" : ""):")
-    println(address(root))
+    println("Node started. Postcode of this node $(addmetoroots ? "(added to $rootsfilename)": ""):")
+    println(postcode(root))
     scheduler()
 end
 

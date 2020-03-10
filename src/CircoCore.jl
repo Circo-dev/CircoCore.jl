@@ -9,6 +9,7 @@ abstract type AbstractActor end
 
 abstract type AbstractAddress end
 postcode(address::AbstractAddress) = address.postcode
+postcode(actor::AbstractActor) = postcode(address(actor))
 box(address::AbstractAddress) = address.box
 
 PostCode = String
@@ -21,9 +22,13 @@ NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
 Address(readable_address::String) = begin
-    parts = split(readable_address, "/")
-    return Address(join(parts[1:end-1], "/"), parse(ActorId, parts[end], base=16))
+    parts = split(readable_address, "/") # Handles only tcp://dns.or.ip:port[/actorid]
+    actorid = length(parts) == 4 ? parse(ActorId, parts[4], base=16) : 0
+    return Address(join(parts[1:3], "/"), actorid)
 end
+
+isbaseaddress(addr::Address) = box(addr) == 0
+
 function Base.show(io::IO, a::Address)
     print(io, "$(a.postcode)/$(string(a.box, base=16))")
 end
@@ -76,8 +81,5 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     ClusterActor, NodeInfo,
 
     cli
-
-include("queries.jl")
-
 end
 

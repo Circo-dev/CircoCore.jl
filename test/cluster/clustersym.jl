@@ -13,14 +13,16 @@ const ROOT_COUNT = 3
     rootaddresses = []
     for i in 1:ROOT_COUNT
         root = ClusterActor(NodeInfo("#$(length(cluster))"), rootaddresses)
+        root.servicename = ""
         push!(cluster, root)
         schedule!(scheduler, root)
         scheduler(;process_external=false)
-        rootaddresses = [address(node) for node in cluster]
+        rootaddresses = [string(address(node)) for node in cluster]
     end
     
     for i in 1:PEER_COUNT - ROOT_COUNT
         node = ClusterActor(NodeInfo("#$(length(cluster))"), rootaddresses)
+        node.servicename = ""
         push!(cluster, node)
         schedule!(scheduler, node)
         #if rand() < 0.5
