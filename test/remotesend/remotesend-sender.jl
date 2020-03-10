@@ -7,7 +7,7 @@ function sendtoremote(receiveraddress)
     source = Address("", UInt64(0))
     println("Sending out $MESSAGE_COUNT messages")
     @time for i in 1:MESSAGE_COUNT
-        message = Message(source, receiveraddress, TestMessage(i, REMOTE_TEST_PAYLOAD))
+        message = Message(source, Address(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
         send(po, message)
     end
     println("Messages sent.")

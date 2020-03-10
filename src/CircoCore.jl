@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
+import Base.show
 
 using DataStructures
 
@@ -8,6 +9,7 @@ abstract type AbstractActor end
 
 abstract type AbstractAddress end
 postcode(address::AbstractAddress) = address.postcode
+postcode(actor::AbstractActor) = postcode(address(actor))
 box(address::AbstractAddress) = address.box
 
 PostCode = String
@@ -19,6 +21,17 @@ end
 NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
+Address(readable_address::String) = begin
+    parts = split(readable_address, "/") # Handles only tcp://dns.or.ip:port[/actorid]
+    actorid = length(parts) == 4 ? parse(ActorId, parts[4], base=16) : 0
+    return Address(join(parts[1:3], "/"), actorid)
+end
+
+isbaseaddress(addr::Address) = box(addr) == 0
+
+function Base.show(io::IO, a::Address)
+    print(io, "$(a.postcode)/$(string(a.box, base=16))")
+end
 redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
 
 address(a::AbstractActor) = a.address::Address
@@ -42,11 +55,14 @@ body(m::AbstractMessage) = m.body
 redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
 
 # Actor lifecycle callbacks
+function onschedule(actor::AbstractActor, service) end
 function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
 include("postoffice.jl")
 include("scheduler.jl")
+include("cluster/cluster.jl")
+include("cli/circonode.jl")
 
 export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     deliver!, schedule!, shutdown!,
@@ -59,6 +75,11 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     send, spawn, die, migrate,
 
     # Actor lifecycle callbacks
-    onmessage, onmigrate
+    onschedule, onmessage, onmigrate,
 
+    # Cluster management
+    ClusterActor, NodeInfo,
+
+    cli
 end
+
