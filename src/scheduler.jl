@@ -1,32 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-
-abstract type AbstractActorScheduler end
-
-postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
-address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
-postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
-
-function handle_special!(scheduler::AbstractActorScheduler, message) end
-
-struct ActorService{TScheduler}
-    scheduler::TScheduler
-end
-
-include("migration.jl")
-include("nameservice.jl")
-
-function send(service::ActorService{TScheduler}, message::AbstractMessage) where {TScheduler}
-    deliver!(service.scheduler, message)
-end
+using DataStructures
 
 function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody, TScheduler}
     message = Message(address(sender), to, messagebody)
-    if haskey(service.scheduler.actorcache, box(to))
-        deliver!(service.scheduler, message)
-        #onmessage(service.scheduler.actorcache[to.box], messagebody, service) # Delivering directly is a bit faster, but stack overflow and reenter prevention is needed which may slow it down too much
-    else
-        send(service.scheduler.postoffice, message)
-    end
+    deliver!(service.scheduler, message)
 end
 
 function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Address where {TScheduler}
@@ -62,7 +39,11 @@ mutable struct ActorScheduler <: AbstractActorScheduler
 end
 
 function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
-    enqueue!(scheduler.messagequeue, message)
+    if postcode(scheduler) == postcode(target(message))
+        enqueue!(scheduler.messagequeue, message)
+    else
+        send(scheduler.postoffice, message)
+    end
 end
 
 function fill_address!(scheduler::ActorScheduler, actor::AbstractActor)

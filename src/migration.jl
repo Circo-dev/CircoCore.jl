@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
+using DataStructures
 
 struct MigrationRequest
     actor::AbstractActor
@@ -14,10 +15,16 @@ struct RecipientMoved
     originalmessage::AbstractMessage
 end
 
+struct MovingActor
+    actor::AbstractActor
+    messages::Queue{AbstractMessage}
+    MovingActor(actor::AbstractActor) = new(actor, Queue{AbstractMessage}())
+end
+
 struct MigrationService
-    movingactors::Dict{ActorId,AbstractActor}
+    movingactors::Dict{ActorId,MovingActor}
     movedactors::Dict{ActorId,Address}
-    MigrationService() = new(Dict{ActorId,AbstractActor}([]),Dict{ActorId,Address}([]))
+    MigrationService() = new(Dict([]),Dict([]))
 end
 
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
@@ -25,7 +32,7 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
         Address(topostcode, 0),
         MigrationRequest(actor)))
     unschedule!(scheduler, actor)
-    scheduler.migration.movingactors[id(actor)] = actor
+    scheduler.migration.movingactors[id(actor)] = MovingActor(actor)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{MigrationRequest})
@@ -40,11 +47,15 @@ end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{MigrationResponse})
     response = body(message)
-    actor = pop!(scheduler.migration.movingactors, box(response.to))
+    movingactor = pop!(scheduler.migration.movingactors, box(response.to))
     if response.success
         scheduler.migration.movedactors[box(response.from)] = response.to
+        for message in movingactor.messages
+            println("Delivering to migrant: $message")
+            deliver!(scheduler, message)
+        end
     else
-        schedule!(scheduler, actor) # TODO callback + tests
+        schedule!(scheduler, movingactor.actor) # TODO callback + tests
     end
 end
 
@@ -55,8 +66,12 @@ function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::Ab
     end
     newaddress = get(scheduler.migration.movedactors, box(target(message)), nothing)
     if isnothing(newaddress)
-        println("TODO: handle message sent to invalid address: $message")
-        return
+        movingactor = get(scheduler.migration.movingactors, box(target(message)), nothing)
+        if isnothing(movingactor)
+            println("TODO: handle message sent to invalid address: $message")
+        else
+            enqueue!(movingactor.messages, message)
+        end
     else
         send(scheduler.postoffice, Message(
             address(scheduler),
