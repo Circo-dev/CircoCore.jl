@@ -2,8 +2,6 @@
 module CircoCore
 import Base.show
 
-using DataStructures
-
 ActorId = UInt64
 abstract type AbstractActor end
 
@@ -28,7 +26,6 @@ Address(readable_address::String) = begin
 end
 
 isbaseaddress(addr::Address) = box(addr) == 0
-
 function Base.show(io::IO, a::Address)
     print(io, "$(a.postcode)/$(string(a.box, base=16))")
 end
@@ -49,6 +46,24 @@ Message{Nothing}(sender, target) = Message{Nothing}(sender, target, nothing)
 Message{Nothing}(target) = Message{Nothing}(NullAddress, target)
 Message{Nothing}() = Message{Nothing}(NullAddress, NullAddress)
 
+abstract type Request end
+RequestId = UInt64
+
+struct RequestMessage{BodyType} <: AbstractMessage
+    sender::Address
+    target::Address
+    body::BodyType
+    id::RequestId
+end
+RequestMessage{T}(sender::AbstractActor, target::Address, body::T) where {T} = RequestMessage{T}(Address(sender), target, body, rand(RequestId))
+RequestMessage(sender::AbstractActor, target::Address, body::T) where {T} = RequestMessage{T}(Address(sender), target, body)
+struct ResponseMessage{BodyType} <: AbstractMessage
+    sender::Address
+    target::Address
+    body::BodyType
+    requestid::RequestId
+end 
+
 sender(m::AbstractMessage) = m.sender::Address
 target(m::AbstractMessage) = m.target::Address
 body(m::AbstractMessage) = m.body
@@ -59,7 +74,19 @@ function onschedule(actor::AbstractActor, service) end
 function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
+# scheduler
+abstract type AbstractActorScheduler end
+postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
+address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
+postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
+function handle_special!(scheduler::AbstractActorScheduler, message) end
+struct ActorService{TScheduler}
+    scheduler::TScheduler
+end
+
 include("postoffice.jl")
+include("migration.jl")
+include("nameservice.jl")
 include("scheduler.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
@@ -70,6 +97,7 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     # Messaging
     PostCode, postcode, PostOffice, Address, address, Message, redirect,
     RecipientMoved,
+    Request,
 
     # Actor API
     send, spawn, die, migrate,
