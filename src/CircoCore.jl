@@ -46,24 +46,6 @@ Message{Nothing}(sender, target) = Message{Nothing}(sender, target, nothing)
 Message{Nothing}(target) = Message{Nothing}(NullAddress, target)
 Message{Nothing}() = Message{Nothing}(NullAddress, NullAddress)
 
-abstract type Request end
-RequestId = UInt64
-
-struct RequestMessage{BodyType} <: AbstractMessage
-    sender::Address
-    target::Address
-    body::BodyType
-    id::RequestId
-end
-RequestMessage{T}(sender::AbstractActor, target::Address, body::T) where {T} = RequestMessage{T}(Address(sender), target, body, rand(RequestId))
-RequestMessage(sender::AbstractActor, target::Address, body::T) where {T} = RequestMessage{T}(Address(sender), target, body)
-struct ResponseMessage{BodyType} <: AbstractMessage
-    sender::Address
-    target::Address
-    body::BodyType
-    requestid::RequestId
-end 
-
 sender(m::AbstractMessage) = m.sender::Address
 target(m::AbstractMessage) = m.target::Address
 body(m::AbstractMessage) = m.body
@@ -87,6 +69,7 @@ end
 include("postoffice.jl")
 include("migration.jl")
 include("nameservice.jl")
+include("token.jl")
 include("scheduler.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
@@ -97,10 +80,11 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     # Messaging
     PostCode, postcode, PostOffice, Address, address, Message, redirect,
     RecipientMoved,
-    Request,
+
+    Token, TokenId, Tokenized, token, Request, Response, Timeout,
 
     # Actor API
-    send, spawn, die, migrate,
+    send, spawn, die, migrate, getname, registername,
 
     # Actor lifecycle callbacks
     onschedule, onmessage, onmigrate,

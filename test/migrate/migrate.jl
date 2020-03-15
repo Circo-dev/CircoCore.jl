@@ -11,8 +11,8 @@ function onmigrate(me::Migrant, service)
     send(service, me, me.stayeraddress, MigrateDone(address(me)))
 end
 
-function onmessage(me::Migrant, message::Request, service)
-    send(service, me, message.responseto, Response())
+function onmessage(me::Migrant, message::SimpleRequest, service)
+    send(service, me, message.responseto, SimpleResponse())
 end
 
 function onmessage(me::Migrant, message::Results, service)
