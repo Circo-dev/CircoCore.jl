@@ -70,9 +70,10 @@ end
     responder = Responder()
     scheduler = ActorScheduler([responder, requestor])
     scheduler(exit_when_done=true)
-    shutdown!(scheduler)
     @test requestor.responder == address(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2
+    @test length(scheduler.tokenservice.timeouts) == 0
+    shutdown!(scheduler)
 end
 
 end
