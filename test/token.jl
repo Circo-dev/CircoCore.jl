@@ -16,9 +16,10 @@ end
 
 mutable struct Requestor <: AbstractActor
     responsecount::UInt
+    timeoutcount::UInt
     responder::Address
     address::Address
-    Requestor() = new(0)
+    Requestor() = new(0, 0)
 end
 
 struct TResponse <: Response
@@ -44,7 +45,7 @@ function onschedule(me::Requestor, service)
 end
 
 function onmessage(me::Responder, req::TRequest, service)
-    if req.id != 51
+    if req.id % 2 == 1
         send(service, me, getname(service, string(TResponse)), TResponse(req.id, req.token))
     end
     if req.id == MESSAGE_COUNT
@@ -57,8 +58,11 @@ function onmessage(me::Requestor, resp::TResponse, service)
 end
 
 function onmessage(me::Requestor, timeout::Timeout, service)
-    println("Got Timeout: $timeout")
-    die(service, me)
+    me.timeoutcount += 1
+    if me.timeoutcount == MESSAGE_COUNT / 2
+        println("Got $(me.timeoutcount) timeouts, exiting.")
+        die(service, me)
+    end
 end
 
 @testset "Token" begin
@@ -68,7 +72,7 @@ end
     scheduler(exit_when_done=true)
     shutdown!(scheduler)
     @test requestor.responder == address(responder)
-    @test requestor.responsecount == MESSAGE_COUNT - 1
+    @test requestor.responsecount == MESSAGE_COUNT / 2
 end
 
 end

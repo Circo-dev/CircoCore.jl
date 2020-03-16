@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-using DataStructures
+using DataStructures, Dates
+
+const TIMEOUTCHECK_INTERVAL = Second(1)
 
 @inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody, TScheduler}
     message = Message(address(sender), to, messagebody)
@@ -40,9 +42,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     migration::MigrationService
     nameservice::NameService
     tokenservice::TokenService
+    next_timeoutcheck_ts::DateTime
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray)
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService(), NameService(), TokenService())
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService(), NameService(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -112,6 +115,10 @@ end
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
+    if scheduler.next_timeoutcheck_ts > Dates.now()
+        return false
+    end
+    scheduler.next_timeoutcheck_ts = Dates.now() + TIMEOUTCHECK_INTERVAL
     firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
         println("Fired timeouts: $firedtimeouts")
@@ -125,6 +132,26 @@ end
         return true
     end
     return false
+end
+
+@inline function process_post_and_timeout(scheduler::ActorScheduler)
+    incomingmessage = nothing
+    hadtimeout = false
+    sleeplength = 0.001
+    while true
+        yield() # Allow the postoffice "arrivals" task to run
+        incomingmessage = getmessage(scheduler.postoffice)
+        hadtimeout = checktimeouts(scheduler)
+        if !isnothing(incomingmessage)
+            deliver_locally!(scheduler, incomingmessage)
+            return nothing
+        elseif hadtimeout
+            return nothing
+        else
+            sleep(sleeplength)
+            sleeplength = min(sleeplength * 1.002, 0.03)
+        end
+    end
 end
 
 function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
@@ -141,19 +168,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
             exit_when_done && scheduler.actorcount == 0 
             return
         end
-        incomingmessage = nothing
-        hadtimeout = false
-        while isnothing(incomingmessage) && !hadtimeout
-            yield() # Allow the postoffice "arrivals" task to run
-            incomingmessage = getmessage(scheduler.postoffice)
-            hadtimeout = checktimeouts(scheduler)
-            if isnothing(incomingmessage)
-                hadtimeout || sleep(0.01)
-            else
-                deliver_locally!(scheduler, incomingmessage)
-                break;
-            end
-        end
+        process_post_and_timeout(scheduler)
     end
 end
 
