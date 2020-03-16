@@ -12,6 +12,8 @@ struct PostOffice
     outsockets::Dict{PostCode, ZMQ.Socket}
     postcode::PostCode
     socket::ZMQ.Socket
+    intask
+    inchannel
 end
 PostOffice() = PostOffice(Dict{PostCode, ZMQ.Socket}(), allocate_postcode()...)
 
@@ -28,7 +30,9 @@ function allocate_postcode()
             postcode = "tcp://$(ipstr):$port"
             ZMQ.bind(socket, postcode)
             println("Bound to $postcode")
-            return postcode, socket
+            inchannel = Channel()
+            intask = @async arrivals(socket, inchannel)
+            return postcode, socket, intask, inchannel
         catch e
             isa(e, ZMQ.StateError) || rethrow()
         end
@@ -43,11 +47,18 @@ function shutdown!(post::PostOffice)
     end
 end
 
-function getmessage(post::PostOffice)
-    message = recv(post.socket)
-    stream = convert(IOStream, message)
-    seek(stream, 0)
-    return deserialize(stream)
+@inline function getmessage(post::PostOffice)
+    return isready(post.inchannel) ? take!(post.inchannel) : nothing
+end
+
+function arrivals(socket::ZMQ.Socket, channel::Channel)
+    while true
+        message = recv(socket)
+        stream = convert(IOStream, message)
+        seek(stream, 0)
+        msg = deserialize(stream)
+        put!(channel, msg)
+    end
 end
 
 function createsocket!(post::PostOffice, targetpostcode::PostCode)
@@ -58,7 +69,7 @@ function createsocket!(post::PostOffice, targetpostcode::PostCode)
 end
 createsocket!(post::PostOffice, target::Address) = createsocket!(post, postcode(target))
 
-function getsocket(post::PostOffice, target::Address)
+@inline function getsocket(post::PostOffice, target::Address)
     socket = get(post.outsockets, postcode(target), nothing)
     if isnothing(socket)
         return createsocket!(post, target)
@@ -66,7 +77,7 @@ function getsocket(post::PostOffice, target::Address)
     return socket
 end
 
-function send(post::PostOffice, message)
+@inline function send(post::PostOffice, message)
     #println("Sending out $message")
     socket = getsocket(post, target(message))
     io = IOBuffer()

@@ -26,10 +26,14 @@ function registername(service::NameService, name::String, handler::Address)
     return true
 end
 
+function getname(nameservice::NameService, name::String)
+    get(nameservice.register, name, nothing)
+end
+
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{NameQuery})
     send(scheduler.postoffice, Message(
             address(scheduler),
             sender(message),
-            NameResponse(body(message), get(scheduler.nameservice.register, body(message).name, nothing))
+            NameResponse(body(message), getname(scheduler.nameservice, body(message).name))
         ))
 end

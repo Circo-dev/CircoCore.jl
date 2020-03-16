@@ -2,8 +2,6 @@
 module CircoCore
 import Base.show
 
-using DataStructures
-
 ActorId = UInt64
 abstract type AbstractActor end
 
@@ -28,7 +26,6 @@ Address(readable_address::String) = begin
 end
 
 isbaseaddress(addr::Address) = box(addr) == 0
-
 function Base.show(io::IO, a::Address)
     print(io, "$(a.postcode)/$(string(a.box, base=16))")
 end
@@ -59,7 +56,20 @@ function onschedule(actor::AbstractActor, service) end
 function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
+# scheduler
+abstract type AbstractActorScheduler end
+postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
+address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
+postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
+function handle_special!(scheduler::AbstractActorScheduler, message) end
+struct ActorService{TScheduler}
+    scheduler::TScheduler
+end
+
 include("postoffice.jl")
+include("migration.jl")
+include("nameservice.jl")
+include("token.jl")
 include("scheduler.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
@@ -71,8 +81,10 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     PostCode, postcode, PostOffice, Address, address, Message, redirect,
     RecipientMoved,
 
+    Token, TokenId, Tokenized, token, Request, Response, Timeout,
+
     # Actor API
-    send, spawn, die, migrate,
+    send, spawn, die, migrate, getname, registername,
 
     # Actor lifecycle callbacks
     onschedule, onmessage, onmigrate,

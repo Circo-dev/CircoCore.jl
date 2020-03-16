@@ -20,11 +20,11 @@ mutable struct Stayer <: AbstractActor
     Stayer(migrantaddress, resultsholder_address) = new(migrantaddress, resultsholder_address, 0)
 end
 
-struct Request
+struct SimpleRequest
     responseto::Address
 end
 
-struct Response end
+struct SimpleResponse end
 
 struct Results
     stayer::Stayer

@@ -11,15 +11,15 @@ end
 
 function onmessage(me::Stayer, message::MigrateDone, service)
     me.newaddress_selfreport = message.newaddress
-    send(service, me, me.oldmigrantaddress, Request(address(me)))
+    send(service, me, me.oldmigrantaddress, SimpleRequest(address(me)))
 end
 
 function onmessage(me::Stayer, message::RecipientMoved, service)
     me.newaddress_recepientmoved = message.newaddress
-    send(service, me, me.newaddress_recepientmoved, Request(address(me)))
+    send(service, me, me.newaddress_recepientmoved, SimpleRequest(address(me)))
 end
 
-function onmessage(me::Stayer, message::Response, service)
+function onmessage(me::Stayer, message::SimpleResponse, service)
     me.responsereceived += 1
     send(service, me, me.resultsholder_address, Results(me))
     send(service, me, me.newaddress_recepientmoved, Results(me))
