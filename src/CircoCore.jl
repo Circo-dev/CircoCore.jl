@@ -20,9 +20,9 @@ NullAddress = Address("", UInt64(0))
 Address() = NullAddress
 Address(box::ActorId) = Address("", box)
 Address(readable_address::String) = begin
-    parts = split(readable_address, "/") # Handles only tcp://dns.or.ip:port[/actorid]
-    actorid = length(parts) == 4 ? parse(ActorId, parts[4], base=16) : 0
-    return Address(join(parts[1:3], "/"), actorid)
+    parts = split(readable_address, "/") # Handles only dns.or.ip:port[/actorid]
+    actorid = length(parts) == 2 ? parse(ActorId, parts[2], base=16) : 0
+    return Address(parts[1], actorid)
 end
 
 isbaseaddress(addr::Address) = box(addr) == 0
