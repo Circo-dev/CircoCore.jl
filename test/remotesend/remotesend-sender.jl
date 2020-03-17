@@ -9,6 +9,7 @@ function sendtoremote(receiveraddress)
     @time for i in 1:MESSAGE_COUNT
         message = Message(source, Address(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
         send(po, message)
+        sleep(0.001)
     end
     println("Messages sent.")
     shutdown!(po)
