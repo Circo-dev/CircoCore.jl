@@ -12,7 +12,7 @@ end
 
 function onmessage(me::Receiver, message::TestMessage, service)
     push!(me.messages, message)
-    if length(me.messages) == MESSAGE_COUNT
+    if length(me.messages) >= MESSAGE_COUNT
         die(service, me)
     end
 end
