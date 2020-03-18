@@ -142,7 +142,7 @@ end
 function onmessage(me::ClusterActor, message::JoinResponse, service)
     if message.accepted
         me.joined = true
-        println("Joined successfully.")
+        println("Joined to cluster using root node $(message.responderinfo.address)")
         send(service, me, message.responderinfo.address, PeerListRequest(address(me)))
     else
         requestjoin(me, service)

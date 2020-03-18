@@ -2,6 +2,7 @@
 using Serialization, Sockets
 
 const PORT_RANGE = 24721:24999
+const IN_CHANNEL_LENGTH = 10000
 
 struct PostException
     message::String
@@ -26,8 +27,8 @@ function allocate_postcode()
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue
-        println("Bound to $postcode: $bound")
-        inchannel = Channel(10000)
+        println("Bound to $postcode")
+        inchannel = Channel(IN_CHANNEL_LENGTH)
         intask = Threads.@spawn arrivals(socket, inchannel)
         return postcode, socket, intask, inchannel
     end
@@ -51,7 +52,7 @@ function arrivals(socket::UDPSocket, channel::Channel)
             put!(channel, msg)
         end
     catch e
-        if ! (e isa EOFError)
+        if !(e isa EOFError)
             @info "Exception in arrivals", e
         end
     end
