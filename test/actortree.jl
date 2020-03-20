@@ -59,7 +59,7 @@ end
     @testset "Actor-Tree" begin
         creator = TreeCreator()
         scheduler = ActorScheduler([creator])
-        for i in 1:21
+        for i in 1:17
             @time scheduler(Message{Start}(address(creator)))
             @test creator.nodecount == 2^(i+1)-1
         end

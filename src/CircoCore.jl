@@ -71,6 +71,7 @@ include("migration.jl")
 include("nameservice.jl")
 include("token.jl")
 include("scheduler.jl")
+include("event.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
@@ -88,6 +89,9 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
 
     # Actor lifecycle callbacks
     onschedule, onmessage, onmigrate,
+
+    # Events
+    Event, EventDispatcher, Subscribe,
 
     # Cluster management
     ClusterActor, NodeInfo,

@@ -2,6 +2,9 @@
 using Logging
 import Base.isless
 
+struct Joined <: Event
+end
+
 const NAME = "cluster"
 const MAX_JOINREQUEST_COUNT = 10
 const MAX_DOWNSTREAM_FRIENDS = 25
@@ -45,6 +48,7 @@ end
 struct JoinResponse
     requestorinfo::NodeInfo
     responderinfo::NodeInfo
+    peers::Array{NodeInfo}
     accepted::Bool
 end
 
@@ -130,36 +134,36 @@ end
 
 function onmessage(me::ClusterActor, message::JoinRequest, service)
     newpeer = message.info
-    send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, true))
     if (length(me.upstream_friends) < TARGET_FRIEND_COUNT)
-       send(service, me, newpeer.address, FriendRequest(address(me)))
+        send(service, me, newpeer.address, FriendRequest(address(me)))
     end
     if registerpeer(me, newpeer, service)
         @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
     end
+    send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, collect(values(me.peers)), true))
 end
 
 function onmessage(me::ClusterActor, message::JoinResponse, service)
     if message.accepted
         me.joined = true
+        initpeers(me, message.peers, service)
         println("Joined to cluster using root node $(message.responderinfo.address)")
-        send(service, me, message.responderinfo.address, PeerListRequest(address(me)))
     else
         requestjoin(me, service)
     end
 end
 
-function onmessage(me::ClusterActor, message::PeerListRequest, service)
-    send(service, me, message.respondto, PeerListResponse(collect(values(me.peers))))
-end
-
-function onmessage(me::ClusterActor, message::PeerListResponse, service)
-    for peer in message.peers
+function initpeers(me::ClusterActor, peers::Array{NodeInfo}, service)
+    for peer in peers
         setpeer(me, peer)
     end
-    for i in 1:min(TARGET_FRIEND_COUNT, length(me.peers))
+    for i in 1:min(TARGET_FRIEND_COUNT, length(peers))
         getanewfriend(me, service)
     end
+end
+
+function onmessage(me::ClusterActor, message::PeerListRequest, service)
+    send(service, me, message.respondto, PeerListResponse(collect(values(me.peers))))
 end
 
 function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
@@ -177,7 +181,7 @@ function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
                 getanewfriend(me, service)
             end
         end
-        #println("Peer joined: $(message.peer.address.box) at $(me.address.box)")
+        # println("Peer joined: $(message.peer.address.box) at $(me.address.box)")
     end
 end
 
@@ -198,7 +202,7 @@ function dropafriend(me::ClusterActor, service)
     if weakestfriend.score > 0
         return
     end
-    #println("Dropping friend with score $(weakestfriend.score)")
+    # println("Dropping friend with score $(weakestfriend.score)")
     send(service, me, weakestfriend.address, UnfriendRequest(address(me)))
     pop!(me.upstream_friends, weakestfriend.address)
 end
