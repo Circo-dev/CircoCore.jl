@@ -2,9 +2,6 @@
 using Logging
 import Base.isless
 
-struct Joined <: Event
-end
-
 const NAME = "cluster"
 const MAX_JOINREQUEST_COUNT = 10
 const MAX_DOWNSTREAM_FRIENDS = 25
@@ -16,6 +13,10 @@ mutable struct NodeInfo
     address::Address
     NodeInfo(name) = new(name)
     NodeInfo() = new()
+end
+
+struct Joined <: Event
+    peers::Array{NodeInfo}
 end
 
 mutable struct Friend
@@ -35,6 +36,7 @@ mutable struct ClusterActor <: AbstractActor
     downstream_friends::Set{Address}
     peerupdate_count::UInt
     servicename::String
+    eventdispatcher::Address
     address::Address
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
@@ -101,6 +103,7 @@ end
 
 function onschedule(me::ClusterActor, service)
     me.myinfo.address = address(me)
+    me.eventdispatcher = spawn(service, EventDispatcher())
     requestjoin(me, service)
 end
 
@@ -121,6 +124,13 @@ function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
         return true
     end
     return false
+end
+
+function onmessage(me::ClusterActor, messsage::Subscribe{Joined}, service)
+    if me.joined
+        send(service, me, messsage.subscriber, Joined(collect(values(me.peers)))) #TODO handle late subscription to one-off events automatically
+    end
+    send(service, me, me.eventdispatcher, messsage)
 end
 
 function onmessage(me::ClusterActor, message::NameResponse, service)
@@ -147,6 +157,7 @@ function onmessage(me::ClusterActor, message::JoinResponse, service)
     if message.accepted
         me.joined = true
         initpeers(me, message.peers, service)
+        send(service, me, me.eventdispatcher, Joined(collect(values(me.peers))))
         println("Joined to cluster using root node $(message.responderinfo.address)")
     else
         requestjoin(me, service)

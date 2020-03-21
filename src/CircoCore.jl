@@ -94,7 +94,7 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     Event, EventDispatcher, Subscribe,
 
     # Cluster management
-    ClusterActor, NodeInfo,
+    ClusterActor, NodeInfo, Joined,
 
     cli
 end
