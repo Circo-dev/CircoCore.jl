@@ -9,10 +9,10 @@ struct MigrationResponse
     to::Address
     success::Bool
 end
-struct RecipientMoved
+struct RecipientMoved{TBody}
     oldaddress::Address
     newaddress::Address
-    originalmessage::AbstractMessage
+    originalmessage::TBody
 end
 
 struct MovingActor
@@ -51,7 +51,6 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
     if response.success
         scheduler.migration.movedactors[box(response.from)] = response.to
         for message in movingactor.messages
-            println("Delivering to migrant: $message")
             deliver!(scheduler, message)
         end
     else
@@ -76,7 +75,7 @@ function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::Ab
         send(scheduler.postoffice, Message(
             address(scheduler),
             sender(message),
-            RecipientMoved(target(message), newaddress, message)
+            RecipientMoved(target(message), newaddress, body(message))
         ))
     end
 end

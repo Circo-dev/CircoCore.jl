@@ -25,3 +25,6 @@ Manifest.toml
 
 # Editor settings
 .vscode/
+
+# CirvcoCore temp files
+roots.txt

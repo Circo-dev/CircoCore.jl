@@ -1,86 +1,68 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using Serialization, Sockets
-import ZMQ
 
 const PORT_RANGE = 24721:24999
+const IN_CHANNEL_LENGTH = 10000
 
 struct PostException
     message::String
 end
 
 struct PostOffice
-    outsockets::Dict{PostCode, ZMQ.Socket}
+    outsocket::UDPSocket
     postcode::PostCode
-    socket::ZMQ.Socket
+    socket::UDPSocket
     intask
     inchannel
 end
-PostOffice() = PostOffice(Dict{PostCode, ZMQ.Socket}(), allocate_postcode()...)
+PostOffice() = PostOffice(UDPSocket(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
 address(post::PostOffice) = Address(postcode(post), 0)
 
 function allocate_postcode()
-    socket = ZMQ.Socket(ZMQ.PULL)
+    socket = UDPSocket()
+    ipaddr = Sockets.getipaddr()
     for port in PORT_RANGE
-        try
-            buf = IOBuffer()
-            print(buf, Sockets.getipaddr())
-            ipstr = String(take!(buf))
-            postcode = "tcp://$(ipstr):$port"
-            ZMQ.bind(socket, postcode)
-            println("Bound to $postcode")
-            inchannel = Channel()
-            intask = @async arrivals(socket, inchannel)
-            return postcode, socket, intask, inchannel
-        catch e
-            isa(e, ZMQ.StateError) || rethrow()
-        end
+        postcode = "$(ipaddr):$port"
+        bound = bind(socket, ipaddr, port)
+        bound || continue
+        println("Bound to $postcode")
+        inchannel = Channel(IN_CHANNEL_LENGTH)
+        intask = Threads.@spawn arrivals(socket, inchannel)
+        return postcode, socket, intask, inchannel
     end
     throw(PostException("No available port found for a Post Office"))
 end
 
 function shutdown!(post::PostOffice)
     close(post.socket)
-    for socket in values(post.outsockets)
-        ZMQ.close(socket)
-    end
 end
 
 @inline function getmessage(post::PostOffice)
     return isready(post.inchannel) ? take!(post.inchannel) : nothing
 end
 
-function arrivals(socket::ZMQ.Socket, channel::Channel)
-    while true
-        message = recv(socket)
-        stream = convert(IOStream, message)
-        seek(stream, 0)
-        msg = deserialize(stream)
-        put!(channel, msg)
+function arrivals(socket::UDPSocket, channel::Channel)
+    try
+        while true
+            rawmessage = recv(socket)
+            stream = IOBuffer(rawmessage)
+            msg = deserialize(stream)
+            put!(channel, msg)
+        end
+    catch e
+        if !(e isa EOFError)
+            @info "Exception in arrivals", e
+        end
     end
-end
-
-function createsocket!(post::PostOffice, targetpostcode::PostCode)
-    socket = ZMQ.Socket(ZMQ.PUSH)
-    ZMQ.connect(socket, targetpostcode)
-    post.outsockets[targetpostcode] = socket
-    return socket
-end
-createsocket!(post::PostOffice, target::Address) = createsocket!(post, postcode(target))
-
-@inline function getsocket(post::PostOffice, target::Address)
-    socket = get(post.outsockets, postcode(target), nothing)
-    if isnothing(socket)
-        return createsocket!(post, target)
-    end
-    return socket
 end
 
 @inline function send(post::PostOffice, message)
-    #println("Sending out $message")
-    socket = getsocket(post, target(message))
+    parts = split(postcode(target(message)), ":")
+    ip = parse(IPAddr, parts[1])
+    port = parse(UInt16, parts[2])
     io = IOBuffer()
     serialize(io, message)
-    ZMQ.send(socket, ZMQ.Message(io))
+    Sockets.send(post.outsocket, ip, port, take!(io))
 end

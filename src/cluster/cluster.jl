@@ -15,6 +15,10 @@ mutable struct NodeInfo
     NodeInfo() = new()
 end
 
+struct Joined <: Event
+    peers::Array{NodeInfo}
+end
+
 mutable struct Friend
     address::Address
     score::UInt
@@ -32,6 +36,7 @@ mutable struct ClusterActor <: AbstractActor
     downstream_friends::Set{Address}
     peerupdate_count::UInt
     servicename::String
+    eventdispatcher::Address
     address::Address
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
@@ -45,6 +50,7 @@ end
 struct JoinResponse
     requestorinfo::NodeInfo
     responderinfo::NodeInfo
+    peers::Array{NodeInfo}
     accepted::Bool
 end
 
@@ -97,6 +103,7 @@ end
 
 function onschedule(me::ClusterActor, service)
     me.myinfo.address = address(me)
+    me.eventdispatcher = spawn(service, EventDispatcher())
     requestjoin(me, service)
 end
 
@@ -119,6 +126,13 @@ function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     return false
 end
 
+function onmessage(me::ClusterActor, messsage::Subscribe{Joined}, service)
+    if me.joined
+        send(service, me, messsage.subscriber, Joined(collect(values(me.peers)))) #TODO handle late subscription to one-off events automatically
+    end
+    send(service, me, me.eventdispatcher, messsage)
+end
+
 function onmessage(me::ClusterActor, message::NameResponse, service)
     root = message.handler
     if isnothing(root)
@@ -130,36 +144,37 @@ end
 
 function onmessage(me::ClusterActor, message::JoinRequest, service)
     newpeer = message.info
-    send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, true))
     if (length(me.upstream_friends) < TARGET_FRIEND_COUNT)
-       send(service, me, newpeer.address, FriendRequest(address(me)))
+        send(service, me, newpeer.address, FriendRequest(address(me)))
     end
     if registerpeer(me, newpeer, service)
         @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
     end
+    send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, collect(values(me.peers)), true))
 end
 
 function onmessage(me::ClusterActor, message::JoinResponse, service)
     if message.accepted
         me.joined = true
-        println("Joined successfully.")
-        send(service, me, message.responderinfo.address, PeerListRequest(address(me)))
+        initpeers(me, message.peers, service)
+        send(service, me, me.eventdispatcher, Joined(collect(values(me.peers))))
+        println("Joined to cluster using root node $(message.responderinfo.address)")
     else
         requestjoin(me, service)
     end
 end
 
-function onmessage(me::ClusterActor, message::PeerListRequest, service)
-    send(service, me, message.respondto, PeerListResponse(collect(values(me.peers))))
-end
-
-function onmessage(me::ClusterActor, message::PeerListResponse, service)
-    for peer in message.peers
+function initpeers(me::ClusterActor, peers::Array{NodeInfo}, service)
+    for peer in peers
         setpeer(me, peer)
     end
-    for i in 1:min(TARGET_FRIEND_COUNT, length(me.peers))
+    for i in 1:min(TARGET_FRIEND_COUNT, length(peers))
         getanewfriend(me, service)
     end
+end
+
+function onmessage(me::ClusterActor, message::PeerListRequest, service)
+    send(service, me, message.respondto, PeerListResponse(collect(values(me.peers))))
 end
 
 function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
@@ -177,7 +192,7 @@ function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
                 getanewfriend(me, service)
             end
         end
-        #println("Peer joined: $(message.peer.address.box) at $(me.address.box)")
+        # println("Peer joined: $(message.peer.address.box) at $(me.address.box)")
     end
 end
 
@@ -198,7 +213,7 @@ function dropafriend(me::ClusterActor, service)
     if weakestfriend.score > 0
         return
     end
-    #println("Dropping friend with score $(weakestfriend.score)")
+    # println("Dropping friend with score $(weakestfriend.score)")
     send(service, me, weakestfriend.address, UnfriendRequest(address(me)))
     pop!(me.upstream_friends, weakestfriend.address)
 end
