@@ -10,9 +10,9 @@ struct NameResponse
     handler::Union{Address, Nothing}
 end
 
-struct NameService
+struct LocalRegistry
     register::Dict{String, Address}
-    NameService() = new(Dict())
+    LocalRegistry() = new(Dict())
 end
 
 struct RegisteredException <: Exception
@@ -20,20 +20,20 @@ struct RegisteredException <: Exception
 end
 Base.show(io::IO, e::RegisteredException) = print(io, "name '", e.name, "' already registered")
 
-function registername(service::NameService, name::String, handler::Address)
+function registername(service::LocalRegistry, name::String, handler::Address)
     haskey(service.register, name) && throw(RegisteredException(name))
     service.register[name] = handler
     return true
 end
 
-function getname(nameservice::NameService, name::String)
-    get(nameservice.register, name, nothing)
+function getname(registry::LocalRegistry, name::String)
+    get(registry.register, name, nothing)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{NameQuery})
     send(scheduler.postoffice, Message(
             address(scheduler),
             sender(message),
-            NameResponse(body(message), getname(scheduler.nameservice, body(message).name))
+            NameResponse(body(message), getname(scheduler.registry, body(message).name))
         ))
 end

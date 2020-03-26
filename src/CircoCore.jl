@@ -62,14 +62,12 @@ postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
 address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
 postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
 function handle_special!(scheduler::AbstractActorScheduler, message) end
-struct ActorService{TScheduler}
-    scheduler::TScheduler
-end
 
 include("postoffice.jl")
 include("migration.jl")
-include("nameservice.jl")
+include("registry.jl")
 include("token.jl")
+include("service.jl")
 include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
