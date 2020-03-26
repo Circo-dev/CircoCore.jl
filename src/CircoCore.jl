@@ -57,6 +57,10 @@ function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
 # scheduler
+abstract type SchedulerPlugin end
+localroutes(plugin::SchedulerPlugin) = nothing
+symbol(plugin::SchedulerPlugin) = :nothing
+
 abstract type AbstractActorScheduler end
 postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
 address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
@@ -68,6 +72,7 @@ include("migration.jl")
 include("registry.jl")
 include("token.jl")
 include("service.jl")
+include("plugins.jl")
 include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
