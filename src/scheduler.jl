@@ -3,49 +3,18 @@ using DataStructures, Dates
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
-@inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody, TScheduler}
-    message = Message(address(sender), to, messagebody)
-    deliver!(service.scheduler, message)
-end
-
-@inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Address, messagebody::TBody) where {TBody<:Request, TScheduler}
-    settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody)))
-    message = Message(address(sender), to, messagebody)
-    deliver!(service.scheduler, message)
-end
-
-@inline function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Address where {TScheduler}
-    schedule!(service.scheduler, actor)
-end
-
-@inline function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TScheduler}
-    unschedule!(service.scheduler, actor)
-end
-
-@inline function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
-    migrate!(service.scheduler, actor, topostcode)
-end
-
-@inline function registername(service::ActorService, name::String, handler::AbstractActor)
-    registername(service.scheduler.nameservice, name, address(handler))
-end
-
-@inline function getname(service::ActorService, name::String)
-    return getname(service.scheduler.nameservice, name)
-end
-
 mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Queue{AbstractMessage}
     migration::MigrationService
-    nameservice::NameService
+    registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray)
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService(), NameService(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL)
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService(), LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
