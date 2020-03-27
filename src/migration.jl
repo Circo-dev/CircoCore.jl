@@ -21,18 +21,21 @@ struct MovingActor
     MovingActor(actor::AbstractActor) = new(actor, Queue{AbstractMessage}())
 end
 
-struct MigrationService
+struct MigrationService <: SchedulerPlugin
     movingactors::Dict{ActorId,MovingActor}
     movedactors::Dict{ActorId,Address}
     MigrationService() = new(Dict([]),Dict([]))
 end
+
+localroutes(plugin::MigrationService) = migration_routes!
+symbol(plugin::MigrationService) = :migration
 
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
     send(postoffice(scheduler), Message(address(scheduler),
         Address(topostcode, 0),
         MigrationRequest(actor)))
     unschedule!(scheduler, actor)
-    scheduler.migration.movingactors[id(actor)] = MovingActor(actor)
+    scheduler.plugins[:migration].movingactors[id(actor)] = MovingActor(actor)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{MigrationRequest})
@@ -46,10 +49,11 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Message{MigrationResponse})
+    migration = scheduler.plugins[:migration]
     response = body(message)
-    movingactor = pop!(scheduler.migration.movingactors, box(response.to))
+    movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
-        scheduler.migration.movedactors[box(response.from)] = response.to
+        migration.movedactors[box(response.from)] = response.to
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -58,24 +62,29 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Message{Mig
     end
 end
 
-function handle_invalidrecipient!(scheduler::AbstractActorScheduler, message::AbstractMessage)
+function migration_routes!(scheduler::AbstractActorScheduler, message::AbstractMessage)::Bool
     if body(message) isa RecipientMoved
         println("Got a RecipientMoved with invalid recipient, dropping.")
-        return
-    end
-    newaddress = get(scheduler.migration.movedactors, box(target(message)), nothing)
-    if isnothing(newaddress)
-        movingactor = get(scheduler.migration.movingactors, box(target(message)), nothing)
-        if isnothing(movingactor)
-            println("TODO: handle message sent to invalid address: $message")
-        else
-            enqueue!(movingactor.messages, message)
-        end
+        return false
     else
-        send(scheduler.postoffice, Message(
-            address(scheduler),
-            sender(message),
-            RecipientMoved(target(message), newaddress, body(message))
-        ))
+        migration = scheduler.plugins[:migration]
+        newaddress = get(migration.movedactors, box(target(message)), nothing)
+        if isnothing(newaddress)
+            movingactor = get(migration.movingactors, box(target(message)), nothing)
+            if isnothing(movingactor)
+                println("TODO: handle message sent to invalid address: $message")
+                return false
+            else
+                enqueue!(movingactor.messages, message)
+                return true
+            end
+        else
+            send(scheduler.postoffice, Message(
+                address(scheduler),
+                sender(message),
+                RecipientMoved(target(message), newaddress, body(message))
+            ))
+            return true            
+        end
     end
 end

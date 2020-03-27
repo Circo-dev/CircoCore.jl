@@ -8,17 +8,22 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Queue{AbstractMessage}
-    migration::MigrationService
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
+    plugins::Plugins
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray)
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(), MigrationService(), LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL)
+    function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(),
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
     end
+end
+
+function default_plugins()
+    return [MigrationService()]
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
@@ -78,7 +83,7 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     isnothing(targetactor) ?
-        handle_invalidrecipient!(scheduler, message) :
+        route_locally(scheduler.plugins, scheduler, message) :
         onmessage(targetactor, body(message), scheduler.service)
     return nothing
 end
