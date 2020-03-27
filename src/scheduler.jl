@@ -16,6 +16,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
         scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
+        setup!(scheduler.plugins)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -23,7 +24,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
 end
 
 function default_plugins()
-    return [MigrationService()]
+    return [MigrationService(), WebsocketService()]
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
@@ -147,6 +148,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
 end
 
 function shutdown!(scheduler::ActorScheduler)
+    shutdown!(scheduler.plugins)
     shutdown!(scheduler.postoffice)
     println("Scheduler at $(postcode(scheduler)) exited.")
 end

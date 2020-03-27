@@ -2,6 +2,14 @@
 
 import Base.getindex, Base.get
 
+abstract type SchedulerPlugin end
+
+# Plugin interface
+localroutes(plugin::SchedulerPlugin) = nothing
+symbol(plugin::SchedulerPlugin) = :nothing
+setup!(plugin::SchedulerPlugin) = nothing
+shutdown!(plugin::SchedulerPlugin) = nothing
+
 struct Plugins
     plugins::Dict{Symbol, SchedulerPlugin}
     localroutes::Array{Function}
@@ -26,3 +34,6 @@ localroutes(plugins::AbstractArray) = [localroutes(plugin) for plugin in plugins
     return false
     
 end
+
+setup!(plugins::Plugins) = setup!.(values(plugins.plugins))
+shutdown!(plugins::Plugins) = shutdown!.(values(plugins.plugins))
