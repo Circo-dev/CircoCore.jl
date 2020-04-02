@@ -10,7 +10,7 @@ const MIN_FRIEND_COUNT = 3
 
 mutable struct NodeInfo
     name::String
-    address::Address
+    addr::Addr
     NodeInfo(name) = new(name)
     NodeInfo() = new()
 end
@@ -20,7 +20,7 @@ struct Joined <: Event
 end
 
 mutable struct Friend
-    address::Address
+    addr::Addr
     score::UInt
     Friend(info) = new(info)
 end
@@ -31,13 +31,13 @@ mutable struct ClusterActor <: AbstractActor
     roots::Array{PostCode}
     joined::Bool
     joinrequestcount::UInt16
-    peers::Dict{Address,NodeInfo}
-    upstream_friends::Dict{Address,Friend}
-    downstream_friends::Set{Address}
+    peers::Dict{Addr,NodeInfo}
+    upstream_friends::Dict{Addr,Friend}
+    downstream_friends::Set{Addr}
     peerupdate_count::UInt
     servicename::String
-    eventdispatcher::Address
-    address::Address
+    eventdispatcher::Addr
+    addr::Addr
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
     ClusterActor(name::String) = ClusterActor(NodeInfo(name))
@@ -56,11 +56,11 @@ end
 
 struct PeerJoinedNotification
     peer::NodeInfo
-    creditto::Address
+    creditto::Addr
 end
 
 struct PeerListRequest
-    respondto::Address
+    respondto::Addr
 end
 
 struct PeerListResponse
@@ -68,16 +68,16 @@ struct PeerListResponse
 end
 
 struct FriendRequest
-    requestor::Address
+    requestor::Addr
 end
 
 struct FriendResponse
-    responder::Address
+    responder::Addr
     accepted::Bool
 end
 
 struct UnfriendRequest
-    requestor::Address
+    requestor::Addr
 end
 
 function requestjoin(me, service)
@@ -93,33 +93,33 @@ function requestjoin(me, service)
         error("Cannot join: $(me.joinrequestcount) unsuccesful attempt.")
     end
     me.joinrequestcount += 1
-    rootaddr = Address(root)
+    rootaddr = Addr(root)
     if isbaseaddress(rootaddr)
-        send(service, me, Address(root), NameQuery("cluster"))
+        send(service, me, Addr(root), NameQuery("cluster"))
     else
         send(service, me, rootaddr, JoinRequest(me.myinfo))
     end
 end
 
 function onschedule(me::ClusterActor, service)
-    me.myinfo.address = address(me)
+    me.myinfo.addr = addr(me)
     me.eventdispatcher = spawn(service, EventDispatcher())
     requestjoin(me, service)
 end
 
 function setpeer(me::ClusterActor, peer::NodeInfo)
     me.peerupdate_count += 1
-    if haskey(me.peers, peer.address)
+    if haskey(me.peers, peer.addr)
         return false
     end
-    me.peers[peer.address] = peer
+    me.peers[peer.addr] = peer
     return true
 end
 
 function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     if setpeer(me, newpeer)
         for friend in me.downstream_friends
-            send(service, me, friend, PeerJoinedNotification(newpeer, address(me)))
+            send(service, me, friend, PeerJoinedNotification(newpeer, addr(me)))
         end
         return true
     end
@@ -145,12 +145,12 @@ end
 function onmessage(me::ClusterActor, message::JoinRequest, service)
     newpeer = message.info
     if (length(me.upstream_friends) < TARGET_FRIEND_COUNT)
-        send(service, me, newpeer.address, FriendRequest(address(me)))
+        send(service, me, newpeer.addr, FriendRequest(addr(me)))
     end
     if registerpeer(me, newpeer, service)
-        @info "Got new peer $(newpeer.address) . $(length(me.peers)) nodes in cluster."
+        @info "Got new peer $(newpeer.addr) . $(length(me.peers)) nodes in cluster."
     end
-    send(service, me, newpeer.address, JoinResponse(newpeer, me.myinfo, collect(values(me.peers)), true))
+    send(service, me, newpeer.addr, JoinResponse(newpeer, me.myinfo, collect(values(me.peers)), true))
 end
 
 function onmessage(me::ClusterActor, message::JoinResponse, service)
@@ -158,7 +158,7 @@ function onmessage(me::ClusterActor, message::JoinResponse, service)
         me.joined = true
         initpeers(me, message.peers, service)
         send(service, me, me.eventdispatcher, Joined(collect(values(me.peers))))
-        println("Joined to cluster using root node $(message.responderinfo.address)")
+        println("Joined to cluster using root node $(message.responderinfo.addr)")
     else
         requestjoin(me, service)
     end
@@ -192,7 +192,7 @@ function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
                 getanewfriend(me, service)
             end
         end
-        # println("Peer joined: $(message.peer.address.box) at $(me.address.box)")
+        # println("Peer joined: $(message.peer.addr.box) at $(me.addr.box)")
     end
 end
 
@@ -200,8 +200,8 @@ function getanewfriend(me::ClusterActor, service)
     length(me.peers) > 0 || return
     while true
         peer = rand(me.peers)[2]
-        if peer.address != address(me)
-            send(service, me, peer.address, FriendRequest(address(me)))
+        if peer.addr != addr(me)
+            send(service, me, peer.addr, FriendRequest(addr(me)))
             return nothing
         end
     end
@@ -214,8 +214,8 @@ function dropafriend(me::ClusterActor, service)
         return
     end
     # println("Dropping friend with score $(weakestfriend.score)")
-    send(service, me, weakestfriend.address, UnfriendRequest(address(me)))
-    pop!(me.upstream_friends, weakestfriend.address)
+    send(service, me, weakestfriend.addr, UnfriendRequest(addr(me)))
+    pop!(me.upstream_friends, weakestfriend.addr)
 end
 
 function replaceafriend(me::ClusterActor, service)
@@ -231,7 +231,7 @@ function onmessage(me::ClusterActor, message::FriendRequest, service)
     if accepted
         push!(me.downstream_friends, message.requestor)
     end
-    send(service, me, message.requestor, FriendResponse(address(me), accepted))
+    send(service, me, message.requestor, FriendResponse(addr(me), accepted))
 end
 
 function onmessage(me::ClusterActor, message::FriendResponse, service)

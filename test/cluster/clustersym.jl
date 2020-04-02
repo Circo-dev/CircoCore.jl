@@ -17,7 +17,7 @@ const ROOT_COUNT = 3
         push!(cluster, root)
         schedule!(scheduler, root)
         scheduler(;process_external=false)
-        rootaddresses = [string(address(node)) for node in cluster]
+        rootaddresses = [string(addr(node)) for node in cluster]
     end
     
     for i in 1:PEER_COUNT - ROOT_COUNT
@@ -42,7 +42,7 @@ const ROOT_COUNT = 3
         node1 = cluster[idx1]
         idx2 = rand(1:PEER_COUNT)
         node2 = cluster[idx2]
-        @test node1.peers[address(node2)].address == address(node2)
-        @test node2.peers[address(node1)].address == address(node1)
+        @test node1.peers[addr(node2)].addr == addr(node2)
+        @test node2.peers[addr(node1)].addr == addr(node1)
     end
 end

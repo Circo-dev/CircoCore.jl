@@ -6,7 +6,7 @@ include("remotesend-base.jl")
 
 mutable struct Receiver <: AbstractActor
     messages::Array{TestMessage}
-    address::Address
+    addr::Addr
     Receiver() = new([])
 end
 
@@ -25,7 +25,7 @@ end
 @testset "Remote Send" begin
     receiver = Receiver()
     scheduler = ActorScheduler([receiver])
-    sender = startsender(address(receiver))
+    sender = startsender(addr(receiver))
     scheduler(;exit_when_done=true)
     wait(sender) # Do not print test results before sender exit logs
     @test length(receiver.messages) == MESSAGE_COUNT

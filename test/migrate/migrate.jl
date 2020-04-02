@@ -8,7 +8,7 @@ include("migrate-base.jl")
 
 function onmigrate(me::Migrant, service)
     println("Successfully migrated to $me")
-    send(service, me, me.stayeraddress, MigrateDone(address(me)))
+    send(service, me, me.stayeraddress, MigrateDone(addr(me)))
 end
 
 function onmessage(me::Migrant, message::SimpleRequest, service)
@@ -34,7 +34,7 @@ end
 @testset "Migration" begin
     resultsholder = ResultsHolder()
     scheduler = ActorScheduler([resultsholder])
-    startsource(postcode(scheduler),address(resultsholder))
+    startsource(postcode(scheduler),addr(resultsholder))
     scheduler(;exit_when_done=true)
     shutdown!(scheduler)
     stayer = resultsholder.results.stayer

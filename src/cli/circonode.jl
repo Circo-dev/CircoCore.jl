@@ -147,7 +147,7 @@ function startnodeandconnect(roots, zygotes=[]; rootsfilename=nothing, addmetoro
     initialactors = union([root], zygotes)
     scheduler = ActorScheduler(initialactors)
     if addmetoroots
-        appendpostcode(rootsfilename, address(root))
+        appendpostcode(rootsfilename, addr(root))
     end
     println("Node started. Postcode of this node$(addmetoroots ? " (added to $rootsfilename)" : ""):")
     println(postcode(root))

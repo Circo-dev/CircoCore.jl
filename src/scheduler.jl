@@ -7,14 +7,14 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
-    messagequeue::Queue{AbstractMessage}
+    messagequeue::Queue{AbstractMsg}
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
     plugins::Plugins
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMessage}(),
+        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
         setup!(scheduler.plugins)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
@@ -27,7 +27,7 @@ function default_plugins()
     return [MigrationService(), WebsocketService()]
 end
 
-@inline function deliver!(scheduler::ActorScheduler, message::AbstractMessage)
+@inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
     if postcode(scheduler) == postcode(target(message))
         deliver_locally!(scheduler, message)
     else
@@ -36,18 +36,18 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMessage)
+@inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
     deliver_nonresponse_locally!(scheduler, message)
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::Message{T}) where T<:Response
+@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{T}) where T<:Response
     cleartimeout(scheduler.tokenservice, token(message.body), target(message))
     deliver_nonresponse_locally!(scheduler, message)
     return nothing
 end
 
-@inline function deliver_nonresponse_locally!(scheduler::ActorScheduler, message::AbstractMessage)
+@inline function deliver_nonresponse_locally!(scheduler::ActorScheduler, message::AbstractMsg)
     if box(target(message)) == 0
         handle_special!(scheduler, message)
     else
@@ -57,15 +57,15 @@ end
 end
 
 @inline function fill_address!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid = isdefined(actor, :address) ? id(actor) : rand(ActorId)
-    actor.address = Address(postcode(scheduler.postoffice), actorid)
+    actorid = isdefined(actor, :addr) ? id(actor) : rand(ActorId)
+    actor.addr = Addr(postcode(scheduler.postoffice), actorid)
     return nothing
 end
 
 @inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
 
-@inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Address
-    isdefined(actor, :address) && isscheduled(scheduler, actor) && return address(actor)
+@inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
+    isdefined(actor, :addr) && isscheduled(scheduler, actor) && return address(actor)
     fill_address!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
     scheduler.actorcount += 1
@@ -98,7 +98,7 @@ end
     if length(firedtimeouts) > 0
         println("Fired timeouts: $firedtimeouts")
         for timeout in firedtimeouts
-            deliver_locally!(scheduler, Message(
+            deliver_locally!(scheduler, Msg(
                 address(scheduler),
                 timeout.watcher,
                 timeout
@@ -129,7 +129,7 @@ end
     end
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMessage;process_external=false, exit_when_done=true)
+function (scheduler::ActorScheduler)(message::AbstractMsg;process_external=false, exit_when_done=true)
     deliver!(scheduler, message)
     scheduler(process_external=process_external, exit_when_done=exit_when_done)
 end

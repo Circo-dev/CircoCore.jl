@@ -6,18 +6,18 @@ abstract type RecurringEvent <: Event end
 RecurrentEvent = RecurringEvent
 
 struct Subscribe{TEvent <: Event} # TODO: <: Request + handle forwarding
-    subscriber::Address
+    subscriber::Addr
 end
 
 mutable struct EventDispatcher <: AbstractActor
-    listeners::Dict{Type{<:Event},Array{Address}}
-    address::Address
+    listeners::Dict{Type{<:Event},Array{Addr}}
+    addr::Addr
     EventDispatcher() = new(Dict([]))
 end
 
 function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent}
     if !haskey(me.listeners, TEvent)
-        me.listeners[TEvent] = Array{Address}(undef, 0)
+        me.listeners[TEvent] = Array{Addr}(undef, 0)
     end
     push!(me.listeners[TEvent], message.subscriber)
 end

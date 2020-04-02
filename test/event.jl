@@ -12,14 +12,14 @@ struct TestEvent <: Event
 end
 
 mutable struct EventSource <: AbstractActor
-    eventdispatcher::Address
-    address::Address
+    eventdispatcher::Addr
+    addr::Addr
     EventSource() = new()
 end
 
 mutable struct EventTarget <: AbstractActor
     received_count::UInt64
-    address::Address
+    addr::Addr
     EventTarget() = new(0)
 end
 
@@ -36,7 +36,7 @@ function onschedule(me::EventSource, service)
 end
 
 function onschedule(me::EventTarget, service)
-    send(service, me, getname(service, "eventsource"), Subscribe{TestEvent}(address(me)))
+    send(service, me, getname(service, "eventsource"), Subscribe{TestEvent}(addr(me)))
 end
 
 function onmessage(me::EventSource, message::Start, service)
@@ -54,7 +54,7 @@ end
         source = EventSource()
         targets = [EventTarget() for i=1:TARGET_COUNT]
         scheduler = ActorScheduler([source; targets])
-        @time scheduler(Message{Start}(address(source)))
+        @time scheduler(Msg{Start}(addr(source)))
         for target in targets
             @test target.received_count == EVENT_COUNT
         end

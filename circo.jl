@@ -6,7 +6,7 @@ import CircoCore.onmessage
 import CircoCore.onschedule
 
 mutable struct SampleActor <: AbstractActor
-    address::Address
+    addr::Addr
     SampleActor() = new()
 end
 
@@ -17,7 +17,7 @@ end
 function onschedule(me::SampleActor, service)
     cluster = getname(service, "cluster")
     println("SampleActor scheduled on cluster: $cluster Sending a message to myself.")
-    send(service, me, address(me), SampleMessage("This is a message from $(address(me))"))
+    send(service, me, addr(me), SampleMessage("This is a message from $(addr(me))"))
 end
 
 function onmessage(me::SampleActor, message::SampleMessage, service)

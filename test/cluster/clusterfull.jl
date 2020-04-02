@@ -15,30 +15,30 @@ mutable struct Coordinator <: AbstractActor
     clusternodes::Array{NodeInfo}
     batchidx::UInt
     runidx::UInt
-    listitems::Array{Address} # Local copy for fast migrate commanding
+    listitems::Array{Addr} # Local copy for fast migrate commanding
     reducestarted::DateTime
-    list::Address
-    address::Address
+    list::Addr
+    addr::Addr
     Coordinator() = new(0, [], 0, 0, [])
 end
 
 mutable struct LinkedList <: AbstractActor
-    head::Address
+    head::Addr
     length::UInt64
-    address::Address
+    addr::Addr
     LinkedList(head) = new(head)
 end
 
 mutable struct ListItem{TData} <: AbstractActor
     data::TData
-    next::Address
-    address::Address
+    next::Addr
+    addr::Addr
     ListItem(data) = new{typeof(data)}(data)
 end
 
 struct Append <: Request
-    replyto::Address
-    item::Address
+    replyto::Addr
+    item::Addr
     token::Token
     Append(replyto, item) = new(replyto, item, Token())
 end
@@ -48,9 +48,9 @@ struct Appended <: Response
 end
 
 struct SetNext #<: Request
-    value::Address
+    value::Addr
     token::Token
-    SetNext(value::Address) = new(value, Token())
+    SetNext(value::Addr) = new(value, Token())
 end
 
 struct Setted <: Response
@@ -79,17 +79,17 @@ end
 function onschedule(me::Coordinator, service)
     cluster = getname(service, "cluster")
     println("Coordinator scheduled on cluster: $cluster Building list of $LIST_LENGTH actors")
-    list = LinkedList(address(me))
+    list = LinkedList(addr(me))
     me.itemcount = 0
     spawn(service, list)
-    me.list = address(list)
+    me.list = addr(list)
     appenditem(me, service)    
 end
 
 function appenditem(me::Coordinator, service)
     item = ListItem(1.00001)
     push!(me.listitems, spawn(service, item))
-    send(service, me, me.list, Append(address(me), address(item)))
+    send(service, me, me.list, Append(addr(me), addr(item)))
 end
 
 function onmessage(me::Coordinator, message::Appended, service)
@@ -98,7 +98,7 @@ function onmessage(me::Coordinator, message::Appended, service)
         appenditem(me, service)
     else
         println("List items added. Waiting for cluster join")
-        send(service, me, getname(service, "cluster"), Subscribe{Joined}(address(me)))
+        send(service, me, getname(service, "cluster"), Subscribe{Joined}(addr(me)))
     end
 end
 
@@ -144,7 +144,7 @@ function batchmigration(me::Coordinator, service)
     end
     batch = randsubseq(me.listitems, MIGRATE_BATCH_SIZE / LIST_LENGTH)
     for actor in batch
-        send(service, me, actor, MigrateCommand(postcode(rand(me.clusternodes).address)))
+        send(service, me, actor, MigrateCommand(postcode(rand(me.clusternodes).addr)))
     end
 end
 

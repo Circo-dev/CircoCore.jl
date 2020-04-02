@@ -17,8 +17,8 @@ end
 mutable struct Requestor <: AbstractActor
     responsecount::UInt
     timeoutcount::UInt
-    responder::Address
-    address::Address
+    responder::Addr
+    addr::Addr
     Requestor() = new(0, 0)
 end
 
@@ -28,7 +28,7 @@ struct TResponse <: Response
 end
 
 mutable struct Responder <: AbstractActor
-    address::Address
+    addr::Addr
     Responder() = new()
 end
 
@@ -70,7 +70,7 @@ end
     responder = Responder()
     scheduler = ActorScheduler([responder, requestor])
     scheduler(exit_when_done=true)
-    @test requestor.responder == address(responder)
+    @test requestor.responder == addr(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2
     @test length(scheduler.tokenservice.timeouts) == 0
     shutdown!(scheduler)

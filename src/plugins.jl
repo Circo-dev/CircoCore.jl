@@ -25,7 +25,7 @@ get(p::Plugins, idx, def) = get(p.plugins, idx, def)
 
 localroutes(plugins::AbstractArray) = [localroutes(plugin) for plugin in plugins if !isnothing(localroutes(plugin))]
 
-@inline function route_locally(plugins::Plugins, scheduler::AbstractActorScheduler, message::AbstractMessage)
+@inline function route_locally(plugins::Plugins, scheduler::AbstractActorScheduler, message::AbstractMsg)
     for route in plugins.localroutes
         if route(scheduler, message)
             return true

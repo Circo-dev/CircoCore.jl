@@ -3,25 +3,25 @@ using CircoCore
 
 struct MigrateCommand
     topostcode::PostCode
-    stayeraddress::Address
+    stayeraddress::Addr
 end
 
 struct MigrateDone
-    newaddress::Address
+    newaddress::Addr
 end
 
 mutable struct Stayer <: AbstractActor
-    oldmigrantaddress::Address
-    resultsholder_address::Address
+    oldmigrantaddress::Addr
+    resultsholder_address::Addr
     responsereceived::Integer
-    newaddress_selfreport::Address
-    newaddress_recepientmoved::Address
-    address::Address
+    newaddress_selfreport::Addr
+    newaddress_recepientmoved::Addr
+    addr::Addr
     Stayer(migrantaddress, resultsholder_address) = new(migrantaddress, resultsholder_address, 0)
 end
 
 struct SimpleRequest
-    responseto::Address
+    responseto::Addr
 end
 
 struct SimpleResponse end
@@ -32,12 +32,12 @@ end
 
 mutable struct ResultsHolder <: AbstractActor
     results::Results
-    address::Address
+    addr::Addr
     ResultsHolder() = new()
 end
 
 mutable struct Migrant <: AbstractActor
-    stayeraddress::Address
-    address::Address
+    stayeraddress::Addr
+    addr::Addr
     Migrant() = new()
 end

@@ -65,6 +65,6 @@ function shutdown!(service::WebsocketService)
     isdefined(service, :socket) && close(service.socket)
 end
 
-function websocket_routes!(scheduler::AbstractActorScheduler, message::AbstractMessage)::Bool
+function websocket_routes!(scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
     return false
 end

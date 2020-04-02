@@ -18,7 +18,7 @@ end
 PostOffice() = PostOffice(UDPSocket(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
-address(post::PostOffice) = Address(postcode(post), 0)
+address(post::PostOffice) = Addr(postcode(post), 0)
 
 function allocate_postcode()
     socket = UDPSocket()
