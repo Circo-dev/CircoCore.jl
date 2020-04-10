@@ -10,6 +10,6 @@ function gettype(registry::TypeRegistry, typename::String)
     cached = get(registry.cache, typename, nothing)
     !isnothing(cached) && return cached
     type = parsetype(typename)
-    registry.parser[typename] = type
+    registry.cache[typename] = type
     return type
 end

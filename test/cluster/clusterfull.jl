@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module ClusterFullTest
 
-const LIST_LENGTH = 100000
-const MIGRATE_BATCH_SIZE = 100
+const LIST_LENGTH = 4_000_000
+const MIGRATE_BATCH_SIZE = 10
 const BATCHES = 100
 const RUNS_IN_BACTH = 4
 
