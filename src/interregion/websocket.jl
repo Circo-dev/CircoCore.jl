@@ -6,9 +6,16 @@ using HTTP, Logging, MsgPack
 struct RegistrationRequest
     actoraddr::Addr
 end
-MsgPack.msgpack_type(::Type{RegistrationRequest}) = MsgPack.StructType()
-MsgPack.msgpack_type(::Type{Msg{RegistrationRequest}}) = MsgPack.StructType()
-MsgPack.msgpack_type(::Type{Addr}) = MsgPack.StructType()
+struct Registered
+    actoraddr::Addr
+    accepted::Bool
+end
+
+MsgPack.msgpack_type(::Type) = MsgPack.StructType() # TODO this drops the warning "incremental compilation may be fatally broken for this module"
+
+MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()
+MsgPack.to_msgpack(::MsgPack.StringType, id::ActorId) = string(id, base=16)
+MsgPack.from_msgpack(::Type{ActorId}, str::AbstractString) = parse(ActorId, str;base=16)
 
 mutable struct WebsocketService <: SchedulerPlugin
     actor_connections::Dict{ActorId, IO}
@@ -20,7 +27,7 @@ end
 symbol(plugin::WebsocketService) = :websocket
 localroutes(plugin::WebsocketService) = websocket_routes!
 
-function setup!(service::WebsocketService)
+function setup!(service::WebsocketService, scheduler)
     port = 2497 # CIWS
     try
         service.socket = Sockets.listen(Sockets.InetAddr(parse(IPAddr, "127.0.0.1"), port))
@@ -32,21 +39,44 @@ function setup!(service::WebsocketService)
         if HTTP.WebSockets.is_upgrade(http.message)
             HTTP.WebSockets.upgrade(http; binary=true) do ws
                 @info "Got WS connection", ws
-                handle_connection(service, ws)
+                handle_connection(service, ws, scheduler)
             end
         end
     end
 end
 
-function handle_connection(service::WebsocketService, ws)
+function sendws(msg::Msg, ws)
+    write(ws, marshal(msg))
+end
+
+function handlemsg(service::WebsocketService, msg::Msg{RegistrationRequest}, ws, scheduler)
+    actorid = box(body(msg).actoraddr)
+    service.actor_connections[actorid] = ws
+    response = Msg(target(msg), sender(msg), Registered(body(msg).actoraddr, true))
+    sendws(response, ws)
+    return nothing
+end
+
+function handlemsg(service::WebsocketService, query::Msg{NameQuery}, ws, scheduler)
+    sendws(Msg(target(query),
+            sender(query),
+            NameResponse(body(query), getname(scheduler.registry, body(query).name))), ws)
+    return nothing
+end
+
+function handlemsg(service::WebsocketService, msg::Msg, ws, scheduler)
+    deliver!(scheduler, msg)
+    return nothing
+end
+
+handlemsg(service::WebsocketService, msg, ws, scheduler) = nothing
+
+function handle_connection(service::WebsocketService, ws, scheduler)
     actors = Vector{ActorId}()
     while !eof(ws)
         buf = readavailable(ws)
-        data = unmarshal(service.typeregistry, buf)
-        if !isnothing(data)
-            buf = marshal(data)
-            write(ws, buf)
-        end
+        msg = unmarshal(service.typeregistry, buf)
+        handlemsg(service, msg, ws, scheduler)
     end
 end
 
@@ -65,11 +95,13 @@ function unmarshal(registry::TypeRegistry, buf)
         io = IOBuffer(buf)
         typename = readline(io)
         type = gettype(registry,typename)
-        println("Got typename '$typename', created type: $type")
         return unpack(io, type)
     catch e
-        e isa UndefVarError && @warn "Type $typename is not known"
-        @info e
+        if e isa UndefVarError
+             @warn "Type $typename is not known"
+        else
+            rethrow(e)
+        end
     end
     return nothing
 end

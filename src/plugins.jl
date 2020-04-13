@@ -7,7 +7,7 @@ abstract type SchedulerPlugin end
 # Plugin interface
 localroutes(plugin::SchedulerPlugin) = nothing
 symbol(plugin::SchedulerPlugin) = :nothing
-setup!(plugin::SchedulerPlugin) = nothing
+setup!(plugin::SchedulerPlugin, scheduler) = nothing
 shutdown!(plugin::SchedulerPlugin) = nothing
 
 struct Plugins
@@ -35,5 +35,5 @@ localroutes(plugins::AbstractArray) = [localroutes(plugin) for plugin in plugins
     
 end
 
-setup!(plugins::Plugins) = setup!.(values(plugins.plugins))
+setup!(plugins::Plugins, scheduler) = for plugin in values(plugins.plugins) setup!(plugin, scheduler) end
 shutdown!(plugins::Plugins) = shutdown!.(values(plugins.plugins))

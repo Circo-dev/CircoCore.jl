@@ -16,7 +16,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
         scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
-        setup!(scheduler.plugins)
+        setup!(scheduler.plugins, scheduler)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -114,13 +114,13 @@ end
     hadtimeout = false
     sleeplength = 0.001
     while true
-        yield() # Allow the postoffice "arrivals" task to run
+        yield() # Allow the postoffice "arrivals" and plugin tasks to run
         incomingmessage = getmessage(scheduler.postoffice)
         hadtimeout = checktimeouts(scheduler)
         if !isnothing(incomingmessage)
             deliver_locally!(scheduler, incomingmessage)
             return nothing
-        elseif hadtimeout
+        elseif hadtimeout || !isempty(scheduler.messagequeue) # Plugins may deliver messages directly
             return nothing
         else
             sleep(sleeplength)

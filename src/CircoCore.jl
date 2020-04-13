@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
-import Base.show
+import Base.show, Base.string
 
 ActorId = UInt64
 abstract type AbstractActor end
@@ -24,10 +24,11 @@ Addr(readable_address::String) = begin
     actorid = length(parts) == 2 ? parse(ActorId, parts[2], base=16) : 0
     return Addr(parts[1], actorid)
 end
+string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
 
 isbaseaddress(addr::Addr) = box(addr) == 0
 function Base.show(io::IO, a::Addr)
-    print(io, "$(a.postcode)/$(string(a.box, base=16))")
+    print(io, string(a))
 end
 redirect(addr::Addr, topostcode::PostCode) = Addr(topostcode, box(addr))
 
