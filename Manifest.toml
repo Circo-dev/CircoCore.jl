@@ -120,8 +120,6 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[TypeParsers]]
 git-tree-sha1 = "180dc746d8e926d031f574437e09b25a765d0c13"
-repo-rev = "master"
-repo-url = "../TypeParsers.jl"
 uuid = "6b5504e1-0c77-489f-ba22-2b282cee145f"
 version = "2.0.1"
 
