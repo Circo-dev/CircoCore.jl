@@ -10,9 +10,14 @@ symbol(plugin::SchedulerPlugin) = :nothing
 setup!(plugin::SchedulerPlugin, scheduler) = nothing
 shutdown!(plugin::SchedulerPlugin) = nothing
 
+struct LocalRoute
+    routerfn::Function
+    plugin::SchedulerPlugin
+end
+
 struct Plugins
     plugins::Dict{Symbol, SchedulerPlugin}
-    localroutes::Array{Function}
+    localroutes::Array{LocalRoute}
 end
 
 function Plugins(plugins::AbstractArray)
@@ -23,11 +28,11 @@ plugin_dict(plugins) = Dict{Symbol, SchedulerPlugin}([(symbol(plugin), plugin) f
 getindex(p::Plugins, idx) = getindex(p.plugins, idx)
 get(p::Plugins, idx, def) = get(p.plugins, idx, def)
 
-localroutes(plugins::AbstractArray) = [localroutes(plugin) for plugin in plugins if !isnothing(localroutes(plugin))]
+localroutes(plugins::AbstractArray) = [LocalRoute(localroutes(plugin), plugin) for plugin in plugins if !isnothing(localroutes(plugin))]
 
 @inline function route_locally(plugins::Plugins, scheduler::AbstractActorScheduler, message::AbstractMsg)
     for route in plugins.localroutes
-        if route(scheduler, message)
+        if route.routerfn(route.plugin, scheduler, message)
             return true
         end
     end

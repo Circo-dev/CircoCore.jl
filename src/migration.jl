@@ -62,17 +62,15 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
     end
 end
 
-function migration_routes!(scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
+function migration_routes!(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
     if body(message) isa RecipientMoved
         println("Got a RecipientMoved with invalid recipient, dropping.")
         return false
     else
-        migration = scheduler.plugins[:migration]
         newaddress = get(migration.movedactors, box(target(message)), nothing)
         if isnothing(newaddress)
             movingactor = get(migration.movingactors, box(target(message)), nothing)
             if isnothing(movingactor)
-                println("TODO: handle message sent to invalid address: $message")
                 return false
             else
                 enqueue!(movingactor.messages, message)

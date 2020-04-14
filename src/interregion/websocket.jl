@@ -17,6 +17,7 @@ MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()
 MsgPack.to_msgpack(::MsgPack.StringType, id::ActorId) = string(id, base=16)
 MsgPack.from_msgpack(::Type{ActorId}, str::AbstractString) = parse(ActorId, str;base=16)
 
+
 mutable struct WebsocketService <: SchedulerPlugin
     actor_connections::Dict{ActorId, IO}
     typeregistry::TypeRegistry
@@ -46,13 +47,18 @@ function setup!(service::WebsocketService, scheduler)
 end
 
 function sendws(msg::Msg, ws)
-    write(ws, marshal(msg))
+    try
+        write(ws, marshal(msg))
+    catch e
+        @info "Unable to write to websocket (target: $(target(msg)))", e
+    end
 end
 
 function handlemsg(service::WebsocketService, msg::Msg{RegistrationRequest}, ws, scheduler)
     actorid = box(body(msg).actoraddr)
     service.actor_connections[actorid] = ws
-    response = Msg(target(msg), sender(msg), Registered(body(msg).actoraddr, true))
+    newaddr = Addr(postcode(scheduler), actorid)
+    response = Msg(target(msg), sender(msg), Registered(newaddr, true))
     sendws(response, ws)
     return nothing
 end
@@ -72,12 +78,15 @@ end
 handlemsg(service::WebsocketService, msg, ws, scheduler) = nothing
 
 function handle_connection(service::WebsocketService, ws, scheduler)
-    actors = Vector{ActorId}()
-    while !eof(ws)
-        buf = readavailable(ws)
-        msg = unmarshal(service.typeregistry, buf)
-        handlemsg(service, msg, ws, scheduler)
+    try
+        while !eof(ws)
+            buf = readavailable(ws)
+            msg = unmarshal(service.typeregistry, buf)
+            handlemsg(service, msg, ws, scheduler)
+        end
+    catch e
     end
+    @debug "Websocket closed", ws
 end
 
 function marshal(data)
@@ -111,6 +120,11 @@ function shutdown!(service::WebsocketService)
     isdefined(service, :socket) && close(service.socket)
 end
 
-function websocket_routes!(scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
+function websocket_routes!(ws_plugin::WebsocketService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
+    ws = get(ws_plugin.actor_connections, box(target(msg)), nothing)
+    if !isnothing(ws)
+        sendws(msg, ws)
+        return true
+    end
     return false
 end
