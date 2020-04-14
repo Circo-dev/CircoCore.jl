@@ -11,7 +11,7 @@ end
 
 mutable struct EventDispatcher <: AbstractActor
     listeners::Dict{Type{<:Event},Array{Addr}}
-    addr::Addr
+    core::CoreState
     EventDispatcher() = new(Dict([]))
 end
 

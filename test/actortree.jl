@@ -20,7 +20,7 @@ end
 
 mutable struct TreeActor <: AbstractActor
     children::Vector{Addr}
-    addr::Addr
+    core::CoreState
     TreeActor() = new([])
 end
 
@@ -39,7 +39,7 @@ end
 mutable struct TreeCreator <: AbstractActor
     nodecount::UInt64
     root::Union{Nothing,Addr}
-    addr::Addr
+    core::CoreState
     TreeCreator() = new(0, nothing)
 end
 

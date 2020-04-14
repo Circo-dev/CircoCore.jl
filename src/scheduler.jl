@@ -56,9 +56,9 @@ end
     return nothing
 end
 
-@inline function fill_address!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid = isdefined(actor, :addr) ? id(actor) : rand(ActorId)
-    actor.addr = Addr(postcode(scheduler.postoffice), actorid)
+@inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
+    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), VecE3(0, 0, 0))
+    actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
     return nothing
 end
 
@@ -66,7 +66,7 @@ end
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
     isdefined(actor, :addr) && isscheduled(scheduler, actor) && return address(actor)
-    fill_address!(scheduler, actor)
+    fill_corestate!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
     scheduler.actorcount += 1
     onschedule(actor, scheduler.service)

@@ -6,7 +6,7 @@ import CircoCore.onmessage
 import CircoCore.onschedule
 
 mutable struct SampleActor <: AbstractActor
-    addr::Addr
+    core::CoreState
     SampleActor() = new()
 end
 

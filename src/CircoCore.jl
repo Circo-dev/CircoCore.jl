@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
+using Vec
+
 import Base.show, Base.string
 
 ActorId = UInt64
@@ -32,9 +34,15 @@ function Base.show(io::IO, a::Addr)
 end
 redirect(addr::Addr, topostcode::PostCode) = Addr(topostcode, box(addr))
 
-addr(a::AbstractActor) = a.addr::Addr
-address(a::AbstractActor) = a.addr::Addr
+addr(a::AbstractActor) = a.core.addr::Addr
+address(a::AbstractActor) = a.core.addr::Addr
 id(a::AbstractActor) = address(a).box::ActorId
+pos(a::AbstractActor) = a.core.pos
+
+struct CoreState
+    addr::Addr
+    pos::VecE3
+end
 
 abstract type AbstractMsg end
 struct Msg{BodyType} <: AbstractMsg
@@ -77,7 +85,7 @@ include("event.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, ActorId, id, ActorService, ActorScheduler,
+export AbstractActor, CoreState, ActorId, id, pos, ActorService, ActorScheduler,
     deliver!, schedule!, shutdown!,
 
     # Messaging

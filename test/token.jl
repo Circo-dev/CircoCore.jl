@@ -18,7 +18,7 @@ mutable struct Requestor <: AbstractActor
     responsecount::UInt
     timeoutcount::UInt
     responder::Addr
-    addr::Addr
+    core::CoreState
     Requestor() = new(0, 0)
 end
 
@@ -28,7 +28,7 @@ struct TResponse <: Response
 end
 
 mutable struct Responder <: AbstractActor
-    addr::Addr
+    core::CoreState
     Responder() = new()
 end
 

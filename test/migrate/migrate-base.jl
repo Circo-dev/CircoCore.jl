@@ -16,7 +16,7 @@ mutable struct Stayer <: AbstractActor
     responsereceived::Integer
     newaddress_selfreport::Addr
     newaddress_recepientmoved::Addr
-    addr::Addr
+    core::CoreState
     Stayer(migrantaddress, resultsholder_address) = new(migrantaddress, resultsholder_address, 0)
 end
 
@@ -32,12 +32,12 @@ end
 
 mutable struct ResultsHolder <: AbstractActor
     results::Results
-    addr::Addr
+    core::CoreState
     ResultsHolder() = new()
 end
 
 mutable struct Migrant <: AbstractActor
     stayeraddress::Addr
-    addr::Addr
+    core::CoreState
     Migrant() = new()
 end

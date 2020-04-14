@@ -18,21 +18,21 @@ mutable struct Coordinator <: AbstractActor
     listitems::Array{Addr} # Local copy for fast migrate commanding
     reducestarted::DateTime
     list::Addr
-    addr::Addr
+    core::CoreState
     Coordinator() = new(0, [], 0, 0, [])
 end
 
 mutable struct LinkedList <: AbstractActor
     head::Addr
     length::UInt64
-    addr::Addr
+    core::CoreState
     LinkedList(head) = new(head)
 end
 
 mutable struct ListItem{TData} <: AbstractActor
     data::TData
     next::Addr
-    addr::Addr
+    core::CoreState
     ListItem(data) = new{typeof(data)}(data)
 end
 

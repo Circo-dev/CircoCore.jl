@@ -6,7 +6,7 @@ include("remotesend-base.jl")
 
 mutable struct Receiver <: AbstractActor
     messages::Array{TestMessage}
-    addr::Addr
+    core::CoreState
     Receiver() = new([])
 end
 

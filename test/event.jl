@@ -13,13 +13,13 @@ end
 
 mutable struct EventSource <: AbstractActor
     eventdispatcher::Addr
-    addr::Addr
+    core::CoreState
     EventSource() = new()
 end
 
 mutable struct EventTarget <: AbstractActor
     received_count::UInt64
-    addr::Addr
+    core::CoreState
     EventTarget() = new(0)
 end
 

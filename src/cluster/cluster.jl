@@ -37,7 +37,7 @@ mutable struct ClusterActor <: AbstractActor
     peerupdate_count::UInt
     servicename::String
     eventdispatcher::Addr
-    addr::Addr
+    core::CoreState
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
     ClusterActor(name::String) = ClusterActor(NodeInfo(name))
