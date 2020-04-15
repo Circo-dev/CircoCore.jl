@@ -39,9 +39,10 @@ address(a::AbstractActor) = a.core.addr::Addr
 id(a::AbstractActor) = address(a).box::ActorId
 pos(a::AbstractActor) = a.core.pos
 
+Pos=VecE3
 struct CoreState
     addr::Addr
-    pos::VecE3
+    pos::Pos
 end
 
 abstract type AbstractMsg end
@@ -85,7 +86,7 @@ include("event.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, pos, ActorService, ActorScheduler,
+export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService, ActorScheduler,
     deliver!, schedule!, shutdown!,
 
     # Messaging

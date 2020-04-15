@@ -57,7 +57,7 @@ end
 end
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), VecE3(0, 0, 0))
+    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(0, 0, 0))
     actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
     return nothing
 end
