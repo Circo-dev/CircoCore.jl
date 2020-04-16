@@ -2,12 +2,14 @@ struct ActorInfo
     core::CoreState
 end
 
-struct ActorListRequest
+struct ActorListRequest <: Request
     respondto::Addr
+    token::Token
 end
 
-struct ActorListResponse
+struct ActorListResponse <: Response
     actors::Array{ActorInfo}
+    token::Token
 end
 
 mutable struct MonitorActor{TMonitor} <: AbstractActor
@@ -26,9 +28,10 @@ function setup!(monitor::MonitorService, scheduler)
     monitor.actor = MonitorActor(monitor)
     monitor.scheduler = scheduler
     schedule!(scheduler, monitor.actor)
+    registername(scheduler.service, "monitor", monitor.actor)
 end
 
 function onmessage(me::MonitorActor, request::ActorListRequest, service)
-    result = [actor.core for actor in me.monitor.scheduler.actorcache.values()]
-    send(service, me, request.respondto, ActorListResponse(result))
+    result = [ActorInfo(actor.core) for actor in values(me.monitor.scheduler.actorcache)]
+    send(service, me, request.respondto, ActorListResponse(result, request.token))
 end

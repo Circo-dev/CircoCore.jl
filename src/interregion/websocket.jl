@@ -87,7 +87,6 @@ function handle_connection(service::WebsocketService, ws, scheduler)
         end
     catch e
         @info e
-        rethrow(e)
     end
     @debug "Websocket closed", ws
 end
