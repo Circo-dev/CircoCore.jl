@@ -16,15 +16,15 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
         scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
-        setup!(scheduler.plugins, scheduler)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
+        setup!(scheduler.plugins, scheduler)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
     end
 end
 
 function default_plugins()
-    return [MigrationService(), WebsocketService()]
+    return [MigrationService(), WebsocketService(), SpaceService()]
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -83,9 +83,12 @@ end
 @inline function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
-    isnothing(targetactor) ?
-        route_locally(scheduler.plugins, scheduler, message) :
+    if isnothing(targetactor)
+        route_locally(scheduler.plugins, scheduler, message)
+    else
         onmessage(targetactor, body(message), scheduler.service)
+        apply_infoton(scheduler.plugins, scheduler, targetactor, message)
+    end
     return nothing
 end
 

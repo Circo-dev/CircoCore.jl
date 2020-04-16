@@ -40,7 +40,7 @@ id(a::AbstractActor) = address(a).box::ActorId
 pos(a::AbstractActor) = a.core.pos
 
 Pos=VecE3
-struct CoreState
+mutable struct CoreState
     addr::Addr
     pos::Pos
 end
@@ -80,14 +80,20 @@ include("token.jl")
 include("service.jl")
 include("plugins.jl")
 include("migration.jl")
+include("space.jl")
 include("interregion/websocket.jl")
+include("monitor.jl")
 include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService, ActorScheduler,
-    deliver!, schedule!, shutdown!,
+export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
+    ActorScheduler, deliver!, schedule!, shutdown!,
+
+    #Plugins
+    default_plugins,
+    MonitorService,
 
     # Messaging
     PostCode, postcode, PostOffice, Addr, addr, Msg, redirect,
