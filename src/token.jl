@@ -6,6 +6,7 @@ TokenId = UInt64
 struct Token
     id::TokenId
     Token() = new(rand(TokenId))
+    Token(id::TokenId) = new(id)
 end
 abstract type Tokenized end
 token(t::Tokenized) = t.token

@@ -75,8 +75,8 @@ postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 include("postoffice.jl")
-include("registry.jl")
 include("token.jl")
+include("registry.jl")
 include("service.jl")
 include("plugins.jl")
 include("migration.jl")

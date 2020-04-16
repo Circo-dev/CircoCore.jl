@@ -1,13 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 import Base.show
 
-struct NameQuery
+struct NameQuery <: Request
     name::String
+    token::Token
+    NameQuery(name, token) = new(name, token)
+    NameQuery(name) = new(name, Token())
 end
 
-struct NameResponse
+struct NameResponse <: Response
     query::NameQuery
     handler::Union{Addr, Nothing}
+    token::Token
 end
 
 struct LocalRegistry
@@ -31,9 +35,9 @@ function getname(registry::LocalRegistry, name::String)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
-    send(scheduler.postoffice, Msg(
+    send(scheduler.postoffice, Msg( # Note that this functionality is 
             address(scheduler),
             sender(message),
-            NameResponse(body(message), getname(scheduler.registry, body(message).name))
+            NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token)
         ))
 end

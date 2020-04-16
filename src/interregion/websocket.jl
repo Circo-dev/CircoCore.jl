@@ -66,7 +66,8 @@ end
 function handlemsg(service::WebsocketService, query::Msg{NameQuery}, ws, scheduler)
     sendws(Msg(target(query),
             sender(query),
-            NameResponse(body(query), getname(scheduler.registry, body(query).name))), ws)
+            NameResponse(body(query), getname(scheduler.registry, body(query).name), body(query).token)
+            ), ws)
     return nothing
 end
 
@@ -85,6 +86,8 @@ function handle_connection(service::WebsocketService, ws, scheduler)
             handlemsg(service, msg, ws, scheduler)
         end
     catch e
+        @info e
+        rethrow(e)
     end
     @debug "Websocket closed", ws
 end
