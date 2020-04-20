@@ -116,7 +116,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     onschedule, onmessage, onmigrate,
 
     # Events
-    Event, EventDispatcher, Subscribe,
+    Event, EventDispatcher, Subscribe, fire,
 
     # Cluster management
     ClusterActor, NodeInfo, Joined,

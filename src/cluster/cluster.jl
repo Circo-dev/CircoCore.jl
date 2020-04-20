@@ -19,6 +19,10 @@ struct Joined <: Event
     peers::Array{NodeInfo}
 end
 
+struct PeerListUpdated <: Event
+    peers::Array{NodeInfo}
+end
+
 mutable struct Friend
     addr::Addr
     score::UInt
@@ -130,6 +134,10 @@ function onmessage(me::ClusterActor, messsage::Subscribe{Joined}, service)
     if me.joined
         send(service, me, messsage.subscriber, Joined(collect(values(me.peers)))) #TODO handle late subscription to one-off events automatically
     end
+    send(service, me, me.eventdispatcher, messsage)
+end
+
+function onmessage(me::ClusterActor, messsage::Subscribe{TEvent}, service) where TEvent
     send(service, me, me.eventdispatcher, messsage)
 end
 

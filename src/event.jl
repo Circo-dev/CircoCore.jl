@@ -15,7 +15,16 @@ mutable struct EventDispatcher <: AbstractActor
     EventDispatcher() = new(Dict([]))
 end
 
-function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent}
+# TODO: Create a Trait for that + auto-creating the dispatcher
+function onmessage(me::AbstractActor, message::Subscribe{TEvent}, service) where TEvent <: Event
+    send(service, me, me.eventdispatcher, message)
+end
+function fire(service, me::AbstractActor, event::TEvent) where TEvent <: Event
+    send(service, me, me.eventdispatcher, event)
+end
+
+
+function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent<:Event}
     if !haskey(me.listeners, TEvent)
         me.listeners[TEvent] = Array{Addr}(undef, 0)
     end

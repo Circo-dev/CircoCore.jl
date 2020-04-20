@@ -8,5 +8,5 @@ end
 infotonhandler(plugin::SpaceService) = apply_infoton
 
 function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, message)
-    targetactor.core.pos = targetactor.core.pos + (targetactor.core.pos - message.infoton.sourcepos) * INFO
+    targetactor.core.pos = targetactor.core.pos - (targetactor.core.pos - message.infoton.sourcepos) * INFO
 end

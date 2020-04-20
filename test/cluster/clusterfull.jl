@@ -2,9 +2,9 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 100
-const MIGRATE_BATCH_SIZE = 1
-const BATCHES = 2
+const LIST_LENGTH = 400
+const MIGRATE_BATCH_SIZE = 0
+const BATCHES = 200
 const RUNS_IN_BACTH = 4
 
 using CircoCore, Dates, Random
