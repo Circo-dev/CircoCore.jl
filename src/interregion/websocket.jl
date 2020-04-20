@@ -79,7 +79,17 @@ end
 
 handlemsg(service::WebsocketService, msg, ws, scheduler) = nothing
 
+function readtypename_safely(buf)
+    try
+        io = IOBuffer(buf)
+        return readline(io)
+    catch e
+        return "Unknown type: exception while reading type name: $e"  
+    end
+end
+
 function handle_connection(service::WebsocketService, ws, scheduler)
+    buf = nothing
     try
         while !eof(ws)
             buf = readavailable(ws)
@@ -87,7 +97,12 @@ function handle_connection(service::WebsocketService, ws, scheduler)
             handlemsg(service, msg, ws, scheduler)
         end
     catch e
-        @info e
+        if e isa MethodError && e.f == convert
+            @info "Field of type $(e.args[1]) was not found while unmarshaling type $(readtypename_safely(buf))"
+            @debug "Erroneous websocket frame: ", buf
+        else
+            @info "Exception while unmarshaling websocket frame", e
+        end
     end
     @debug "Websocket closed", ws
 end
