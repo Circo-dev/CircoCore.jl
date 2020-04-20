@@ -17,6 +17,9 @@ MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()
 MsgPack.to_msgpack(::MsgPack.StringType, id::ActorId) = string(id, base=16)
 MsgPack.from_msgpack(::Type{ActorId}, str::AbstractString) = parse(ActorId, str;base=16)
 
+MsgPack.construct(::Type{Msg{TBody}}, args...) where TBody = begin
+     Msg{TBody}(args[1], args[2], args[3], Infoton(nullpos))
+end
 
 mutable struct WebsocketService <: SchedulerPlugin
     actor_connections::Dict{ActorId, IO}
@@ -58,7 +61,7 @@ function handlemsg(service::WebsocketService, msg::Msg{RegistrationRequest}, ws,
     actorid = box(body(msg).actoraddr)
     service.actor_connections[actorid] = ws
     newaddr = Addr(postcode(scheduler), actorid)
-    response = Msg(target(msg), sender(msg), Registered(newaddr, true))
+    response = Msg(target(msg), sender(msg), Registered(newaddr, true), Infoton(nullpos))
     sendws(response, ws)
     return nothing
 end
@@ -90,6 +93,7 @@ end
 
 function handle_connection(service::WebsocketService, ws, scheduler)
     buf = nothing
+    msg = nothing
     try
         while !eof(ws)
             buf = readavailable(ws)
@@ -101,7 +105,7 @@ function handle_connection(service::WebsocketService, ws, scheduler)
             @info "Field of type $(e.args[1]) was not found while unmarshaling type $(readtypename_safely(buf))"
             @debug "Erroneous websocket frame: ", buf
         else
-            @info "Exception while unmarshaling websocket frame", e
+            @error "Exception while handling websocket frame" exception=(e, catch_backtrace())
         end
     end
     @debug "Websocket closed", ws
