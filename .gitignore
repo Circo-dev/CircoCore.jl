@@ -26,5 +26,5 @@ docs/site/
 # Editor settings
 .vscode/
 
-# CirvcoCore temp files
+# CircoCore temp files
 roots.txt

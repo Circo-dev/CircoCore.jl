@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # Sample circo.jl showing a minimal CircoCore application
 
-module XXX
+module CircoSample
 
 using CircoCore
 import CircoCore.onmessage
@@ -27,4 +27,4 @@ function onmessage(me::SampleActor, message::SampleMessage, service)
 end
 
 end
-zygote() = XXX.SampleActor()
+zygote() = CircoSample.SampleActor()
