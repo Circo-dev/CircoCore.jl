@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
 BOOT_SCRIPT=$(cat <<-END
+    using CircoCore
     using CircoCore.cli
     
     # TODO Move this functionality to CircoCore.cli (needs some code-loading gimmick)

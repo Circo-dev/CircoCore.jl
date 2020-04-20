@@ -44,18 +44,26 @@ mutable struct CoreState
     addr::Addr
     pos::Pos
 end
+nullpos = Pos(0, 0, 0)
+
+struct Infoton
+    sourcepos::Pos
+    #energy::Float16
+end
 
 abstract type AbstractMsg end
 struct Msg{BodyType} <: AbstractMsg
     sender::Addr
     target::Addr
     body::BodyType
+    infoton::Infoton
 end
-Msg{T}(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(Addr(sender), target, body)
-Msg(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(Addr(sender), target, body)
+Msg{T}(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
+Msg(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
+Msg(target::Addr, body::T) where {T} = Msg{T}(Addr(), target, body, Infoton(nullpos))
 Msg{Nothing}(sender, target) = Msg{Nothing}(sender, target, nothing)
-Msg{Nothing}(target) = Msg{Nothing}(NullAddress, target)
-Msg{Nothing}() = Msg{Nothing}(NullAddress, NullAddress)
+Msg{Nothing}(target) = Msg{Nothing}(NullAddress, target, nothing, Infoton(nullpos))
+Msg{Nothing}() = Msg{Nothing}(NullAddress, NullAddress, nothing, Infoton(nullpos))
 
 sender(m::AbstractMsg) = m.sender::Addr
 target(m::AbstractMsg) = m.target::Addr

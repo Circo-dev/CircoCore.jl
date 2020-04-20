@@ -32,7 +32,7 @@ function migratetoremote(targetpostcode, resultsholder_address)
     stayer = Stayer(addr(migrant), Addr(resultsholder_address))
     schedule!(scheduler, stayer)
     cmd = MigrateCommand(targetpostcode, addr(stayer))
-    message = Msg(Addr(), addr(migrant), cmd)
+    message = Msg(addr(migrant), cmd)
     scheduler(message; process_external=true)
     shutdown!(scheduler)
 end

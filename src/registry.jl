@@ -35,9 +35,10 @@ function getname(registry::LocalRegistry, name::String)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
-    send(scheduler.postoffice, Msg( # Note that this functionality is 
+    send(scheduler.postoffice, Msg(
             address(scheduler),
             sender(message),
-            NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token)
+            NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token),
+            Infoton(nullpos)
         ))
 end

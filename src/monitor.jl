@@ -1,11 +1,17 @@
 struct ActorInfo
-    core::CoreState
+    box::ActorId
+    x::Float64
+    y::Float64
+    z::Float64
 end
+MsgPack.msgpack_type(::Type{ActorInfo}) = MsgPack.StructType() 
 
 struct ActorListRequest <: Request
     respondto::Addr
     token::Token
 end
+MsgPack.msgpack_type(::Type{ActorListRequest}) = MsgPack.StructType() 
+MsgPack.msgpack_type(::Type{Msg{ActorListRequest}}) = MsgPack.StructType() 
 
 struct ActorListResponse <: Response
     actors::Array{ActorInfo}
@@ -32,6 +38,6 @@ function setup!(monitor::MonitorService, scheduler)
 end
 
 function onmessage(me::MonitorActor, request::ActorListRequest, service)
-    result = [ActorInfo(actor.core) for actor in values(me.monitor.scheduler.actorcache)]
+    result = [ActorInfo(box(actor.core.addr), pos(actor).x, pos(actor).y, pos(actor).z) for actor in values(me.monitor.scheduler.actorcache)]
     send(service, me, request.respondto, ActorListResponse(result, request.token))
 end

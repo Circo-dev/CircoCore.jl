@@ -5,13 +5,13 @@ struct ActorService{TScheduler}
 end
 
 @inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody) where {TBody, TScheduler}
-    message = Msg(address(sender), to, messagebody)
+    message = Msg(sender, to, messagebody)
     deliver!(service.scheduler, message)
 end
 
 @inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody) where {TBody<:Request, TScheduler}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody)))
-    message = Msg(address(sender), to, messagebody)
+    message = Msg(sender, to, messagebody)
     deliver!(service.scheduler, message)
 end
 

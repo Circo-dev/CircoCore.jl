@@ -57,7 +57,7 @@ end
 end
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(0, 0, 0))
+    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * 1000, rand(Float32) * 1000, rand(Float32) * 1000))
     actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
     return nothing
 end
@@ -104,7 +104,8 @@ end
             deliver_locally!(scheduler, Msg(
                 address(scheduler),
                 timeout.watcher,
-                timeout
+                timeout,
+                Infoton(nullpos)#TODO scheduler pos
             ))
         end
         return true

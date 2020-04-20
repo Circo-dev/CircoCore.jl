@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # Sample circo.jl showing a minimal CircoCore application
 
+module XXX
+
 using CircoCore
 import CircoCore.onmessage
 import CircoCore.onschedule
@@ -24,4 +26,5 @@ function onmessage(me::SampleActor, message::SampleMessage, service)
     println("Got SampleMessage: '$(message.message)'")
 end
 
-zygote() = SampleActor()
+end
+zygote() = XXX.SampleActor()

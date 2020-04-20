@@ -66,7 +66,8 @@ end
 function handlemsg(service::WebsocketService, query::Msg{NameQuery}, ws, scheduler)
     sendws(Msg(target(query),
             sender(query),
-            NameResponse(body(query), getname(scheduler.registry, body(query).name), body(query).token)
+            NameResponse(body(query), getname(scheduler.registry, body(query).name), body(query).token),
+            Infoton(nullpos)
             ), ws)
     return nothing
 end
