@@ -119,7 +119,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     Event, EventDispatcher, Subscribe, fire,
 
     # Cluster management
-    ClusterActor, NodeInfo, Joined,
+    ClusterActor, NodeInfo, Joined, PeerListUpdated,
 
     cli
 end

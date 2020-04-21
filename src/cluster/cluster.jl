@@ -122,6 +122,7 @@ end
 
 function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     if setpeer(me, newpeer)
+        fire(service, me, PeerListUpdated(collect(values(me.peers))))
         for friend in me.downstream_friends
             send(service, me, friend, PeerJoinedNotification(newpeer, addr(me)))
         end
@@ -137,7 +138,10 @@ function onmessage(me::ClusterActor, messsage::Subscribe{Joined}, service)
     send(service, me, me.eventdispatcher, messsage)
 end
 
-function onmessage(me::ClusterActor, messsage::Subscribe{TEvent}, service) where TEvent
+function onmessage(me::ClusterActor, messsage::Subscribe{PeerListUpdated}, service)
+    if length(me.peers) > 0
+        send(service, me, messsage.subscriber, PeerListUpdated(collect(values(me.peers)))) # TODO State-change events may need a better (automatic) mechanism for handling initial state
+    end
     send(service, me, me.eventdispatcher, messsage)
 end
 
@@ -176,6 +180,7 @@ function initpeers(me::ClusterActor, peers::Array{NodeInfo}, service)
     for peer in peers
         setpeer(me, peer)
     end
+    fire(service, me, PeerListUpdated(collect(values(me.peers))))
     for i in 1:min(TARGET_FRIEND_COUNT, length(peers))
         getanewfriend(me, service)
     end

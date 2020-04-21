@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-const INFO = 1.0e-2 # Informational constant. TODO define it meaningfully
+const INFO = 1.0e-3 # Informational constant. TODO define it meaningfully
 
 struct SpaceService <: SchedulerPlugin
 end

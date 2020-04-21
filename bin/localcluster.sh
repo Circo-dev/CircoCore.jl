@@ -3,7 +3,7 @@
 
 # Simple test helper script that starts multiple nodes on the local machine
 
-NODE_COUNT=4
+NODE_COUNT=2
 ROOTS_FILE=roots.txt
 SOURCE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 NODESTART_SCRIPT="$SOURCE_DIR/circonode.sh"

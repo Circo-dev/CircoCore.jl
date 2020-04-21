@@ -9,12 +9,6 @@ struct Subscribe{TEvent <: Event} # TODO: <: Request + handle forwarding
     subscriber::Addr
 end
 
-mutable struct EventDispatcher <: AbstractActor
-    listeners::Dict{Type{<:Event},Array{Addr}}
-    core::CoreState
-    EventDispatcher() = new(Dict([]))
-end
-
 # TODO: Create a Trait for that + auto-creating the dispatcher
 function onmessage(me::AbstractActor, message::Subscribe{TEvent}, service) where TEvent <: Event
     send(service, me, me.eventdispatcher, message)
@@ -23,6 +17,11 @@ function fire(service, me::AbstractActor, event::TEvent) where TEvent <: Event
     send(service, me, me.eventdispatcher, event)
 end
 
+mutable struct EventDispatcher <: AbstractActor
+    listeners::Dict{Type{<:Event},Array{Addr}}
+    core::CoreState
+    EventDispatcher() = new(Dict([]))
+end
 
 function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent<:Event}
     if !haskey(me.listeners, TEvent)

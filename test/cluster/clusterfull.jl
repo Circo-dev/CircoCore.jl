@@ -2,9 +2,9 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 400
+const LIST_LENGTH = 1000
 const MIGRATE_BATCH_SIZE = 0
-const BATCHES = 200
+const BATCHES = 200000
 const RUNS_IN_BACTH = 4
 
 using CircoCore, Dates, Random
@@ -99,13 +99,15 @@ function onmessage(me::Coordinator, message::Appended, service)
         appenditem(me, service)
     else
         println("List items added. Waiting for cluster join")
-        send(service, me, getname(service, "cluster"), Subscribe{Joined}(addr(me)))
+        send(service, me, getname(service, "cluster"), Subscribe{PeerListUpdated}(addr(me)))
     end
 end
 
-function onmessage(me::Coordinator, message::Joined, service)
+function onmessage(me::Coordinator, message::PeerListUpdated, service)
     me.clusternodes = message.peers
-    startbatch(me, service)    
+    if length(message.peers) > 1 && me.batchidx == 0
+        startbatch(me, service)    
+    end
 end
 
 function onmessage(me::ListItem, message::SetNext, service)
@@ -152,9 +154,10 @@ end
 function startbatch(me::Coordinator, service)
     if me.batchidx > BATCHES
         println("Test finished.")
-        die()
+        die(service, me)
         return nothing
     end
+    me.batchidx += 1
     batchmigration(me, service)
     me.runidx = 1
     sumlist(me, service)
