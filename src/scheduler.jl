@@ -56,8 +56,11 @@ end
     return nothing
 end
 
+const VIEW_SIZE = 3000
+const VIEW_HEIGHT = VIEW_SIZE / 3
+
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * 1000, rand(Float32) * 1000, rand(Float32) * 1000))
+    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
     actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
     return nothing
 end

@@ -2,9 +2,9 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 1000
+const LIST_LENGTH = 10_000
 const MIGRATE_BATCH_SIZE = 0
-const BATCHES = 200000
+const BATCHES = 100000
 const RUNS_IN_BACTH = 4
 
 using CircoCore, Dates, Random
@@ -32,6 +32,7 @@ end
 
 mutable struct ListItem{TData} <: AbstractActor
     data::TData
+    prev::Addr
     next::Addr
     core::CoreState
     ListItem(data) = new{typeof(data)}(data)
@@ -54,6 +55,12 @@ struct SetNext #<: Request
     SetNext(value::Addr) = new(value, Token())
 end
 
+struct SetPrev #<: Request
+    value::Addr
+    token::Token
+    SetPrev(value::Addr) = new(value, Token())
+end
+
 struct Setted <: Response
     token::Token
 end
@@ -62,6 +69,8 @@ struct Reduce{TOperation, TResult}
     op::TOperation
     result::TResult
 end
+
+struct Ack end
 
 Sum() = Reduce(+, 0)
 Mul() = Reduce(*, 1)
@@ -72,6 +81,7 @@ end
 
 function onmessage(me::LinkedList, message::Append, service)
     send(service, me, message.item, SetNext(me.head))
+    send(service, me, me.head, SetPrev(message.item))
     send(service, me, message.replyto, Appended(token(message)))
     me.head = message.item
     me.length += 1
@@ -110,13 +120,11 @@ function onmessage(me::Coordinator, message::PeerListUpdated, service)
     end
 end
 
-function onmessage(me::ListItem, message::SetNext, service)
-    me.next = message.value
-end
+onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
 
-function onmessage(me::LinkedList, message::Reduce, service)
-    send(service, me, me.head, message)
-end
+onmessage(me::ListItem, message::SetPrev, service) = me.prev = message.value
+
+onmessage(me::LinkedList, message::Reduce, service) = send(service, me, me.head, message)
 
 function onmessage(me::LinkedList, message::RecipientMoved, service) # TODO a default implementation like this
     if me.head == message.oldaddress
@@ -130,13 +138,21 @@ end
 function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
+    if isdefined(me, :prev)
+        #send(service, me, me.prev, Ack())
+    end
 end    
+
+onmessage(me::ListItem, message::Ack, service) = nothing
 
 function onmessage(me::ListItem, message::RecipientMoved, service)
     if me.next == message.oldaddress
         me.next = message.newaddress
         send(service, me, me.next, message.originalmessage)
-    else
+    elseif me.prev == message.oldaddress
+        me.prev = message.newaddress
+        send(service, me, me.prev, message.originalmessage)
+    else        
         error("Unhandled: ", message)
     end
 end
@@ -177,6 +193,7 @@ end
 function onmessage(me::Coordinator, message::Reduce, service)
     reducetime = now() - me.reducestarted
     print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
+    #sleep(0.02)
     me.runidx += 1
     if me.runidx >= RUNS_IN_BACTH + 1
         println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
