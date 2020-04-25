@@ -1,17 +1,19 @@
+
 struct ActorInfo
+    typename::String
     box::ActorId
-    x::Float64
-    y::Float64
-    z::Float64
+    x::Float32
+    y::Float32
+    z::Float32
+    extra::Any
+    ActorInfo(actor::AbstractActor, extras) = new(string(typeof(actor)), box(actor.core.addr),
+     pos(actor).x, pos(actor).y, pos(actor).z, extras)
 end
-MsgPack.msgpack_type(::Type{ActorInfo}) = MsgPack.StructType() 
 
 struct ActorListRequest <: Request
     respondto::Addr
     token::Token
 end
-MsgPack.msgpack_type(::Type{ActorListRequest}) = MsgPack.StructType() 
-MsgPack.msgpack_type(::Type{Msg{ActorListRequest}}) = MsgPack.StructType() 
 
 struct ActorListResponse <: Response
     actors::Array{ActorInfo}
@@ -37,7 +39,17 @@ function setup!(monitor::MonitorService, scheduler)
     registername(scheduler.service, "monitor", monitor.actor)
 end
 
+struct NoExtra
+    a::Nothing # MsgPack.jl fails for en empty struct (at least when the default is StructType)
+    NoExtra() = new(nothing)
+end
+noextra = NoExtra()
+
+monitorextra(actor::AbstractActor) = noextra
+
+monitorinfo(actor::AbstractActor) = ActorInfo(actor, monitorextra(actor))
+
 function onmessage(me::MonitorActor, request::ActorListRequest, service)
-    result = [ActorInfo(box(actor.core.addr), pos(actor).x, pos(actor).y, pos(actor).z) for actor in values(me.monitor.scheduler.actorcache)]
+    result = [monitorinfo(actor) for actor in values(me.monitor.scheduler.actorcache)]
     send(service, me, request.respondto, ActorListResponse(result, request.token))
 end

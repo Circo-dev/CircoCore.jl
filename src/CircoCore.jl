@@ -39,7 +39,7 @@ address(a::AbstractActor) = a.core.addr::Addr
 id(a::AbstractActor) = address(a).box::ActorId
 pos(a::AbstractActor) = a.core.pos
 
-Pos=VecE3
+Pos=VecE3{Float64}
 mutable struct CoreState
     addr::Addr
     pos::Pos
@@ -101,7 +101,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
 
     #Plugins
     default_plugins,
-    MonitorService,
+    MonitorService, monitorextra,
 
     # Messaging
     PostCode, postcode, PostOffice, Addr, addr, Msg, redirect,

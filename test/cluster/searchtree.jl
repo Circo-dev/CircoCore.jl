@@ -4,11 +4,12 @@
 
 module SearchTreeTest
 
-const ITEM_COUNT = 5000
+const ITEM_COUNT = 1000
 
 using CircoCore
 import CircoCore.onmessage
 import CircoCore.onschedule
+import CircoCore.monitorextra
 
 mutable struct Coordinator <: AbstractActor
     root::Union{Addr, Nothing}
@@ -23,6 +24,9 @@ mutable struct TreeNode{TValue} <: AbstractActor
     core::CoreState
     TreeNode(value) = new{typeof(value)}(value, nothing, nothing)
 end
+monitorextra(me::TreeNode{TValue}) where TValue = 
+(left = isnothing(me.left) ? nothing : me.left.box,
+ right = isnothing(me.right) ? nothing : me.right.box)
 
 struct Add{TValue}
     value::TValue

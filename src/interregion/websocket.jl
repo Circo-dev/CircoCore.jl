@@ -53,7 +53,7 @@ function sendws(msg::Msg, ws)
     try
         write(ws, marshal(msg))
     catch e
-        @info "Unable to write to websocket (target: $(target(msg)))", e
+        @error "Unable to write to websocket. Target: $(target(msg)) Message type: $(typeof(body(msg)))" exception=(e, catch_backtrace())
     end
 end
 
