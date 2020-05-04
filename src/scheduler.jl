@@ -56,7 +56,7 @@ end
     return nothing
 end
 
-const VIEW_SIZE = 3000
+const VIEW_SIZE = 7000
 const VIEW_HEIGHT = VIEW_SIZE / 3
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)

@@ -9,6 +9,11 @@ end
     deliver!(service.scheduler, message)
 end
 
+@inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Number) where {TBody, TScheduler}
+    message = Msg(sender, to, messagebody, energy)
+    deliver!(service.scheduler, message)
+end
+
 @inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody) where {TBody<:Request, TScheduler}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody)))
     message = Msg(sender, to, messagebody)

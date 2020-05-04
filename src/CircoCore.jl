@@ -48,7 +48,9 @@ nullpos = Pos(0, 0, 0)
 
 struct Infoton
     sourcepos::Pos
-    #energy::Float16
+    energy::Float64
+    Infoton(sourcepos::Pos, energy::Number) = new(sourcepos, Float64(energy))
+    Infoton(sourcepos::Pos) = new(sourcepos, 1)
 end
 
 abstract type AbstractMsg end
@@ -59,6 +61,7 @@ struct Msg{BodyType} <: AbstractMsg
     infoton::Infoton
 end
 Msg{T}(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
+Msg(sender::AbstractActor, target::Addr, body::T, energy) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos, energy))
 Msg(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
 Msg(target::Addr, body::T) where {T} = Msg{T}(Addr(), target, body, Infoton(nullpos))
 Msg{Nothing}(sender, target) = Msg{Nothing}(sender, target, nothing)

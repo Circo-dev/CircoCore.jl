@@ -2,9 +2,9 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 10_000
+const LIST_LENGTH = 3_000
 const MIGRATE_BATCH_SIZE = 0
-const BATCHES = 100000
+const BATCHES = 10000000
 const RUNS_IN_BACTH = 4
 
 using CircoCore, Dates, Random
@@ -192,14 +192,16 @@ end
 
 function onmessage(me::Coordinator, message::Reduce, service)
     reducetime = now() - me.reducestarted
-    print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
-    #sleep(0.02)
+    if rand() < 0.01
+        print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
+    end
+    #sleep(0.001)
     me.runidx += 1
     if me.runidx >= RUNS_IN_BACTH + 1
-        println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
+        #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
         startbatch(me, service)
     else
-        println()
+        #println()
         sumlist(me, service)
     end
 end
