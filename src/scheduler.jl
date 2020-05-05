@@ -56,7 +56,7 @@ end
     return nothing
 end
 
-const VIEW_SIZE = 7000
+const VIEW_SIZE = 3000
 const VIEW_HEIGHT = VIEW_SIZE / 3
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
@@ -159,3 +159,6 @@ function shutdown!(scheduler::ActorScheduler)
     shutdown!(scheduler.postoffice)
     println("Scheduler at $(postcode(scheduler)) exited.")
 end
+
+# Helpers for plugins
+getactorbyid(scheduler::AbstractActorScheduler, id::ActorId) = get(scheduler.actorcache, id, nothing)

@@ -8,13 +8,13 @@ end
 infotonhandler(plugin::SpaceService) = apply_infoton
 
 const I = 1.0
-const TARGET_DISTANCE = 350
+const TARGET_DISTANCE = 150
 
 function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, message)
     diff = message.infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = message.infoton.energy
-    if energy > 0 && difflen < TARGET_DISTANCE || energy < 0 && difflen > TARGET_DISTANCE * 3
+    if energy > 0 && difflen < TARGET_DISTANCE || energy < 0 && difflen > TARGET_DISTANCE / 2
         return nothing
     end
     targetactor.core.pos += diff / (difflen * energy * I)

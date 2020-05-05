@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LGPL-3.0-only
 
 struct ActorInfo
     typename::String
@@ -16,7 +17,18 @@ struct ActorListRequest <: Request
 end
 
 struct ActorListResponse <: Response
-    actors::Array{ActorInfo}
+    actors::Vector{ActorInfo}
+    token::Token
+end
+
+struct ActorInterfaceRequest <: Request
+    respondto::Addr
+    box::ActorId
+    token::Token
+end
+
+struct ActorInterfaceResponse <: Response
+    messagetypes::Vector{String}
     token::Token
 end
 
@@ -52,4 +64,22 @@ monitorinfo(actor::AbstractActor) = ActorInfo(actor, monitorextra(actor))
 function onmessage(me::MonitorActor, request::ActorListRequest, service)
     result = [monitorinfo(actor) for actor in values(me.monitor.scheduler.actorcache)]
     send(service, me, request.respondto, ActorListResponse(result, request.token))
+end
+
+# Retrieves the message type from an onmessage method signature
+messagetype(::Type{Tuple{A,B,C,D}}) where {D, C, B, A} = C
+
+function onmessage(me::MonitorActor, request::ActorInterfaceRequest, service)
+    actor = getactorbyid(me.monitor.scheduler, request.box)
+    if isnothing(actor)
+        return nothing # TODO a general notfound response
+    end
+    result = Vector{String}()
+    for m in methods(onmessage, [typeof(actor), Any, Any])
+        if m.sig !== Any &&
+            typeof(m.sig) === DataType # TODO handle UnionAll message types
+            push!(result, string(messagetype(m.sig)))
+        end
+    end
+    send(service, me, request.respondto, ActorInterfaceResponse(result, request.token))
 end

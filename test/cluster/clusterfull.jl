@@ -10,6 +10,7 @@ const RUNS_IN_BACTH = 4
 using CircoCore, Dates, Random
 import CircoCore.onmessage
 import CircoCore.onschedule
+import CircoCore.monitorextra
 
 mutable struct Coordinator <: AbstractActor
     itemcount::UInt64
@@ -37,6 +38,7 @@ mutable struct ListItem{TData} <: AbstractActor
     core::CoreState
     ListItem(data) = new{typeof(data)}(data)
 end
+monitorextra(me::ListItem) = (next = me.next)
 
 struct Append <: Request
     replyto::Addr
@@ -195,7 +197,7 @@ function onmessage(me::Coordinator, message::Reduce, service)
     if rand() < 0.01
         print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
-    #sleep(0.001)
+    sleep(0.001)
     me.runidx += 1
     if me.runidx >= RUNS_IN_BACTH + 1
         #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
