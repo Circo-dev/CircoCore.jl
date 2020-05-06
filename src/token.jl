@@ -6,6 +6,7 @@ TokenId = UInt64
 struct Token
     id::TokenId
     Token() = new(rand(TokenId))
+    Token(id::TokenId) = new(id)
 end
 abstract type Tokenized end
 token(t::Tokenized) = t.token
@@ -14,7 +15,7 @@ abstract type Request <: Tokenized end
 abstract type Response <: Tokenized end
 
 struct Timeout
-    watcher::Address
+    watcher::Addr
     token::Token
     deadline::DateTime
 end
@@ -22,7 +23,7 @@ Timeout(watcher::AbstractActor, token::Token, timeout::Second=Second(2)) = Timeo
 Base.isless(a::Timeout, b::Timeout) = isless(a.deadline, b.deadline)
 
 struct TimeoutKey
-    watcher::Address
+    watcher::Addr
     token::Token
 end
 TimeoutKey(t::Timeout) = TimeoutKey(t.watcher, t.token)
@@ -40,7 +41,7 @@ end
 @inline function cleartimeout(tokenservice::TokenService, key::TimeoutKey)
     removed = pop!(tokenservice.timeouts, key, nothing)
 end
-cleartimeout(tokenservice::TokenService, token::Token, watcher::Address) = cleartimeout(tokenservice, TimeoutKey(watcher, token))
+cleartimeout(tokenservice::TokenService, token::Token, watcher::Addr) = cleartimeout(tokenservice, TimeoutKey(watcher, token))
 cleartimeout(tokenservice::TokenService, timeout::Timeout) = cleartimeout(tokenservice, timeout.token, timeout.watcher)
 
 @inline function poptimeouts!(tokenservice::TokenService)::Vector{Timeout}

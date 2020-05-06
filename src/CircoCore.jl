@@ -1,55 +1,77 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
-import Base.show
+using Vec
+
+import Base.show, Base.string
 
 ActorId = UInt64
 abstract type AbstractActor end
 
-abstract type AbstractAddress end
-postcode(address::AbstractAddress) = address.postcode
+abstract type AbstractAddr end
+postcode(address::AbstractAddr) = address.postcode
 postcode(actor::AbstractActor) = postcode(address(actor))
-box(address::AbstractAddress) = address.box
+box(address::AbstractAddr) = address.box
 
 PostCode = String
 
-struct Address <: AbstractAddress
+struct Addr <: AbstractAddr
     postcode::PostCode
     box::ActorId
 end
-NullAddress = Address("", UInt64(0))
-Address() = NullAddress
-Address(box::ActorId) = Address("", box)
-Address(readable_address::String) = begin
+NullAddress = Addr("", UInt64(0))
+Addr() = NullAddress
+Addr(box::ActorId) = Addr("", box)
+Addr(readable_address::String) = begin
     parts = split(readable_address, "/") # Handles only dns.or.ip:port[/actorid]
     actorid = length(parts) == 2 ? parse(ActorId, parts[2], base=16) : 0
-    return Address(parts[1], actorid)
+    return Addr(parts[1], actorid)
 end
+string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
 
-isbaseaddress(addr::Address) = box(addr) == 0
-function Base.show(io::IO, a::Address)
-    print(io, "$(a.postcode)/$(string(a.box, base=16))")
+isbaseaddress(addr::Addr) = box(addr) == 0
+function Base.show(io::IO, a::Addr)
+    print(io, string(a))
 end
-redirect(address::Address, topostcode::PostCode) = Address(topostcode, box(address)) 
+redirect(addr::Addr, topostcode::PostCode) = Addr(topostcode, box(addr))
 
-address(a::AbstractActor) = a.address::Address
+addr(a::AbstractActor) = a.core.addr::Addr
+address(a::AbstractActor) = a.core.addr::Addr
 id(a::AbstractActor) = address(a).box::ActorId
+pos(a::AbstractActor) = a.core.pos
 
-abstract type AbstractMessage end
-struct Message{BodyType} <: AbstractMessage
-    sender::Address
-    target::Address
-    body::BodyType
+Pos=VecE3{Float64}
+mutable struct CoreState
+    addr::Addr
+    pos::Pos
 end
-Message{T}(sender::AbstractActor, target::Address, body::T) where {T} = Message{T}(Address(sender), target, body)
-Message(sender::AbstractActor, target::Address, body::T) where {T} = Message{T}(Address(sender), target, body)
-Message{Nothing}(sender, target) = Message{Nothing}(sender, target, nothing)
-Message{Nothing}(target) = Message{Nothing}(NullAddress, target)
-Message{Nothing}() = Message{Nothing}(NullAddress, NullAddress)
+nullpos = Pos(0, 0, 0)
 
-sender(m::AbstractMessage) = m.sender::Address
-target(m::AbstractMessage) = m.target::Address
-body(m::AbstractMessage) = m.body
-redirect(m::AbstractMessage, to::Address) = (typeof(m))(target(m), to, body(m))
+struct Infoton
+    sourcepos::Pos
+    energy::Float64
+    Infoton(sourcepos::Pos, energy::Number) = new(sourcepos, Float64(energy))
+    Infoton(sourcepos::Pos) = new(sourcepos, 1)
+end
+
+abstract type AbstractMsg end
+struct Msg{BodyType} <: AbstractMsg
+    sender::Addr
+    target::Addr
+    body::BodyType
+    infoton::Infoton
+end
+Msg{T}(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
+Msg(sender::AbstractActor, target::Addr, body::T, energy) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos, energy))
+Msg(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
+Msg(target::Addr, body::T) where {T} = Msg{T}(Addr(), target, body, Infoton(nullpos))
+Msg{Nothing}(sender, target) = Msg{Nothing}(sender, target, nothing)
+Msg{Nothing}(target) = Msg{Nothing}(NullAddress, target, nothing, Infoton(nullpos))
+Msg{Nothing}() = Msg{Nothing}(NullAddress, NullAddress, nothing, Infoton(nullpos))
+
+sender(m::AbstractMsg) = m.sender::Addr
+target(m::AbstractMsg) = m.target::Addr
+body(m::AbstractMsg) = m.body
+redirect(m::AbstractMsg, to::Addr) = (typeof(m))(target(m), to, body(m))
 
 # Actor lifecycle callbacks
 function onschedule(actor::AbstractActor, service) end
@@ -57,10 +79,6 @@ function onmessage(actor::AbstractActor, message, service) end
 function onmigrate(actor::AbstractActor, service) end
 
 # scheduler
-abstract type SchedulerPlugin end
-localroutes(plugin::SchedulerPlugin) = nothing
-symbol(plugin::SchedulerPlugin) = :nothing
-
 abstract type AbstractActorScheduler end
 postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
 address(scheduler::AbstractActorScheduler) = address(postoffice(scheduler))
@@ -68,21 +86,28 @@ postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 include("postoffice.jl")
-include("migration.jl")
-include("registry.jl")
 include("token.jl")
+include("registry.jl")
 include("service.jl")
 include("plugins.jl")
+include("migration.jl")
+include("space.jl")
+include("interregion/websocket.jl")
+include("monitor.jl")
 include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, ActorId, id, ActorService, ActorScheduler,
-    deliver!, schedule!, shutdown!,
+export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
+    ActorScheduler, deliver!, schedule!, shutdown!,
+
+    #Plugins
+    default_plugins,
+    MonitorService, monitorextra,
 
     # Messaging
-    PostCode, postcode, PostOffice, Address, address, Message, redirect,
+    PostCode, postcode, PostOffice, Addr, addr, Msg, redirect,
     RecipientMoved,
 
     Token, TokenId, Tokenized, token, Request, Response, Timeout,
@@ -94,10 +119,10 @@ export AbstractActor, ActorId, id, ActorService, ActorScheduler,
     onschedule, onmessage, onmigrate,
 
     # Events
-    Event, EventDispatcher, Subscribe,
+    Event, EventDispatcher, Subscribe, fire,
 
     # Cluster management
-    ClusterActor, NodeInfo, Joined,
+    ClusterActor, NodeInfo, Joined, PeerListUpdated,
 
     cli
 end

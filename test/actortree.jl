@@ -11,16 +11,16 @@ import CircoCore.onmessage
 Start = Nothing
 
 struct GrowRequest
-    creator::Address
+    creator::Addr
 end
 
 struct GrowResponse
-    leafsgrown::Vector{Address}
+    leafsgrown::Vector{Addr}
 end
 
 mutable struct TreeActor <: AbstractActor
-    children::Vector{Address}
-    address::Address
+    children::Vector{Addr}
+    core::CoreState
     TreeActor() = new([])
 end
 
@@ -38,8 +38,8 @@ end
 
 mutable struct TreeCreator <: AbstractActor
     nodecount::UInt64
-    root::Union{Nothing,Address}
-    address::Address
+    root::Union{Nothing,Addr}
+    core::CoreState
     TreeCreator() = new(0, nothing)
 end
 
@@ -48,7 +48,7 @@ function onmessage(me::TreeCreator, ::Start, service)
         me.root = spawn(service, TreeActor())
         me.nodecount = 1
     end
-    send(service, me, me.root, GrowRequest(address(me)))
+    send(service, me, me.root, GrowRequest(addr(me)))
 end
 
 function onmessage(me::TreeCreator, message::GrowResponse, service)
@@ -60,7 +60,7 @@ end
         creator = TreeCreator()
         scheduler = ActorScheduler([creator])
         for i in 1:17
-            @time scheduler(Message{Start}(address(creator)))
+            @time scheduler(Msg{Start}(addr(creator)))
             @test creator.nodecount == 2^(i+1)-1
         end
         shutdown!(scheduler)

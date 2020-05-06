@@ -11,12 +11,12 @@ end
 
 function onmessage(me::Stayer, message::MigrateDone, service)
     me.newaddress_selfreport = message.newaddress
-    send(service, me, me.oldmigrantaddress, SimpleRequest(address(me)))
+    send(service, me, me.oldmigrantaddress, SimpleRequest(addr(me)))
 end
 
 function onmessage(me::Stayer, message::RecipientMoved, service)
     me.newaddress_recepientmoved = message.newaddress
-    send(service, me, me.newaddress_recepientmoved, SimpleRequest(address(me)))
+    send(service, me, me.newaddress_recepientmoved, SimpleRequest(addr(me)))
 end
 
 function onmessage(me::Stayer, message::SimpleResponse, service)
@@ -29,10 +29,10 @@ end
 function migratetoremote(targetpostcode, resultsholder_address)
     migrant = Migrant()
     scheduler = ActorScheduler([migrant])
-    stayer = Stayer(address(migrant), Address(resultsholder_address))
+    stayer = Stayer(addr(migrant), Addr(resultsholder_address))
     schedule!(scheduler, stayer)
-    cmd = MigrateCommand(targetpostcode, address(stayer))
-    message = Message(Address(), address(migrant), cmd)
+    cmd = MigrateCommand(targetpostcode, addr(stayer))
+    message = Msg(addr(migrant), cmd)
     scheduler(message; process_external=true)
     shutdown!(scheduler)
 end
