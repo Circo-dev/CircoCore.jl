@@ -13,6 +13,7 @@ postcode(actor::AbstractActor) = postcode(address(actor))
 box(address::AbstractAddr) = address.box
 
 PostCode = String
+port(postcode::PostCode) = parse(UInt32, split(postcode, ":")[end])
 
 struct Addr <: AbstractAddr
     postcode::PostCode

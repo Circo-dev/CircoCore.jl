@@ -32,14 +32,14 @@ symbol(plugin::WebsocketService) = :websocket
 localroutes(plugin::WebsocketService) = websocket_routes!
 
 function setup!(service::WebsocketService, scheduler)
-    port = 2497 # CIWS
+    listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS
     try
-        service.socket = Sockets.listen(Sockets.InetAddr(parse(IPAddr, "127.0.0.1"), port))
-        @info "Web Socket listening on port $port"
+        service.socket = Sockets.listen(Sockets.InetAddr(parse(IPAddr, "127.0.0.1"), listenport))
+        @info "Web Socket listening on port $listenport"
     catch e
-        @warn "Unable to listen on port $port", e
+        @warn "Unable to listen on port $listenport", e
     end
-    @async HTTP.listen("127.0.0.1", port; server=service.socket) do http
+    @async HTTP.listen("127.0.0.1", listenport; server=service.socket) do http
         if HTTP.WebSockets.is_upgrade(http.message)
             HTTP.WebSockets.upgrade(http; binary=true) do ws
                 @info "Got WS connection", ws
