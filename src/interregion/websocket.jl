@@ -3,6 +3,8 @@ include("typeregistry.jl")
 
 using HTTP, Logging, MsgPack
 
+const MASTERPOSTCODE = "Master"
+
 struct RegistrationRequest
     actoraddr::Addr
 end
@@ -76,6 +78,10 @@ function handlemsg(service::WebsocketService, query::Msg{NameQuery}, ws, schedul
 end
 
 function handlemsg(service::WebsocketService, msg::Msg, ws, scheduler)
+    if postcode(target(msg)) === MASTERPOSTCODE
+        newaddr = Addr(postcode(scheduler), box(msg.target))
+        msg = Msg(sender(msg), newaddr, body(msg), Infoton(nullpos))
+    end
     deliver!(scheduler, msg)
     return nothing
 end

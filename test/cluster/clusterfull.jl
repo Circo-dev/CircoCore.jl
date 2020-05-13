@@ -197,7 +197,7 @@ function onmessage(me::Coordinator, message::Reduce, service)
     if rand() < 0.01
         print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
-    sleep(0.001)
+    #sleep(0.001)
     me.runidx += 1
     if me.runidx >= RUNS_IN_BACTH + 1
         #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")

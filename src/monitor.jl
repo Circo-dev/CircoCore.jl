@@ -1,15 +1,25 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-struct ActorInfo
+struct ActorInfo{TExtra}
     typename::String
     box::ActorId
     x::Float32
     y::Float32
     z::Float32
-    extra::Any
-    ActorInfo(actor::AbstractActor, extras) = new(string(typeof(actor)), box(actor.core.addr),
+    extra::TExtra
+    ActorInfo(actor::AbstractActor, extras) = new{typeof(extras)}(string(typeof(actor)), box(actor.core.addr),
      pos(actor).x, pos(actor).y, pos(actor).z, extras)
 end
+
+struct NoExtra
+    a::Nothing # MsgPack.jl fails for en empty struct (at least when the default is StructType)
+    NoExtra() = new(nothing)
+end
+noextra = NoExtra()
+
+monitorextra(actor::AbstractActor) = noextra
+
+monitorinfo(actor::AbstractActor) = ActorInfo(actor, monitorextra(actor))
 
 struct ActorListRequest <: Request
     respondto::Addr
@@ -28,6 +38,7 @@ struct ActorInterfaceRequest <: Request
 end
 
 struct ActorInterfaceResponse <: Response
+    box::ActorId
     messagetypes::Vector{String}
     token::Token
 end
@@ -37,6 +48,11 @@ mutable struct MonitorActor{TMonitor} <: AbstractActor
     core::CoreState
     MonitorActor(monitor) = new{typeof(monitor)}(monitor)
 end
+
+monitorextra(actor::MonitorActor{T}) where T = (
+    actorcount = UInt32(actor.monitor.scheduler.actorcount),
+    queuelength = UInt32(length(actor.monitor.scheduler.messagequeue))
+    )
 
 mutable struct MonitorService <: SchedulerPlugin
     actor::MonitorActor
@@ -51,17 +67,8 @@ function setup!(monitor::MonitorService, scheduler)
     registername(scheduler.service, "monitor", monitor.actor)
 end
 
-struct NoExtra
-    a::Nothing # MsgPack.jl fails for en empty struct (at least when the default is StructType)
-    NoExtra() = new(nothing)
-end
-noextra = NoExtra()
-
-monitorextra(actor::AbstractActor) = noextra
-
-monitorinfo(actor::AbstractActor) = ActorInfo(actor, monitorextra(actor))
-
 function onmessage(me::MonitorActor, request::ActorListRequest, service)
+    me.core.pos = me.monitor.scheduler.pos
     result = [monitorinfo(actor) for actor in values(me.monitor.scheduler.actorcache)]
     send(service, me, request.respondto, ActorListResponse(result, request.token))
 end
@@ -76,10 +83,12 @@ function onmessage(me::MonitorActor, request::ActorInterfaceRequest, service)
     end
     result = Vector{String}()
     for m in methods(onmessage, [typeof(actor), Any, Any])
-        if m.sig !== Any &&
-            typeof(m.sig) === DataType # TODO handle UnionAll message types
-            push!(result, string(messagetype(m.sig)))
+        if typeof(m.sig) === DataType # TODO handle UnionAll message types
+            typename = string(messagetype(m.sig))
+            if typename !== "Any"
+                push!(result, typename)
+            end
         end
     end
-    send(service, me, request.respondto, ActorInterfaceResponse(result, request.token))
+    send(service, me, request.respondto, ActorInterfaceResponse(request.box, result, request.token))
 end

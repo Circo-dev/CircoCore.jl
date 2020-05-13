@@ -21,7 +21,13 @@ end
 end
 
 @inline function spawn(service::ActorService{TScheduler}, actor::AbstractActor)::Addr where {TScheduler}
-    schedule!(service.scheduler, actor)
+    return schedule!(service.scheduler, actor)
+end
+
+@inline function spawn(service::ActorService{TScheduler}, actor::AbstractActor, pos::Pos)::Addr where {TScheduler}
+    addr = schedule!(service.scheduler, actor)
+    actor.core.pos = pos
+    return addr
 end
 
 @inline function die(service::ActorService{TScheduler}, actor::AbstractActor) where {TScheduler}
