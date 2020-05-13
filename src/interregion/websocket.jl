@@ -35,12 +35,12 @@ localroutes(plugin::WebsocketService) = websocket_routes!
 
 function setup!(service::WebsocketService, scheduler)
     listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS
-    ipaddr = Sockets.getipaddr()
+    ipaddr = IPv4(0) # TODO config
     try
         service.socket = Sockets.listen(Sockets.InetAddr(ipaddr, listenport))
-        @info "Web Socket listening on $(addr):$(listenport)"
+        @info "Web Socket listening on $(ipaddr):$(listenport)"
     catch e
-        @warn "Unable to listen on $(addr):$(listenport)", e
+        @warn "Unable to listen on $(ipaddr):$(listenport)", e
     end
     @async HTTP.listen(ipaddr, listenport; server=service.socket) do http
         if HTTP.WebSockets.is_upgrade(http.message)
