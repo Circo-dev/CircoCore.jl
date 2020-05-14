@@ -122,6 +122,9 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     # Events
     Event, EventDispatcher, Subscribe, fire,
 
+    # Space
+    Infoton,
+
     # Cluster management
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
 

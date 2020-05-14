@@ -26,5 +26,6 @@ function onmessage(me::SampleActor, message::SampleMessage, service)
     println("Got SampleMessage: '$(message.message)'")
 end
 
-end
+end #module
+
 zygote() = CircoSample.SampleActor()

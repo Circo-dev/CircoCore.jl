@@ -84,6 +84,13 @@ end
     return nothing
 end
 
+@inline function scheduler_infoton(scheduler, actor::AbstractActor)
+    diff = scheduler.pos - actor.core.pos
+    distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
+    energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6
+    return Infoton(scheduler.pos, energy)
+end
+
 @inline function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
@@ -91,7 +98,10 @@ end
         route_locally(scheduler.plugins, scheduler, message)
     else
         onmessage(targetactor, body(message), scheduler.service)
-        apply_infoton(scheduler.plugins, scheduler, targetactor, message)
+        apply_infoton(scheduler.plugins, scheduler, targetactor, message.infoton)
+        if (rand(UInt8) < 30) # TODO: config or remove
+            apply_infoton(scheduler.plugins, scheduler, targetactor, scheduler_infoton(scheduler, targetactor))
+        end
     end
     return nothing
 end

@@ -48,9 +48,9 @@ infotonhandlers(plugins::AbstractArray) = [InfotonHandler(infotonhandler(plugin)
     
 end
 
-@inline function apply_infoton(plugins::Plugins, scheduler::AbstractActorScheduler, targetactor::AbstractActor, message::AbstractMsg)
+@inline function apply_infoton(plugins::Plugins, scheduler::AbstractActorScheduler, targetactor::AbstractActor, infoton::Infoton)
     for handler in plugins.infotonhandlers
-        handler.handlerfn(handler.plugin, scheduler, targetactor, message)
+        handler.handlerfn(handler.plugin, scheduler, targetactor, infoton)
     end
     return nothing
 end

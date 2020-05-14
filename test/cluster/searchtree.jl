@@ -7,12 +7,17 @@ module SearchTreeTest
 const ITEM_COUNT = 100_000
 const ITEMS_PER_LEAF = 100
 
-using CircoCore
+using CircoCore, DataStructures, LinearAlgebra
 import CircoCore.onmessage
 import CircoCore.onschedule
 import CircoCore.monitorextra
 
-using DataStructures
+@inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
+    diff = scheduler.pos - actor.core.pos
+    distfromtarget = 2500 - norm(diff)
+    energy = distfromtarget * -2e-4
+    return Infoton(scheduler.pos, energy)
+end
 
 const STOP = 0
 const STEP = 1
@@ -63,7 +68,7 @@ mutable struct TreeNode{TValue} <: AbstractActor
     core::CoreState
     TreeNode(values) = new{eltype(values)}(SortedSet(values), length(values), nothing, nothing, nothing, nothing)
 end
-monitorextra(me::TreeNode{TValue}) where TValue = 
+monitorextra(me::TreeNode) = 
 (left = isnothing(me.left) ? nothing : me.left.box,
  right = isnothing(me.right) ? nothing : me.right.box,
  sibling = isnothing(me.sibling) ? nothing : me.sibling.box,
@@ -96,6 +101,7 @@ genvalue() = rand(UInt32)
 nearpos(pos::Pos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * maxdistance, rand() * maxdistance)
 
 function onschedule(me::Coordinator, service)
+    me.core.pos = Pos(0, 0, 0)
     me.root = createnode(Array{UInt32}(undef, 0), service, nearpos(me.core.pos))
 end
 
@@ -125,7 +131,7 @@ function startround(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::SearchResult, service)
-    #me.core.pos = Pos(0.0, 0.0, 0.0) #z:-2000
+    me.core.pos = Pos(0, 0, 0)
     startround(me, service)
     yield()
 end
