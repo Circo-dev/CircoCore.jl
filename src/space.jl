@@ -17,6 +17,6 @@ function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActo
     if energy > 0 && difflen < TARGET_DISTANCE #|| energy < 0 && difflen > TARGET_DISTANCE / 2
         return nothing
     end
-    targetactor.core.pos += diff / (difflen / energy * I)
+    targetactor.core.pos += diff / difflen * energy * I
     return nothing
 end
