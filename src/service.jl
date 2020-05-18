@@ -34,10 +34,6 @@ end
     unschedule!(service.scheduler, actor)
 end
 
-@inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
-    migrate!(service.scheduler, actor, topostcode)
-end
-
 @inline function registername(service::ActorService{TScheduler}, name::String, handler::AbstractActor) where {TScheduler}
     registername(service.scheduler.registry, name, address(handler))
 end
