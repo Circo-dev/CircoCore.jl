@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures, Dates
 
+const VIEW_SIZE = 3000 # TODO eliminate
+const VIEW_HEIGHT = VIEW_SIZE / 3
+
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
 mutable struct ActorScheduler <: AbstractActorScheduler
+    pos::Pos
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
@@ -13,8 +17,8 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     next_timeoutcheck_ts::DateTime
     plugins::Plugins
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray;plugins = default_plugins())
-        scheduler = new(PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
+    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(),pos=Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
+        scheduler = new(pos, PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         setup!(scheduler.plugins, scheduler)
@@ -56,9 +60,6 @@ end
     return nothing
 end
 
-const VIEW_SIZE = 3000
-const VIEW_HEIGHT = VIEW_SIZE / 3
-
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
     actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
     actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
@@ -83,6 +84,13 @@ end
     return nothing
 end
 
+@inline function scheduler_infoton(scheduler, actor::AbstractActor)
+    diff = scheduler.pos - actor.core.pos
+    distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
+    energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6
+    return Infoton(scheduler.pos, energy)
+end
+
 @inline function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
@@ -90,7 +98,10 @@ end
         route_locally(scheduler.plugins, scheduler, message)
     else
         onmessage(targetactor, body(message), scheduler.service)
-        apply_infoton(scheduler.plugins, scheduler, targetactor, message)
+        apply_infoton(scheduler.plugins, scheduler, targetactor, message.infoton)
+        if (rand(UInt8) < 30) # TODO: config or remove
+            apply_infoton(scheduler.plugins, scheduler, targetactor, scheduler_infoton(scheduler, targetactor))
+        end
     end
     return nothing
 end

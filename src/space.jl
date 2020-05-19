@@ -5,18 +5,18 @@ using LinearAlgebra
 struct SpaceService <: SchedulerPlugin
 end
 
-infotonhandler(plugin::SpaceService) = apply_infoton
+infotonhandler(::SpaceService) = apply_infoton
 
 const I = 1.0
-const TARGET_DISTANCE = 150
+const TARGET_DISTANCE = 80
 
-function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, message)
-    diff = message.infoton.sourcepos - targetactor.core.pos
+function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, infoton::Infoton)
+    diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
-    energy = message.infoton.energy
-    if energy > 0 && difflen < TARGET_DISTANCE || energy < 0 && difflen > TARGET_DISTANCE / 2
+    energy = infoton.energy
+    if energy > 0 && difflen < TARGET_DISTANCE #|| energy < 0 && difflen > TARGET_DISTANCE / 2
         return nothing
     end
-    targetactor.core.pos += diff / (difflen * energy * I)
+    targetactor.core.pos += diff / difflen * energy * I
     return nothing
 end

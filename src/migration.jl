@@ -30,6 +30,10 @@ end
 localroutes(plugin::MigrationService) = migration_routes!
 symbol(plugin::MigrationService) = :migration
 
+@inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
+    migrate!(service.scheduler, actor, topostcode)
+end
+
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
     send(postoffice(scheduler), Msg(address(scheduler),
         Addr(topostcode, 0),

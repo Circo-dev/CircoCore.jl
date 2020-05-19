@@ -3,6 +3,7 @@ using Test
 using CircoCore
 import CircoCore.onmessage
 import CircoCore.onmigrate
+import CircoCore.deliver_locally!
 
 include("migrate-base.jl")
 
