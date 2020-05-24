@@ -4,7 +4,10 @@
 BOOT_SCRIPT=$(cat <<-END
     using CircoCore
     using CircoCore.cli
+    using Random
     
+    Random.seed!(42)
+
     # TODO Move this functionality to CircoCore.cli (needs some code-loading gimmick)
     args = parse_args(ARGS)
     initscript = get(ENV, "CIRCO_INITSCRIPT", "circo.jl") 

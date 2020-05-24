@@ -2,27 +2,27 @@
 
 import Base.getindex, Base.get
 
-abstract type SchedulerPlugin end
+abstract type Plugin end
 
 # Plugin interface
-localroutes(plugin::SchedulerPlugin) = nothing
-infotonhandler(plugin::SchedulerPlugin) = nothing
-symbol(plugin::SchedulerPlugin) = :nothing
-setup!(plugin::SchedulerPlugin, scheduler) = nothing
-shutdown!(plugin::SchedulerPlugin) = nothing
+localroutes(plugin::Plugin) = nothing
+infotonhandler(plugin::Plugin) = nothing
+symbol(plugin::Plugin) = :nothing
+setup!(plugin::Plugin, scheduler) = nothing
+shutdown!(plugin::Plugin) = nothing
 
 struct LocalRoute
     routerfn::Function
-    plugin::SchedulerPlugin
+    plugin::Plugin
 end
 
 struct InfotonHandler
     handlerfn::Function
-    plugin::SchedulerPlugin
+    plugin::Plugin
 end
 
 struct Plugins
-    plugins::Dict{Symbol, SchedulerPlugin}
+    plugins::Dict{Symbol, Plugin}
     localroutes::Array{LocalRoute}
     infotonhandlers::Array{InfotonHandler}
 end
@@ -31,7 +31,7 @@ function Plugins(plugins::AbstractArray)
     return Plugins(plugin_dict(plugins), localroutes(plugins), infotonhandlers(plugins))
 end
 
-plugin_dict(plugins) = Dict{Symbol, SchedulerPlugin}([(symbol(plugin), plugin) for plugin in plugins])
+plugin_dict(plugins) = Dict{Symbol, Plugin}([(symbol(plugin), plugin) for plugin in plugins])
 getindex(p::Plugins, idx) = getindex(p.plugins, idx)
 get(p::Plugins, idx, def) = get(p.plugins, idx, def)
 

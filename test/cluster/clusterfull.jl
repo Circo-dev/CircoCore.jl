@@ -7,7 +7,7 @@ const MIGRATE_BATCH_SIZE = 0
 const BATCHES = 10000000
 const RUNS_IN_BACTH = 4
 
-using CircoCore, Dates, Random
+using CircoCore, Dates, Random, LinearAlgebra
 import CircoCore.onmessage
 import CircoCore.onschedule
 import CircoCore.monitorextra
@@ -39,6 +39,22 @@ mutable struct ListItem{TData} <: AbstractActor
     ListItem(data) = new{typeof(data)}(data)
 end
 monitorextra(me::ListItem) = (next = me.next)
+
+@inline function radius_scheduler_infoton(scheduler, actor::AbstractActor)
+    diff = scheduler.pos - actor.core.pos
+    distfromtarget = 2500 - norm(diff)
+    energy = distfromtarget * -2e-4
+    return Infoton(scheduler.pos, energy)
+end
+
+@inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
+    dist = norm(scheduler.pos - actor.core.pos)
+    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
+    energy = (1500.0 - scheduler.actorcount) * 1e-1 / dist
+    return Infoton(scheduler.pos, energy)
+end
+
+CircoCore.scheduler_infoton(scheduler, actor::ListItem) = Infoton(scheduler.pos, 0.0)#radius_scheduler_infoton(scheduler, actor)
 
 struct Append <: Request
     replyto::Addr
@@ -141,7 +157,7 @@ function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
     if isdefined(me, :prev)
-        #send(service, me, me.prev, Ack())
+     #  send(service, me, me.prev, Ack())
     end
 end    
 
@@ -193,17 +209,18 @@ function mullist(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Reduce, service)
+    me.core.pos = Pos(0, 0, 0)
     reducetime = now() - me.reducestarted
-    if rand() < 0.01
-        print("Run #$(me.runidx): Got reduce result $(message.result) in $reducetime.")
+    if rand() < 0.001
+        println("Batch $(me.batchidx) , run $(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
-    #sleep(0.001)
+    sleep(0.001)
+    #yield()
     me.runidx += 1
     if me.runidx >= RUNS_IN_BACTH + 1
         #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
         startbatch(me, service)
     else
-        #println()
         sumlist(me, service)
     end
 end

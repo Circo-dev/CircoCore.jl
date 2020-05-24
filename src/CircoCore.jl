@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
-using Vec
+using Vec, Plugins
 
 import Base.show, Base.string
+import Plugins.setup!, Plugins.shutdown!, Plugins.symbol
 
 ActorId = UInt64
 abstract type AbstractActor end
@@ -90,7 +91,7 @@ include("postoffice.jl")
 include("token.jl")
 include("registry.jl")
 include("service.jl")
-include("plugins.jl")
+#include("plugins.jl")
 include("migration.jl")
 include("space.jl")
 include("interregion/websocket.jl")

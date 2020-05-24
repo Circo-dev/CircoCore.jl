@@ -54,7 +54,7 @@ monitorextra(actor::MonitorActor{T}) where T = (
     queuelength = UInt32(length(actor.monitor.scheduler.messagequeue))
     )
 
-mutable struct MonitorService <: SchedulerPlugin
+mutable struct MonitorService <: Plugin
     actor::MonitorActor
     scheduler::AbstractActorScheduler
     MonitorService() = new()

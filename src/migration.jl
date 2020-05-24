@@ -21,13 +21,12 @@ struct MovingActor
     MovingActor(actor::AbstractActor) = new(actor, Queue{AbstractMsg}())
 end
 
-struct MigrationService <: SchedulerPlugin
+struct MigrationService <: Plugin
     movingactors::Dict{ActorId,MovingActor}
     movedactors::Dict{ActorId,Addr}
     MigrationService() = new(Dict([]),Dict([]))
 end
 
-localroutes(plugin::MigrationService) = migration_routes!
 symbol(plugin::MigrationService) = :migration
 
 @inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
@@ -67,19 +66,19 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
     end
 end
 
-function migration_routes!(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
+function localroutes(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
     if body(message) isa RecipientMoved
         println("Got a RecipientMoved with invalid recipient, dropping.")
-        return false
+        return true
     else
         newaddress = get(migration.movedactors, box(target(message)), nothing)
         if isnothing(newaddress)
             movingactor = get(migration.movingactors, box(target(message)), nothing)
             if isnothing(movingactor)
-                return false
+                return true
             else
                 enqueue!(movingactor.messages, message)
-                return true
+                return false
             end
         else
             send(scheduler.postoffice, Msg(
@@ -88,7 +87,7 @@ function migration_routes!(migration::MigrationService, scheduler::AbstractActor
                 RecipientMoved(target(message), newaddress, body(message)),
                 Infoton(nullpos)
             ))
-            return true            
+            return false       
         end
     end
 end

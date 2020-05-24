@@ -11,23 +11,7 @@ using CircoCore, DataStructures, LinearAlgebra
 import CircoCore.onmessage
 import CircoCore.onschedule
 import CircoCore.monitorextra
-
-@inline function radius_scheduler_infoton(scheduler, actor::AbstractActor)
-    diff = scheduler.pos - actor.core.pos
-    distfromtarget = 2500 - norm(diff)
-    energy = distfromtarget * -2e-4
-    return Infoton(scheduler.pos, energy)
-end
-
-@inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
-    dist = norm(scheduler.pos - actor.core.pos)
-    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (1500.0 - scheduler.actorcount) * 1e-1 / dist
-    return Infoton(scheduler.pos, energy)
-end
-
-CircoCore.scheduler_infoton(scheduler, actor::AbstractActor) = actorcount_scheduler_infoton(scheduler, actor)
-
+    
 const STOP = 0
 const STEP = 1
 const SLOW = 20
@@ -83,6 +67,15 @@ monitorextra(me::TreeNode) =
  sibling = isnothing(me.sibling) ? nothing : me.sibling.box,
  splitval = me.splitvalue,
  size = me.size)
+
+ @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
+    dist = norm(scheduler.pos - actor.core.pos)
+    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
+    energy = (1500.0 - scheduler.actorcount) * 2e-1 / dist
+    return Infoton(scheduler.pos, energy)
+end
+
+CircoCore.scheduler_infoton(scheduler, actor::TreeNode) = actorcount_scheduler_infoton(scheduler, actor)
 
 struct Add{TValue}
     value::TValue

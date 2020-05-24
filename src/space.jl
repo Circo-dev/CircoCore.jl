@@ -2,13 +2,11 @@
 
 using LinearAlgebra
 
-struct SpaceService <: SchedulerPlugin
+struct SpaceService <: Plugin
 end
 
-infotonhandler(::SpaceService) = apply_infoton
-
 const I = 1.0
-const TARGET_DISTANCE = 80
+const TARGET_DISTANCE = .80
 
 function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, infoton::Infoton)
     diff = infoton.sourcepos - targetactor.core.pos
