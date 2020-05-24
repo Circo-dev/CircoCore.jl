@@ -19,8 +19,8 @@ MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()
 MsgPack.to_msgpack(::MsgPack.StringType, id::ActorId) = string(id, base=16)
 MsgPack.from_msgpack(::Type{ActorId}, str::AbstractString) = parse(ActorId, str;base=16)
 
-MsgPack.construct(::Type{Msg{TBody}}, args...) where TBody = begin
-     Msg{TBody}(args[1], args[2], args[3], Infoton(nullpos))
+MsgPack.construct(::Type{Msg}, args...) = begin
+     Msg(args[1], args[2], args[3], Infoton(nullpos))
 end
 
 mutable struct WebsocketService <: Plugin

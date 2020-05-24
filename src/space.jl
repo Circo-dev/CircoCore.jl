@@ -8,7 +8,7 @@ end
 const I = 1.0
 const TARGET_DISTANCE = .80
 
-function apply_infoton(space::SpaceService, scheduler, targetactor::AbstractActor, infoton::Infoton)
+function apply_infoton(targetactor::T, infoton::Infoton) where {T<:AbstractActor}
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = infoton.energy
