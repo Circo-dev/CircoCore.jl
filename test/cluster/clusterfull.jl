@@ -2,15 +2,16 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 3_000
+const LIST_LENGTH = 4_000
 const MIGRATE_BATCH_SIZE = 0
 const BATCHES = 10000000
-const RUNS_IN_BACTH = 4
+const RUNS_IN_BATCH = 4
 
 using CircoCore, Dates, Random, LinearAlgebra
 import CircoCore.onmessage
 import CircoCore.onschedule
 import CircoCore.monitorextra
+import CircoCore.check_migration
 
 mutable struct Coordinator <: AbstractActor
     itemcount::UInt64
@@ -55,6 +56,13 @@ end
 end
 
 CircoCore.scheduler_infoton(scheduler, actor::ListItem) = Infoton(scheduler.pos, 0.0)#radius_scheduler_infoton(scheduler, actor)
+
+@inline function CircoCore.check_migration(actor::ListItem, scheduler)
+    if rand() < 0.001
+        print(2)
+    end
+    return nothing
+end
 
 struct Append <: Request
     replyto::Addr
@@ -211,13 +219,13 @@ end
 function onmessage(me::Coordinator, message::Reduce, service)
     me.core.pos = Pos(0, 0, 0)
     reducetime = now() - me.reducestarted
-    if rand() < 0.001
+    if reducetime > Millisecond(100) || rand() < 0.001
         println("Batch $(me.batchidx) , run $(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
     sleep(0.001)
     #yield()
     me.runidx += 1
-    if me.runidx >= RUNS_IN_BACTH + 1
+    if me.runidx >= RUNS_IN_BATCH + 1
         #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
         startbatch(me, service)
     else

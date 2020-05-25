@@ -16,11 +16,15 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
     plugins::PluginStack
-    #apply_infoton_hooks::Plugins.HookList # TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
-    localroutes_hooks::Plugins.HookList
+    localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
+    actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(),pos=Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
-        scheduler = new(pos, PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
+    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
+        postoffice = PostOffice()
+        if isnothing(pos)# TODO scheduler positioning
+            pos = port(postoffice.postcode) > 24721 ? Pos(1000, 0, 0) : Pos(-1000, 0, 0)
+        end
+        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, PluginStack(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         cache_hooks(scheduler)
@@ -30,12 +34,19 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     end
 end
 
-function default_plugins()
-    return [MigrationService(), WebsocketService(), SpaceService()]
+pos(scheduler::ActorScheduler) = scheduler.pos
+
+function default_plugins(;roots=[])
+    return [ClusterService(roots), MigrationService(), WebsocketService()]
+end
+
+function randpos()
+    return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
 end
 
 function cache_hooks(scheduler::ActorScheduler)
     scheduler.localroutes_hooks = hooks(scheduler, localroutes)
+    scheduler.actor_activity_sparse_hooks = hooks(scheduler, actor_activity_sparse)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -101,8 +112,11 @@ end
 @inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
     onmessage(targetactor, body(message), scheduler.service)
     apply_infoton(targetactor, message.infoton)
-    if (rand(UInt8) < 30) # TODO: config or remove
+    if rand(UInt8) < 30 # TODO: config and move to a hook
         apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
+        if rand(UInt8) < 5
+            scheduler.actor_activity_sparse_hooks(targetactor)
+        end
     end
     return nothing
 end
@@ -111,7 +125,7 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        scheduler.localroutes_hooks(message)
+        scheduler.localroutes_hooks(message) #TODO print unhandled messages for debugging
     else
         handle_message_locally!(targetactor, message, scheduler)
     end

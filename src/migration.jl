@@ -21,13 +21,41 @@ struct MovingActor
     MovingActor(actor::AbstractActor) = new(actor, Queue{AbstractMsg}())
 end
 
-struct MigrationService <: Plugin
+mutable struct MigrationAlternatives
+    peers::Array{NodeInfo}
+end
+
+mutable struct MigrationService <: Plugin
     movingactors::Dict{ActorId,MovingActor}
     movedactors::Dict{ActorId,Addr}
-    MigrationService() = new(Dict([]),Dict([]))
+    alternatives::MigrationAlternatives
+    helperactor::Addr
+    MigrationService() = new(Dict([]),Dict([]), MigrationAlternatives([]))
+end
+
+mutable struct MigrationHelper <: AbstractActor
+    service::MigrationService
+    core::CoreState
+    MigrationHelper(migration) = new(migration)
 end
 
 symbol(plugin::MigrationService) = :migration
+
+function setup!(migration::MigrationService, scheduler)
+    helper = MigrationHelper(migration)
+    migration.helperactor = spawn(scheduler.service, helper)
+end
+
+function onschedule(me::MigrationHelper, service)
+    println("cluster: $(getname(service, "cluster"))")
+    registername(service, "migration", me)
+    send(service, me, getname(service, "cluster"), Subscribe{PeerListUpdated}(addr(me)))
+end
+
+function onmessage(me::MigrationHelper, message::PeerListUpdated, service)
+    println("PeerListUpdated received: $message")
+    me.service.alternatives = MigrationAlternatives(message.peers) # TODO filter if lengthy
+end
 
 @inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
     migrate!(service.scheduler, actor, topostcode)
@@ -40,9 +68,11 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
         Infoton(nullpos)))
     unschedule!(scheduler, actor)
     scheduler.plugins[:migration].movingactors[id(actor)] = MovingActor(actor)
+    println("migrated")
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
+    println("Migration request: $(message)")
     actor = body(message).actor
     fromaddress = address(actor)
     schedule!(scheduler, actor)
@@ -53,11 +83,13 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
+    println("Migration response: $(message)")
     migration = scheduler.plugins[:migration]
     response = body(message)
     movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
         migration.movedactors[box(response.from)] = response.to
+        println("Messages waiting: $(movingactor.messages)")
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -90,4 +122,36 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
             return false       
         end
     end
+end
+
+@inline check_migration(me::AbstractActor, alternatives::MigrationAlternatives, service) = nothing
+
+@inline function actor_activity_sparse(migration::MigrationService, scheduler, actor::AbstractActor)
+    check_migration(actor, migration.alternatives, scheduler.service)
+end
+
+@inline function find_nearest(sourcepos::Pos, alternatives::MigrationAlternatives)::Union{NodeInfo, Nothing}
+    peers = alternatives.peers
+    if length(peers) < 2
+        return nothing
+    end
+    found = peers[1]
+    mindist = norm(pos(found) - sourcepos)
+    for peer in peers[2:end]
+        dist = norm(pos(peer) - sourcepos)
+        if dist < mindist
+            mindist = dist
+            found = peer
+        end
+    end
+    return found
+end
+
+@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service)
+    nearest = find_nearest(pos(me), alternatives)
+    println("Nearest: $nearest")
+    if isnothing(nearest) return nothing end
+    if box(nearest.addr) === box(addr(me)) return nothing end
+    println("$(box(addr(me))): Migrating to $(postcode(nearest))")
+    migrate(service, me, postcode(nearest))
 end

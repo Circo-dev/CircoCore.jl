@@ -41,3 +41,5 @@ end
 @inline function getname(service::ActorService{TScheduler}, name::String) where {TScheduler}
     return getname(service.scheduler.registry, name)
 end
+
+@inline pos(service::ActorService) = pos(service.scheduler)

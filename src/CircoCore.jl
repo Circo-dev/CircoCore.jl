@@ -92,13 +92,13 @@ include("token.jl")
 include("registry.jl")
 include("service.jl")
 #include("plugins.jl")
-include("migration.jl")
 include("space.jl")
 include("interregion/websocket.jl")
 include("monitor.jl")
 include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
+include("migration.jl")
 include("cli/circonode.jl")
 
 export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
@@ -128,6 +128,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
 
     # Cluster management
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
+    migrate_to_nearest, MigrationAlternatives,
 
     cli
 end

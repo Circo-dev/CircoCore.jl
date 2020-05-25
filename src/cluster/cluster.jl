@@ -8,12 +8,27 @@ const MAX_DOWNSTREAM_FRIENDS = 25
 const TARGET_FRIEND_COUNT = 5
 const MIN_FRIEND_COUNT = 3
 
+mutable struct ClusterService <: Plugin
+    roots::Array{PostCode}
+    helperactor::Addr
+    ClusterService(roots=[]) = new(roots)
+end
+
+CircoCore.setup!(cluster::ClusterService, scheduler) = begin
+    helper = ClusterActor(;roots=cluster.roots)
+    cluster.helperactor = spawn(scheduler.service, helper)
+end
+
 mutable struct NodeInfo
     name::String
     addr::Addr
+    pos::Pos
     NodeInfo(name) = new(name)
     NodeInfo() = new()
 end
+pos(i::NodeInfo) = i.pos
+addr(i::NodeInfo) = i.addr
+postcode(i::NodeInfo) = postcode(addr(i))
 
 struct Joined <: Event
     peers::Array{NodeInfo}
@@ -44,8 +59,9 @@ mutable struct ClusterActor <: AbstractActor
     core::CoreState
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
-    ClusterActor(name::String) = ClusterActor(NodeInfo(name))
+    ClusterActor(;roots=[]) = ClusterActor(NodeInfo("unnamed"), roots)
 end
+monitorextra(me::ClusterActor) = (myinfo=me.myinfo, peers=values(me.peers))
 
 struct JoinRequest
     info::NodeInfo
@@ -107,6 +123,7 @@ end
 
 function onschedule(me::ClusterActor, service)
     me.myinfo.addr = addr(me)
+    me.myinfo.pos = pos(service)
     me.eventdispatcher = spawn(service, EventDispatcher())
     requestjoin(me, service)
 end

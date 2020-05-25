@@ -11,7 +11,8 @@ using CircoCore, DataStructures, LinearAlgebra
 import CircoCore.onmessage
 import CircoCore.onschedule
 import CircoCore.monitorextra
-    
+import CircoCore.check_migration
+
 const STOP = 0
 const STEP = 1
 const SLOW = 20
@@ -23,6 +24,7 @@ mutable struct Coordinator <: AbstractActor
     size::Int64
     root::Union{Addr, Nothing}
     core::CoreState
+    #Coordinator() = new(STOP, 0)
     Coordinator() = new(STOP, 0)
 end
 monitorextra(me::Coordinator)  = (
@@ -77,6 +79,13 @@ end
 
 CircoCore.scheduler_infoton(scheduler, actor::TreeNode) = actorcount_scheduler_infoton(scheduler, actor)
 
+@inline CircoCore.check_migration(me::TreeNode, alternatives::MigrationAlternatives, service) = begin
+    if norm(pos(service) - pos(me)) > 1300 # Do not check for alternatives if too close to the current scheduler
+        println("check $alternatives")
+        migrate_to_nearest(me, alternatives, service)
+    end
+end
+
 struct Add{TValue}
     value::TValue
 end
@@ -105,6 +114,9 @@ nearpos(pos::Pos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * m
 function onschedule(me::Coordinator, service)
     me.core.pos = Pos(0, 0, 0)
     me.root = createnode(Array{UInt32}(undef, 0), service, nearpos(me.core.pos))
+    if me.runmode !== STOP
+        startround(me, service)
+    end
 end
 
 function createnode(nodevalues, service, pos=nothing)
@@ -208,6 +220,21 @@ function onmessage(me::TreeNode, message::Add, service)
         else
             send(service, me, me.left, message)
         end
+    end
+end
+
+function onmessage(me::TreeNode, message::RecipientMoved, service) # TODO a default implementation like this
+    if me.left == message.oldaddress
+        me.left = message.newaddress
+        send(service, me, me.left, message.originalmessage)
+    elseif me.right == message.oldaddress
+        me.right = message.newaddress
+        send(service, me, me.right, message.originalmessage)
+    elseif me.sibling == message.oldaddress
+        me.sibling = message.newaddress
+        send(service, me, me.sibling, message.originalmessage)
+    else
+        send(service, me, message.newaddress, message.originalmessage)
     end
 end
 
