@@ -2,10 +2,10 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 4_000
+const LIST_LENGTH = 1000
 const MIGRATE_BATCH_SIZE = 0
 const BATCHES = 10000000
-const RUNS_IN_BATCH = 4
+const RUNS_IN_BATCH = 100
 
 using CircoCore, Dates, Random, LinearAlgebra
 import CircoCore.onmessage
@@ -51,17 +51,17 @@ end
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
     dist = norm(scheduler.pos - actor.core.pos)
     dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (1500.0 - scheduler.actorcount) * 1e-1 / dist
+    energy = (150.0 - scheduler.actorcount) * 1e-1 / dist
     return Infoton(scheduler.pos, energy)
 end
 
-CircoCore.scheduler_infoton(scheduler, actor::ListItem) = Infoton(scheduler.pos, 0.0)#radius_scheduler_infoton(scheduler, actor)
+CircoCore.scheduler_infoton(scheduler, actor::ListItem) = actorcount_scheduler_infoton(scheduler, actor)
 
-@inline function CircoCore.check_migration(actor::ListItem, scheduler)
-    if rand() < 0.001
-        print(2)
+@inline CircoCore.check_migration(me::ListItem, alternatives::MigrationAlternatives, service) = begin
+    if norm(pos(service) - pos(me)) > 1010 # Do not check for alternatives if too close to the current scheduler
+        #println("check $alternatives")
+        migrate_to_nearest(me, alternatives, service)
     end
-    return nothing
 end
 
 struct Append <: Request
@@ -157,7 +157,7 @@ function onmessage(me::LinkedList, message::RecipientMoved, service) # TODO a de
         me.head = message.newaddress
         send(service, me, me.head, message.originalmessage)
     else
-        error("Unhandled: ", message)
+        send(service, me, message.newaddress, message.originalmessage)
     end
 end
 
@@ -175,11 +175,11 @@ function onmessage(me::ListItem, message::RecipientMoved, service)
     if me.next == message.oldaddress
         me.next = message.newaddress
         send(service, me, me.next, message.originalmessage)
-    elseif me.prev == message.oldaddress
+    elseif isdefined(me, :prev) && me.prev == message.oldaddress
         me.prev = message.newaddress
         send(service, me, me.prev, message.originalmessage)
     else        
-        error("Unhandled: ", message)
+        send(service, me, message.newaddress, message.originalmessage)
     end
 end
 
@@ -202,7 +202,9 @@ function startbatch(me::Coordinator, service)
     me.batchidx += 1
     batchmigration(me, service)
     me.runidx = 1
-    sumlist(me, service)
+    for i = 1:RUNS_IN_BATCH
+        sumlist(me, service)
+    end
     return nothing
 end
 
@@ -219,17 +221,15 @@ end
 function onmessage(me::Coordinator, message::Reduce, service)
     me.core.pos = Pos(0, 0, 0)
     reducetime = now() - me.reducestarted
-    if reducetime > Millisecond(100) || rand() < 0.001
+    if reducetime > Millisecond(round(rand() * 2e4))
         println("Batch $(me.batchidx) , run $(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
-    sleep(0.001)
-    #yield()
+    #sleep(0.001)
+    yield()
     me.runidx += 1
     if me.runidx >= RUNS_IN_BATCH + 1
         #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
         startbatch(me, service)
-    else
-        sumlist(me, service)
     end
 end
 

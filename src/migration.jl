@@ -68,11 +68,10 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
         Infoton(nullpos)))
     unschedule!(scheduler, actor)
     scheduler.plugins[:migration].movingactors[id(actor)] = MovingActor(actor)
-    println("migrated")
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
-    println("Migration request: $(message)")
+    #println("Migration request: $(message)")
     actor = body(message).actor
     fromaddress = address(actor)
     schedule!(scheduler, actor)
@@ -83,13 +82,13 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
-    println("Migration response: $(message)")
+    #println("Migration response: $(message)")
     migration = scheduler.plugins[:migration]
     response = body(message)
     movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
         migration.movedactors[box(response.from)] = response.to
-        println("Messages waiting: $(movingactor.messages)")
+        #println("Messages waiting: $(movingactor.messages)")
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -99,28 +98,35 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
 end
 
 function localroutes(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
-    if body(message) isa RecipientMoved
-        println("Got a RecipientMoved with invalid recipient, dropping.")
-        return true
-    else
-        newaddress = get(migration.movedactors, box(target(message)), nothing)
-        if isnothing(newaddress)
-            movingactor = get(migration.movingactors, box(target(message)), nothing)
-            if isnothing(movingactor)
-                return true
-            else
-                enqueue!(movingactor.messages, message)
-                return false
-            end
+    newaddress = get(migration.movedactors, box(target(message)), nothing)
+    if isnothing(newaddress)
+        movingactor = get(migration.movingactors, box(target(message)), nothing)
+        if isnothing(movingactor)
+            return true
         else
+            enqueue!(movingactor.messages, message)
+            return false
+        end
+    else
+        if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
+            msg = Msg(
+                address(scheduler),
+                newaddress,
+                body(message),
+                Infoton(nullpos)
+            )
+            println("Forwarding message $message")
+            println(":::$msg")
+            send(scheduler.postoffice, msg)
+        else # Do not forward normal messages but send back a RecipientMoved
             send(scheduler.postoffice, Msg(
                 address(scheduler),
                 sender(message),
                 RecipientMoved(target(message), newaddress, body(message)),
                 Infoton(nullpos)
             ))
-            return false       
-        end
+        end    
+        return false       
     end
 end
 
@@ -149,9 +155,12 @@ end
 
 @inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service)
     nearest = find_nearest(pos(me), alternatives)
-    println("Nearest: $nearest")
+    #println("Nearest: $nearest")
     if isnothing(nearest) return nothing end
     if box(nearest.addr) === box(addr(me)) return nothing end
-    println("$(box(addr(me))): Migrating to $(postcode(nearest))")
-    migrate(service, me, postcode(nearest))
+    if norm(pos(me) - pos(nearest)) < 0.99 * norm(pos(me) - pos(service))
+        #println("$(box(addr(me))): Migrating to $(postcode(nearest))")
+        migrate(service, me, postcode(nearest))
+    end
+    return nothing
 end

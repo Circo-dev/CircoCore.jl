@@ -1,10 +1,20 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures, Dates
 
-const VIEW_SIZE = 3000 # TODO eliminate
+const VIEW_SIZE = 10000 # TODO eliminate
 const VIEW_HEIGHT = VIEW_SIZE / 3
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
+
+function getpos(port) 
+    return randpos()
+    port == 24721 && return Pos(-1000, 0, 0)
+    port == 24722 && return Pos(1000, 0, 0)
+    port == 24723 && return Pos(0, -1000, 0)
+    port == 24724 && return Pos(0, 1000, 0)
+    port == 24725 && return Pos(0, 0, -1000)
+    port == 24726 && return Pos(0, 0, 1000)
+end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
     pos::Pos
@@ -22,7 +32,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
         postoffice = PostOffice()
         if isnothing(pos)# TODO scheduler positioning
-            pos = port(postoffice.postcode) > 24721 ? Pos(1000, 0, 0) : Pos(-1000, 0, 0)
+            pos = getpos(port(postoffice.postcode))
         end
         scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, PluginStack(plugins))
@@ -114,7 +124,7 @@ end
     apply_infoton(targetactor, message.infoton)
     if rand(UInt8) < 30 # TODO: config and move to a hook
         apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
-        if rand(UInt8) < 5
+        if rand(UInt8) < 15
             scheduler.actor_activity_sparse_hooks(targetactor)
         end
     end

@@ -29,6 +29,7 @@ Addr(readable_address::String) = begin
     return Addr(parts[1], actorid)
 end
 string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
+box(a::Addr) = a.box
 
 isbaseaddress(addr::Addr) = box(addr) == 0
 function Base.show(io::IO, a::Addr)
@@ -109,7 +110,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     MonitorService, monitorextra,
 
     # Messaging
-    PostCode, postcode, PostOffice, Addr, addr, Msg, redirect,
+    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
     RecipientMoved,
 
     Token, TokenId, Tokenized, token, Request, Response, Timeout,

@@ -4,8 +4,9 @@
 
 module SearchTreeTest
 
-const ITEM_COUNT = 100_000
-const ITEMS_PER_LEAF = 100
+const ITEM_COUNT = 1_000_000
+const ITEMS_PER_LEAF = 1000
+const SIBLINGINFO_FREQ = 0 #0..255
 
 using CircoCore, DataStructures, LinearAlgebra
 import CircoCore.onmessage
@@ -22,10 +23,11 @@ const FULLSPEED = 100
 mutable struct Coordinator <: AbstractActor
     runmode::UInt8
     size::Int64
+    resultcount::UInt64
+    lastreportts::UInt64
     root::Union{Addr, Nothing}
     core::CoreState
-    #Coordinator() = new(STOP, 0)
-    Coordinator() = new(STOP, 0)
+    Coordinator() = new(STOP, 0, 0, 0)
 end
 monitorextra(me::Coordinator)  = (
     runmode=me.runmode,    
@@ -73,18 +75,33 @@ monitorextra(me::TreeNode) =
  @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
     dist = norm(scheduler.pos - actor.core.pos)
     dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (1500.0 - scheduler.actorcount) * 2e-1 / dist
+    energy = (600.0 - scheduler.actorcount) * 3e-1 / dist
     return Infoton(scheduler.pos, energy)
 end
 
-CircoCore.scheduler_infoton(scheduler, actor::TreeNode) = actorcount_scheduler_infoton(scheduler, actor)
+CircoCore.scheduler_infoton(scheduler, actor::AbstractActor) = actorcount_scheduler_infoton(scheduler, actor)
 
-@inline CircoCore.check_migration(me::TreeNode, alternatives::MigrationAlternatives, service) = begin
-    if norm(pos(service) - pos(me)) > 1300 # Do not check for alternatives if too close to the current scheduler
-        println("check $alternatives")
+@inline CircoCore.check_migration(me::Union{TreeNode, Coordinator}, alternatives::MigrationAlternatives, service) = begin
+    if norm(pos(service) - pos(me)) > 1100 # Do not check for alternatives if too close to the current scheduler
+        #println("check $alternatives")
         migrate_to_nearest(me, alternatives, service)
     end
 end
+
+const TARGET_DISTANCE = 200
+const I = 1.0
+
+@inline CircoCore.apply_infoton(targetactor::AbstractActor, infoton::Infoton) = begin
+    diff = infoton.sourcepos - targetactor.core.pos
+    difflen = norm(diff)
+    energy = infoton.energy
+    if energy > 0 && difflen < TARGET_DISTANCE #|| energy < 0 && difflen > TARGET_DISTANCE / 2
+        return nothing
+    end
+    targetactor.core.pos += diff / difflen * energy * I
+    return nothing
+end
+
 
 struct Add{TValue}
     value::TValue
@@ -128,7 +145,7 @@ function createnode(nodevalues, service, pos=nothing)
     return retval
 end
 
-function startround(me::Coordinator, service)
+function startround(me::Coordinator, service, parallel = 1)
     if me.size < ITEM_COUNT && rand() < 0.06 + me.size / ITEM_COUNT * 0.1
         send(service, me, me.root, Add(genvalue()))
         me.size += 1
@@ -141,13 +158,30 @@ function startround(me::Coordinator, service)
     if (me.runmode != FULLSPEED && rand() > 0.01 * me.runmode) 
         sleep(0.001)
     end
-    send(service, me, me.root, Search(genvalue(), addr(me)))
+    for i in 1:parallel
+        send(service, me, me.root, Search(genvalue(), addr(me)))
+    end
 end
 
 function onmessage(me::Coordinator, message::SearchResult, service)
-    me.core.pos = Pos(0, 0, 0)
+    #me.core.pos = Pos(0, 0, 0)
+    me.resultcount += 1
+    if time_ns() > me.lastreportts + 1_000_000_000
+        println("#of searches since last report: $(me.resultcount)")
+        me.resultcount = 0
+        me.lastreportts = time_ns()
+    end
     startround(me, service)
     yield()
+end
+
+function onmessage(me::Coordinator, message::RecipientMoved, service) # TODO a default implementation like this
+    if !isnothing(me.root) && box(me.root) === box(message.oldaddress)
+        me.root = message.newaddress
+    else
+        @info "unhandled, forwarding: $message" 
+    end
+    send(service, me, me.root, message.originalmessage)
 end
 
 function onmessage(me::Coordinator, message::Stop, service)
@@ -157,7 +191,7 @@ end
 function onmessage(me::Coordinator, message::RunFast, service)
     oldmode = me.runmode
     me.runmode = FAST
-    oldmode == STOP && startround(me, service)
+    oldmode == STOP && startround(me, service, 80)
 end
 
 function onmessage(me::Coordinator, message::RunSlow, service)
@@ -169,7 +203,7 @@ end
 function onmessage(me::Coordinator, message::RunFull, service)
     oldmode = me.runmode
     me.runmode = FULLSPEED
-    oldmode == STOP && startround(me, service)
+    oldmode == STOP && startround(me, service, 1000)
 end
 
 function onmessage(me::Coordinator, message::Step, service)
@@ -224,18 +258,15 @@ function onmessage(me::TreeNode, message::Add, service)
 end
 
 function onmessage(me::TreeNode, message::RecipientMoved, service) # TODO a default implementation like this
-    if me.left == message.oldaddress
+    oldbox = box(message.oldaddress)
+    if !isnothing(me.left) && box(me.left) === oldbox
         me.left = message.newaddress
-        send(service, me, me.left, message.originalmessage)
-    elseif me.right == message.oldaddress
+    elseif !isnothing(me.right) && box(me.right) === oldbox
         me.right = message.newaddress
-        send(service, me, me.right, message.originalmessage)
-    elseif me.sibling == message.oldaddress
+    elseif !isnothing(me.sibling) && box(me.sibling) == oldbox
         me.sibling = message.newaddress
-        send(service, me, me.sibling, message.originalmessage)
-    else
-        send(service, me, message.newaddress, message.originalmessage)
     end
+    send(service, me, message.newaddress, message.originalmessage)
 end
 
 function onmessage(me::TreeNode{T}, message::Search{T}, service) where T
@@ -249,7 +280,7 @@ function onmessage(me::TreeNode{T}, message::Search{T}, service) where T
         child = message.value > me.splitvalue ? me.right : me.left
         send(service, me, child, message)
     end
-    if !isnothing(me.sibling) && rand() < 0.05
+    if SIBLINGINFO_FREQ > 0 && !isnothing(me.sibling) && rand(UInt8) < SIBLINGINFO_FREQ
         send(service, me, me.sibling, SiblingInfo(me.size), -1)
     end
 end
