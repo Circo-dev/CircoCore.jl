@@ -2,10 +2,13 @@
 
 module ClusterFullTest
 
-const LIST_LENGTH = 1000
+const LIST_LENGTH = 4_000
 const MIGRATE_BATCH_SIZE = 0
-const BATCHES = 10000000
-const RUNS_IN_BATCH = 100
+const BATCHES = 100000
+const RUNS_IN_BATCH = 10
+
+const SCHEDULER_TARGET_ACTORCOUNT = 800.0
+
 
 using CircoCore, Dates, Random, LinearAlgebra
 import CircoCore.onmessage
@@ -51,17 +54,17 @@ end
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
     dist = norm(scheduler.pos - actor.core.pos)
     dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (150.0 - scheduler.actorcount) * 1e-1 / dist
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 1e-3# / dist
     return Infoton(scheduler.pos, energy)
 end
 
 CircoCore.scheduler_infoton(scheduler, actor::ListItem) = actorcount_scheduler_infoton(scheduler, actor)
 
 @inline CircoCore.check_migration(me::ListItem, alternatives::MigrationAlternatives, service) = begin
-    if norm(pos(service) - pos(me)) > 1010 # Do not check for alternatives if too close to the current scheduler
+    #if norm(pos(service) - pos(me)) > 1010 # Do not check for alternatives if too close to the current scheduler
         #println("check $alternatives")
         migrate_to_nearest(me, alternatives, service)
-    end
+    #end
 end
 
 struct Append <: Request
@@ -141,7 +144,7 @@ end
 
 function onmessage(me::Coordinator, message::PeerListUpdated, service)
     me.clusternodes = message.peers
-    if length(message.peers) > 1 && me.batchidx == 0
+    if length(message.peers) > 1 && me.batchidx == 0 && me.runidx == 0
         startbatch(me, service)    
     end
 end
@@ -165,7 +168,7 @@ function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
     if isdefined(me, :prev)
-     #  send(service, me, me.prev, Ack())
+       send(service, me, me.prev, Ack())
     end
 end    
 
@@ -200,6 +203,7 @@ function startbatch(me::Coordinator, service)
         return nothing
     end
     me.batchidx += 1
+    @debug "Starting batch $(me.batchidx)"
     batchmigration(me, service)
     me.runidx = 1
     for i = 1:RUNS_IN_BATCH

@@ -36,7 +36,7 @@ end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
     send(scheduler.postoffice, Msg(
-            address(scheduler),
+            addr(scheduler),
             sender(message),
             NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token),
             Infoton(nullpos)

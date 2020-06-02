@@ -57,12 +57,17 @@ function onmessage(me::MigrationHelper, message::PeerListUpdated, service)
     me.service.alternatives = MigrationAlternatives(message.peers) # TODO filter if lengthy
 end
 
+"""
+  migrate
+
+  sdfs sdf
+"""
 @inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
     migrate!(service.scheduler, actor, topostcode)
 end
 
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
-    send(postoffice(scheduler), Msg(address(scheduler),
+    send(postoffice(scheduler), Msg(addr(scheduler),
         Addr(topostcode, 0),
         MigrationRequest(actor),
         Infoton(nullpos)))
@@ -73,12 +78,14 @@ end
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
     #println("Migration request: $(message)")
     actor = body(message).actor
-    fromaddress = address(actor)
+    fromaddress = addr(actor)
+    migration = scheduler.plugins[:migration] # TODO also handle fast back-and forth moving when the request comes earlier than the previous response
+    delete!(migration.movedactors, box(addr(body(message).actor)))
     schedule!(scheduler, actor)
     onmigrate(actor, scheduler.service)
     send(scheduler.postoffice, Msg(actor,
         Addr(postcode(fromaddress), 0),
-        MigrationResponse(fromaddress, address(actor), true)))
+        MigrationResponse(fromaddress, addr(actor), true)))
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
@@ -110,17 +117,17 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
     else
         if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
             msg = Msg(
-                address(scheduler),
+                addr(scheduler),
                 newaddress,
                 body(message),
                 Infoton(nullpos)
             )
-            println("Forwarding message $message")
-            println(":::$msg")
+            #println("Forwarding message $message")
+            #println(":::$msg")
             send(scheduler.postoffice, msg)
         else # Do not forward normal messages but send back a RecipientMoved
             send(scheduler.postoffice, Msg(
-                address(scheduler),
+                addr(scheduler),
                 sender(message),
                 RecipientMoved(target(message), newaddress, body(message)),
                 Infoton(nullpos)

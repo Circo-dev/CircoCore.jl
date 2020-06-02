@@ -35,7 +35,7 @@ end
 end
 
 @inline function registername(service::ActorService{TScheduler}, name::String, handler::AbstractActor) where {TScheduler}
-    registername(service.scheduler.registry, name, address(handler))
+    registername(service.scheduler.registry, name, addr(handler))
 end
 
 @inline function getname(service::ActorService{TScheduler}, name::String) where {TScheduler}

@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures, Dates
 
-const VIEW_SIZE = 10000 # TODO eliminate
-const VIEW_HEIGHT = VIEW_SIZE / 3
+const VIEW_SIZE = 1000 # TODO eliminate
+const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
 function getpos(port) 
-    return randpos()
+    #return randpos()
     port == 24721 && return Pos(-1000, 0, 0)
     port == 24722 && return Pos(1000, 0, 0)
     port == 24723 && return Pos(0, -1000, 0)
@@ -73,7 +73,7 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{T}) where T<:Response
+@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{<:Response})
     cleartimeout(scheduler.tokenservice, token(message.body), target(message))
     deliver_nonresponse_locally!(scheduler, message)
     return nothing
@@ -97,17 +97,20 @@ end
 @inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
-    isdefined(actor, :addr) && isscheduled(scheduler, actor) && return address(actor)
+    isfirstschedule = !isdefined(actor, :core)
+    if !isfirstschedule && isscheduled(scheduler, actor) 
+        return addr(actor)
+    end
     fill_corestate!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
     scheduler.actorcount += 1
-    onschedule(actor, scheduler.service)
-    return address(actor)
+    isfirstschedule && onschedule(actor, scheduler.service)
+    return addr(actor)
 end
 
 @inline function unschedule!(scheduler::ActorScheduler, actor::AbstractActor)
     isscheduled(scheduler, actor) || return nothing
-    pop!(scheduler.actorcache, id(actor))
+    delete!(scheduler.actorcache, id(actor))
     scheduler.actorcount -= 1
     return nothing
 end
@@ -152,7 +155,7 @@ end
         println("Fired timeouts: $firedtimeouts")
         for timeout in firedtimeouts
             deliver_locally!(scheduler, Msg(
-                address(scheduler),
+                addr(scheduler),
                 timeout.watcher,
                 timeout,
                 Infoton(nullpos)#TODO scheduler pos

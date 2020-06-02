@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: LGPL-3.0-only
 
+# Starts a CircoCore node. For more info, call with -h
+
 BOOT_SCRIPT=$(cat <<-END
     using CircoCore
     using CircoCore.cli

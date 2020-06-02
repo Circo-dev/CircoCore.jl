@@ -19,7 +19,7 @@ struct Timeout
     token::Token
     deadline::DateTime
 end
-Timeout(watcher::AbstractActor, token::Token, timeout::Second=Second(2)) = Timeout(address(watcher), token, Dates.now() + timeout)
+Timeout(watcher::AbstractActor, token::Token, timeout::Second=Second(2)) = Timeout(addr(watcher), token, Dates.now() + timeout)
 Base.isless(a::Timeout, b::Timeout) = isless(a.deadline, b.deadline)
 
 struct TimeoutKey
