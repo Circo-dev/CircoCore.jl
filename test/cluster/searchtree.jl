@@ -15,11 +15,11 @@ const TARGET_DISTANCE = 300
 const I = 1.0
 
 # Tree parameters
-const ITEM_COUNT = 2_000_000
+const ITEM_COUNT = 1_000_000
 const ITEMS_PER_LEAF = 1000
-const SIBLINGINFO_FREQ = 1 #0..255
+const SIBLINGINFO_FREQ = 2 #0..255
 const FULLSPEED_PARALLELISM = 100
-const SCHEDULER_TARGET_ACTORCOUNT = 1000.0
+const SCHEDULER_TARGET_ACTORCOUNT = 600.0
 
 # Test Coordinator that fills the tree and sends Search requests to it
 mutable struct Coordinator <: AbstractActor
@@ -127,11 +127,11 @@ struct SiblingInfo
 end
 
 genvalue() = rand(UInt32)
-nearpos(pos::Pos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * maxdistance, rand() * maxdistance)
+nearpos(pos::Pos=Pos(0, 0, 0), maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * maxdistance, rand() * maxdistance)
 
 function onschedule(me::Coordinator, service)
     @debug "onschedule: $me"
-    me.core.pos = Pos(0, 0, 0)
+    me.core.pos = nearpos()
     me.root = createnode(Array{UInt32}(undef, 0), service, nearpos(me.core.pos))
     if me.runmode !== STOP
         startround(me, service)
@@ -151,7 +151,7 @@ end
 # to the coordinator. If the tree is not filled fully (as configured by ITEM_COUNT), then a new value
 # may also be inserted with some probability
 function startround(me::Coordinator, service, parallel = 1)
-    if me.size < ITEM_COUNT && rand() < 0.06 + me.size / ITEM_COUNT * 0.1
+    if me.size < ITEM_COUNT && rand() <  0.2 + me.size / ITEM_COUNT * 0.8
         send(service, me, me.root, Add(genvalue()))
         me.size += 1
     end
@@ -278,7 +278,7 @@ function onmessage(me::TreeNode, message::RecipientMoved, service) # TODO a defa
     send(service, me, message.newaddress, message.originalmessage)
 end
 
-function onmessage(me::TreeNode{T}, message::Search{T}, service) where T
+function onmessage(me::TreeNode, message::Search, service)
     if isnothing(me.splitvalue)
         if message.value in me.values
             send(service, me, message.searcher, SearchResult(message.value, true))
@@ -292,6 +292,7 @@ function onmessage(me::TreeNode{T}, message::Search{T}, service) where T
     if SIBLINGINFO_FREQ > 0 && !isnothing(me.sibling) && rand(UInt8) < SIBLINGINFO_FREQ
         send(service, me, me.sibling, SiblingInfo(me.size), -1) # To push the sibling away
     end
+    yield()
 end
 
 function onmessage(me::TreeNode, message::SetSibling, service)
@@ -303,4 +304,4 @@ end
 
 end
 
-zygote() = SearchTreeTest.Coordinator()
+zygote() = [SearchTreeTest.Coordinator() for i = 1:1]

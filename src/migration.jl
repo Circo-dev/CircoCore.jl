@@ -58,11 +58,11 @@ function onmessage(me::MigrationHelper, message::PeerListUpdated, service)
 end
 
 """
-  migrate
+    migrate(service, actor::AbstractActor, topostcode::PostCode)
 
-  sdfs sdf
+
 """
-@inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
+@inline function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
     migrate!(service.scheduler, actor, topostcode)
 end
 

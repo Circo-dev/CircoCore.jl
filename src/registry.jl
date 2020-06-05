@@ -30,7 +30,7 @@ function registername(service::LocalRegistry, name::String, handler::Addr)
     return true
 end
 
-function getname(registry::LocalRegistry, name::String)
+function getname(registry::LocalRegistry, name::String)::Union{Addr, Nothing}
     get(registry.register, name, nothing)
 end
 

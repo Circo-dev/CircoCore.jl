@@ -13,6 +13,7 @@ struct Registered
     accepted::Bool
 end
 
+println("Please ignore the following warning about method redefinition:")
 MsgPack.msgpack_type(::Type) = MsgPack.StructType() # TODO this drops the warning "incremental compilation may be fatally broken for this module"
 
 MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()

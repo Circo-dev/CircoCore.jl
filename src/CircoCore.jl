@@ -10,7 +10,7 @@ import Plugins.setup!, Plugins.shutdown!, Plugins.symbol
 
 A cluster-unique id that is randomly generated when the actor is spawned (first scheduled).
 
-`ActorId` is an alias to `UInt64` at the time, so it may pop up in error messags as such.
+`ActorId` is an alias to `UInt64` at the time, so it may pop up in error messages as such.
 """
 ActorId = UInt64
 
@@ -151,18 +151,25 @@ end
 nullpos = Pos(0, 0, 0)
 
 """
-    Infoton(sourcepos::Pos, energy::Number)
+    Infoton(sourcepos::Pos, energy::Real = 1)
 
-Create an Infoton that carries `abs(energy)` amount of energy and either 
+Create an Infoton that carries `abs(energy)` amount of energy and has the sign `sign(energy)`.
+
+The infoton mediates the force that awakens between communicating actors. When arriving at its
+target actor, the infoton pulls/pushes the actor toward/away from its source, depending on its
+sign (positive pulls).
+
+The exact details of how the Infoton should act at its target is actively researched.
+Please check or overload [apply_infoton](@ref).
 """
 struct Infoton
     sourcepos::Pos
     energy::Float32
-    Infoton(sourcepos::Pos, energy::Number) = new(sourcepos, Float64(energy))
-    Infoton(sourcepos::Pos) = new(sourcepos, 1)
+    Infoton(sourcepos::Pos, energy::Real = 1) = new(sourcepos, Float32(energy))
 end
 
 abstract type AbstractMsg end
+
 struct Msg{BodyType} <: AbstractMsg
     sender::Addr
     target::Addr
@@ -183,9 +190,74 @@ body(m::AbstractMsg) = m.body
 redirect(m::AbstractMsg, to::Addr) = (typeof(m))(target(m), to, body(m))
 
 # Actor lifecycle callbacks
-function onschedule(actor::AbstractActor, service) end
-function onmessage(actor::AbstractActor, message, service) end
-function onmigrate(actor::AbstractActor, service) end
+
+"""
+    CircoCore.onschedule(me::AbstractActor, service)
+
+Lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
+
+Note: Do not forget to import it or use its qualified name to allow overloading!
+
+# Examples
+
+```julia
+import CircoCore.onschedule
+
+funtion onschedule(me::MyActor, service)
+    registername(service, "MyActor", me) # Register this actor in the local name service
+end
+```
+"""
+function onschedule(me::AbstractActor, service) end
+
+"""
+    onmessage(me::AbstractActor, message, service)
+
+Handle a message arriving at an actor.
+
+Only the payload of the message is delivered, there is currently no way to access the infoton or the sender address.
+If you need a reply, include the sender address in the request.
+
+Note: Do not forget to import it or use its qualified name to allow overloading!
+
+# Examples
+
+```julia
+import CircoCore.onmessage
+
+struct TestRequest
+    replyto::Addr
+end
+
+struct TestResponse end
+
+function onmessage(me::MyActor, message::TestRequest, service)
+    send(service, me, message.replyto, TestResponse())
+end
+```
+"""
+function onmessage(me::AbstractActor, message, service) end
+
+"""
+    onmigrate(me::AbstractActor, service)
+
+Lifecycle callback that marks a successful migration.
+
+It is called on the target scheduler, before any messages will be delivered.
+
+Note: Do not forget to import it or use its qualified name to allow overloading!
+
+# Examples
+```julia
+import CircoCore.onmigrate
+
+function onmigrate(me::MyActor, service)
+    println("Successfully migrated, registering a name on the new scheduler")
+    registername(service, "MyActor", me)
+end
+```
+"""
+function onmigrate(me::AbstractActor, service) end
 
 # scheduler
 abstract type AbstractActorScheduler end
@@ -222,7 +294,7 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     Token, TokenId, Tokenized, token, Request, Response, Timeout,
 
     # Actor API
-    send, spawn, die, migrate, getname, registername,
+    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
 
     # Actor lifecycle callbacks
     onschedule, onmessage, onmigrate,

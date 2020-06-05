@@ -14,6 +14,7 @@ function getpos(port)
     port == 24724 && return Pos(0, 1000, 0)
     port == 24725 && return Pos(0, 0, -1000)
     port == 24726 && return Pos(0, 0, 1000)
+    return randpos()
 end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
@@ -25,6 +26,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
+    startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
     actor_activity_sparse_hooks::Plugins.HookList
@@ -35,10 +37,11 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             pos = getpos(port(postoffice.postcode))
         end
         scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, PluginStack(plugins))
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, PluginStack(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         cache_hooks(scheduler)
         setup!(scheduler.plugins, scheduler)
+        scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
     end
@@ -197,7 +200,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
             step!(scheduler)
         end
         if !process_external || 
-            exit_when_done && scheduler.actorcount == 0 
+            exit_when_done && scheduler.actorcount == scheduler.startup_actor_count 
             return
         end
         process_post_and_timeout(scheduler)

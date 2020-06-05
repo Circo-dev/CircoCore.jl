@@ -37,6 +37,7 @@ end
     scheduler = ActorScheduler([resultsholder])
     startsource(postcode(scheduler),addr(resultsholder))
     scheduler(;exit_when_done=true)
+    println("Resultsholder Exited")
     shutdown!(scheduler)
     stayer = resultsholder.results.stayer
     @test stayer.responsereceived == 1
