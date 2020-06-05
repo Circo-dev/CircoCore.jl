@@ -20,6 +20,6 @@ This contradiction shows that current computer networks are small, meaning the n
 - So is consistency.
 - And higher dimensions.
 
-Grounded computing means we try to build our systems in a way that respects the harsh reality of the universe we are living in. The cost of adding a new component to the system should be constant
+Grounded computing means we try to build our systems in a way that respects the harsh reality of the universe we are living in.
 
 
