@@ -4,11 +4,8 @@
 
 module SearchTreeTest
 
-using CircoCore, DataStructures, LinearAlgebra
-import CircoCore.onmessage
-import CircoCore.onschedule
-import CircoCore.monitorextra
-import CircoCore.check_migration
+using CircoCore, CircoCore.Debug, DataStructures, LinearAlgebra
+import CircoCore: onmessage, onschedule, monitorextra, check_migration
 
 # Infoton optimization parameters
 const TARGET_DISTANCE = 300
@@ -39,18 +36,16 @@ monitorextra(me::Coordinator)  = (
     root =!isnothing(me.root) ? me.root.box : nothing
 )
 
-# Debug messages handled by the Coordinator
+# Non-standard Debug messages handled by the Coordinator (See also module CircoCore.Debug)
+struct RunSlow a::UInt8 end# TODO fix MsgPack to allow empty structs
+struct RunFast a::UInt8 end# TODO Create UI to allow parametrized messages
+
 const STOP = 0
 const STEP = 1
 const SLOW = 20
 const FAST = 98
 const FULLSPEED = 100
 
-struct RunFull a::UInt8 end # TODO fix MsgPack to allow empty structs
-struct Step a::UInt8 end # TODO Create UI to allow parametrized messages
-struct RunSlow a::UInt8 end
-struct RunFast a::UInt8 end
-struct Stop a::UInt8 end
 
 # Binary search tree that holds a set of TValue values in the leaves (max size of a leaf is ITEMS_PER_LEAF)
 mutable struct TreeNode{TValue} <: AbstractActor
@@ -76,8 +71,8 @@ monitorextra(me::TreeNode) =
 # Schedulers pull/push their actors based on the number of actors they schedule 
 # SCHEDULER_TARGET_ACTOURCOUNT configures the target actorcount.
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
-    dist = norm(scheduler.pos - actor.core.pos)
-    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
+    #dist = norm(scheduler.pos - actor.core.pos)
+    #dist === 0.0 && return Infoton(scheduler.pos, 0.0)
     energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 2e-3 # / dist  # disabled: "/ dist" would mean force degrades linearly with distance.
     return Infoton(scheduler.pos, energy)
 end
@@ -177,7 +172,6 @@ function onmessage(me::Coordinator, message::SearchResult, service)
         me.lastreportts = time_ns()
     end
     startround(me, service)
-    yield()
 end
 
 # When a message comes back as RecipientMoved, the locally stored address of the moved actor has to be updated
@@ -207,7 +201,7 @@ function onmessage(me::Coordinator, message::RunSlow, service)
     oldmode == STOP && startround(me, service)
 end
 
-function onmessage(me::Coordinator, message::RunFull, service)
+function onmessage(me::Coordinator, message::Run, service)
     oldmode = me.runmode
     me.runmode = FULLSPEED
     oldmode == STOP && startround(me, service, FULLSPEED_PARALLELISM)
@@ -292,7 +286,6 @@ function onmessage(me::TreeNode, message::Search, service)
     if SIBLINGINFO_FREQ > 0 && !isnothing(me.sibling) && rand(UInt8) < SIBLINGINFO_FREQ
         send(service, me, me.sibling, SiblingInfo(me.size), -1) # To push the sibling away
     end
-    yield()
 end
 
 function onmessage(me::TreeNode, message::SetSibling, service)

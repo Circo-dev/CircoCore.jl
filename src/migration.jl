@@ -47,13 +47,12 @@ function setup!(migration::MigrationService, scheduler)
 end
 
 function onschedule(me::MigrationHelper, service)
-    println("cluster: $(getname(service, "cluster"))")
+    @debug "cluster: $(getname(service, "cluster"))"
     registername(service, "migration", me)
     send(service, me, getname(service, "cluster"), Subscribe{PeerListUpdated}(addr(me)))
 end
 
 function onmessage(me::MigrationHelper, message::PeerListUpdated, service)
-    println("PeerListUpdated received: $message")
     me.service.alternatives = MigrationAlternatives(message.peers) # TODO filter if lengthy
 end
 
@@ -160,13 +159,11 @@ end
     return found
 end
 
-@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service)
+@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=0.01)
     nearest = find_nearest(pos(me), alternatives)
-    #println("Nearest: $nearest")
     if isnothing(nearest) return nothing end
     if box(nearest.addr) === box(addr(me)) return nothing end
-    if norm(pos(me) - pos(nearest)) < 0.99 * norm(pos(me) - pos(service))
-        #println("$(box(addr(me))): Migrating to $(postcode(nearest))")
+    if norm(pos(me) - pos(nearest)) < (1.0 - tolerance) * norm(pos(me) - pos(service))
         migrate(service, me, postcode(nearest))
     end
     return nothing

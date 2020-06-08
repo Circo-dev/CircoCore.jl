@@ -196,7 +196,9 @@ end
 
 function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
     while true
-        while !isempty(scheduler.messagequeue)
+        msg_batch::UInt8 = 255
+        while msg_batch != 0 && !isempty(scheduler.messagequeue)
+            msg_batch -= 1
             step!(scheduler)
         end
         if !process_external || 

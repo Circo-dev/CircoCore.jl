@@ -1,32 +1,35 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-module ClusterFullTest
+# This Circo sample creates a linked list of random floats and calculates the sum of them over and over again.
+
+module LinkedListTest
 
 const LIST_LENGTH = 4_000
-const MIGRATE_BATCH_SIZE = 0
 const BATCHES = 100000
-const RUNS_IN_BATCH = 10
+const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started together
 
-const SCHEDULER_TARGET_ACTORCOUNT = 800.0
+const SCHEDULER_TARGET_ACTORCOUNT = 750.0 # Schedulers will push away their actors if they have more than this
 
+using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
+import CircoCore: onmessage, onschedule, monitorextra, check_migration
 
-using CircoCore, Dates, Random, LinearAlgebra
-import CircoCore.onmessage
-import CircoCore.onschedule
-import CircoCore.monitorextra
-import CircoCore.check_migration
-
+# Test coordinator: Creates the list and sends the reduce operations to it to calculate the sum
 mutable struct Coordinator <: AbstractActor
     itemcount::UInt64
-    clusternodes::Array{NodeInfo}
     batchidx::UInt
     runidx::UInt
-    listitems::Array{Addr} # Local copy for fast migrate commanding
     reducestarted::DateTime
     list::Addr
     core::CoreState
-    Coordinator() = new(0, [], 0, 0, [])
+    Coordinator() = new(0, 0, 0)
 end
+
+# Implement monitorextra() to publish part of an actor's state
+monitorextra(me::Coordinator)  = (
+    itemcount=me.itemcount,
+    batchidx = me.batchidx,
+    list=!isnothing(me.list) ? me.list.box : nothing,
+)
 
 mutable struct LinkedList <: AbstractActor
     head::Addr
@@ -44,27 +47,15 @@ mutable struct ListItem{TData} <: AbstractActor
 end
 monitorextra(me::ListItem) = (next = me.next)
 
-@inline function radius_scheduler_infoton(scheduler, actor::AbstractActor)
-    diff = scheduler.pos - actor.core.pos
-    distfromtarget = 2500 - norm(diff)
-    energy = distfromtarget * -2e-4
+@inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
+    #dist = norm(scheduler.pos - actor.core.pos)
+    #dist === 0.0 && return Infoton(scheduler.pos, 0.0)
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 2e-3 #/ dist
     return Infoton(scheduler.pos, energy)
 end
-
-@inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
-    dist = norm(scheduler.pos - actor.core.pos)
-    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 1e-3# / dist
-    return Infoton(scheduler.pos, energy)
-end
-
-CircoCore.scheduler_infoton(scheduler, actor::ListItem) = actorcount_scheduler_infoton(scheduler, actor)
 
 @inline CircoCore.check_migration(me::ListItem, alternatives::MigrationAlternatives, service) = begin
-    #if norm(pos(service) - pos(me)) > 1010 # Do not check for alternatives if too close to the current scheduler
-        #println("check $alternatives")
-        migrate_to_nearest(me, alternatives, service)
-    #end
+    migrate_to_nearest(me, alternatives, service, 0.02)
 end
 
 struct Append <: Request
@@ -104,10 +95,6 @@ struct Ack end
 Sum() = Reduce(+, 0)
 Mul() = Reduce(*, 1)
 
-struct MigrateCommand
-    to::PostCode
-end
-
 function onmessage(me::LinkedList, message::Append, service)
     send(service, me, message.item, SetNext(me.head))
     send(service, me, me.head, SetPrev(message.item))
@@ -128,7 +115,7 @@ end
 
 function appenditem(me::Coordinator, service)
     item = ListItem(1.00001)
-    push!(me.listitems, spawn(service, item))
+    spawn(service, item)
     send(service, me, me.list, Append(addr(me), addr(item)))
 end
 
@@ -137,16 +124,13 @@ function onmessage(me::Coordinator, message::Appended, service)
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)
     else
-        println("List items added. Waiting for cluster join")
-        send(service, me, getname(service, "cluster"), Subscribe{PeerListUpdated}(addr(me)))
+        println("List items added. Waiting for a Run command. UI: http://localhost:8000")
     end
 end
 
-function onmessage(me::Coordinator, message::PeerListUpdated, service)
-    me.clusternodes = message.peers
-    if length(message.peers) > 1 && me.batchidx == 0 && me.runidx == 0
-        startbatch(me, service)    
-    end
+
+function onmessage(me::Coordinator, message::Run, service)
+    startbatch(me, service)
 end
 
 onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
@@ -186,16 +170,6 @@ function onmessage(me::ListItem, message::RecipientMoved, service)
     end
 end
 
-function batchmigration(me::Coordinator, service)
-    if length(me.clusternodes) < 2
-        println("Running on a single-node cluster, no migration.")
-    end
-    batch = randsubseq(me.listitems, MIGRATE_BATCH_SIZE / LIST_LENGTH)
-    for actor in batch
-        send(service, me, actor, MigrateCommand(postcode(rand(me.clusternodes).addr)))
-    end
-end
-
 function startbatch(me::Coordinator, service)
     if me.batchidx > BATCHES
         println("Test finished.")
@@ -204,7 +178,6 @@ function startbatch(me::Coordinator, service)
     end
     me.batchidx += 1
     @debug "Starting batch $(me.batchidx)"
-    batchmigration(me, service)
     me.runidx = 1
     for i = 1:RUNS_IN_BATCH
         sumlist(me, service)
@@ -229,17 +202,11 @@ function onmessage(me::Coordinator, message::Reduce, service)
         println("Batch $(me.batchidx) , run $(me.runidx): Got reduce result $(message.result) in $reducetime.")
     end
     #sleep(0.001)
-    yield()
     me.runidx += 1
     if me.runidx >= RUNS_IN_BATCH + 1
-        #println(" Asking $MIGRATE_BATCH_SIZE actors to migrate.")
         startbatch(me, service)
     end
 end
 
-function onmessage(me::ListItem, message::MigrateCommand, service)
-    migrate(service, me, message.to)
 end
-
-end
-zygote() = ClusterFullTest.Coordinator()
+zygote() = LinkedListTest.Coordinator()

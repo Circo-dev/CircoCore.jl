@@ -2,8 +2,8 @@
 module CircoCore
 using Vec, Plugins
 
-import Base.show, Base.string
-import Plugins.setup!, Plugins.shutdown!, Plugins.symbol
+import Base: show, string
+import Plugins: setup!, shutdown!, symbol
 
 """
     ActorId
@@ -137,13 +137,14 @@ Call this on a spawned actor to get its position. Throws `UndefRefError` if the 
 pos(a::AbstractActor) = a.core.pos
 
 """
-    Pos
+    Pos(x::Real, y::Real, z::Real)
 
 A point in the 3D "actor space".
 
-Pos is currently a VecE3{Float32}. See [Vec.jl](https://github.com/sisl/Vec.jl)
+Pos is currently an alias to VecE3{Float32}. See [Vec.jl](https://github.com/sisl/Vec.jl)
 """
 Pos=VecE3{Float32}
+
 mutable struct CoreState
     addr::Addr
     pos::Pos
@@ -270,7 +271,6 @@ include("postoffice.jl")
 include("token.jl")
 include("registry.jl")
 include("service.jl")
-#include("plugins.jl")
 include("space.jl")
 include("interregion/websocket.jl")
 include("monitor.jl")
@@ -278,6 +278,7 @@ include("scheduler.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("migration.jl")
+include("debug.jl")
 include("cli/circonode.jl")
 
 export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
@@ -309,6 +310,9 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
     migrate_to_nearest, MigrationAlternatives,
 
+    Debug,
+
     cli
+
 end
 

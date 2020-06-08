@@ -4,8 +4,7 @@ module TokenTest
 using Test
 using Dates
 using CircoCore
-import CircoCore.onschedule
-import CircoCore.onmessage
+import CircoCore: onschedule, onmessage
 
 MESSAGE_COUNT = 100
 

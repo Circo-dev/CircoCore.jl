@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using Test
 using CircoCore
-import CircoCore.onmessage, CircoCore.onschedule
+import CircoCore: onmessage, onschedule
 
 const TARGET_COUNT = 13
 const EVENT_COUNT = 133
