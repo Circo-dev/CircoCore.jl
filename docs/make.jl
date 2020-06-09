@@ -2,16 +2,19 @@ using Documenter, CircoCore
 
 makedocs(;
     modules=[CircoCore],
-    format=Documenter.HTML(),
+    format=Documenter.HTML(
+        assets = ["assets/favicon.ico"]
+    ),
     pages=[
         "index.md",
         "install.md",
-        "reference.md"
+        "sample.md",
+        "reference.md",
+        "troubleshooting.md",
     ],
     repo="https://github.com/Circo-dev/CircoCore/blob/{commit}{path}#L{line}",
     sitename="CircoCore",
     authors="Krisztián Schaffer",
-    assets=String[],
 )
 
 deploydocs(;

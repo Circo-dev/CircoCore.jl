@@ -3,6 +3,4 @@
 
 const FILE_TO_INCLUDE = "examples/linkedlist.jl"
 
-println("circo.jl: including $(FILE_TO_INCLUDE)")
-
 include(FILE_TO_INCLUDE)

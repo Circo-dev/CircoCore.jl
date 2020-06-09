@@ -139,7 +139,7 @@ end
 
 Return the registered name from the scheduler-local registry, or nothing.
 
-See also: [NameQuery](@ref)
+See also: [`NameQuery`](@ref)
 """
 @inline function getname(service, name::String)::Union{Addr, Nothing}
     return getname(service.scheduler.registry, name)

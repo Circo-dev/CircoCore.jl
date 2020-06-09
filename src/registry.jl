@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 import Base.show
 
+"""
+    NameQuery(name::String) <: Request
+
+A query that can be sent to a remote scheduler for querying its local registry.
+"""
 struct NameQuery <: Request
     name::String
     token::Token

@@ -5,7 +5,6 @@
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
-const BATCHES = 100000
 const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started together
 
 const SCHEDULER_TARGET_ACTORCOUNT = 750.0 # Schedulers will push away their actors if they have more than this
@@ -15,20 +14,22 @@ import CircoCore: onmessage, onschedule, monitorextra, check_migration
 
 # Test coordinator: Creates the list and sends the reduce operations to it to calculate the sum
 mutable struct Coordinator <: AbstractActor
-    itemcount::UInt64
-    batchidx::UInt
-    runidx::UInt
-    reducestarted::DateTime
+    itemcount::Int
+    batchidx::Int
+    runidx::Int
+    batchstarted::DateTime
     list::Addr
     core::CoreState
     Coordinator() = new(0, 0, 0)
 end
 
+boxof(addr) = !isnothing(addr) ? addr.box : nothing # Helper
+
 # Implement monitorextra() to publish part of an actor's state
 monitorextra(me::Coordinator)  = (
-    itemcount=me.itemcount,
+    itemcount = me.itemcount,
     batchidx = me.batchidx,
-    list=!isnothing(me.list) ? me.list.box : nothing,
+    list = boxof(me.list)
 )
 
 mutable struct LinkedList <: AbstractActor
@@ -45,17 +46,18 @@ mutable struct ListItem{TData} <: AbstractActor
     core::CoreState
     ListItem(data) = new{typeof(data)}(data)
 end
-monitorextra(me::ListItem) = (next = me.next)
+monitorextra(me::ListItem) = (
+    data = me.data,
+    next = boxof(me.next)
+)
 
 @inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
-    #dist = norm(scheduler.pos - actor.core.pos)
-    #dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 2e-3 #/ dist
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 1e-3
     return Infoton(scheduler.pos, energy)
 end
 
 @inline CircoCore.check_migration(me::ListItem, alternatives::MigrationAlternatives, service) = begin
-    migrate_to_nearest(me, alternatives, service, 0.02)
+    migrate_to_nearest(me, alternatives, service, 0.01)
 end
 
 struct Append <: Request
@@ -105,7 +107,7 @@ end
 
 function onschedule(me::Coordinator, service)
     cluster = getname(service, "cluster")
-    println("Coordinator scheduled on cluster: $cluster Building list of $LIST_LENGTH actors")
+    @info "Coordinator scheduled on cluster: $cluster Building list of $LIST_LENGTH actors"
     list = LinkedList(addr(me))
     me.itemcount = 0
     spawn(service, list)
@@ -120,17 +122,22 @@ function appenditem(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Appended, service)
+    #me.core.pos = Pos(0, 0, 0)
     me.itemcount += 1
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)
     else
-        println("List items added. Waiting for a Run command. UI: http://localhost:8000")
+        @info "#########################################################################################################"
+        @info "### List items added. Open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
+        @info "#########################################################################################################"
     end
 end
 
 
 function onmessage(me::Coordinator, message::Run, service)
-    startbatch(me, service)
+    if me.batchidx == 0 && me.runidx == 0
+        startbatch(me, service)
+    end
 end
 
 onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
@@ -171,11 +178,6 @@ function onmessage(me::ListItem, message::RecipientMoved, service)
 end
 
 function startbatch(me::Coordinator, service)
-    if me.batchidx > BATCHES
-        println("Test finished.")
-        die(service, me)
-        return nothing
-    end
     me.batchidx += 1
     @debug "Starting batch $(me.batchidx)"
     me.runidx = 1
@@ -186,20 +188,20 @@ function startbatch(me::Coordinator, service)
 end
 
 function sumlist(me::Coordinator, service)
-    me.reducestarted = now()
+    me.batchstarted = now()
     send(service, me, me.list, Sum())
 end
 
 function mullist(me::Coordinator, service)
-    me.reducestarted = now()
+    me.batchstarted = now()
     send(service, me, me.list, Mul())
 end
 
 function onmessage(me::Coordinator, message::Reduce, service)
     me.core.pos = Pos(0, 0, 0)
-    reducetime = now() - me.reducestarted
-    if reducetime > Millisecond(round(rand() * 2e4))
-        println("Batch $(me.batchidx) , run $(me.runidx): Got reduce result $(message.result) in $reducetime.")
+    reducetime = now() - me.batchstarted
+    if me.runidx == RUNS_IN_BATCH # reducetime > Millisecond(round(rand() * 1e5))
+        @info "Batch $(me.batchidx), run $(me.runidx): Got reduce result $(message.result) in $reducetime."
     end
     #sleep(0.001)
     me.runidx += 1

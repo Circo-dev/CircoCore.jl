@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
+import Base.length
 
 struct MigrationRequest
     actor::AbstractActor
@@ -9,6 +10,22 @@ struct MigrationResponse
     to::Addr
     success::Bool
 end
+
+"""
+    RecipientMoved{TBody}
+
+If a message is undeliverable because the tartget actor moved to a known lcoation,
+this message will be sent back to the sender. The original message will not be delivered,
+but it gets included in the `RecipientMoved` message.
+
+```
+struct RecipientMoved{TBody}
+    oldaddress::Addr
+    newaddress::Addr
+    originalmessage::TBody
+end
+```
+"""
 struct RecipientMoved{TBody}
     oldaddress::Addr
     newaddress::Addr
@@ -24,6 +41,7 @@ end
 mutable struct MigrationAlternatives
     peers::Array{NodeInfo}
 end
+length(a::MigrationAlternatives) = length(a.peers)
 
 mutable struct MigrationService <: Plugin
     movingactors::Dict{ActorId,MovingActor}

@@ -3,8 +3,15 @@
 using LinearAlgebra
 
 const I = 1.0
-const TARGET_DISTANCE = 4
+const TARGET_DISTANCE = 3.0
 
+"""
+    apply_infoton(targetactor::AbstractActor, infoton::Infoton)
+
+An infoton acting on an actor.
+
+Please check the source and the examples for more info.
+"""
 function apply_infoton(targetactor::AbstractActor, infoton::Infoton)
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)

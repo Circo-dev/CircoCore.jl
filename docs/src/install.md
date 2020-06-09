@@ -5,25 +5,13 @@
 - Linux or OSX
 - Julia >= v"1.4"
 - git (Tested with "version 2.17.1")
-- Node.js (Tested with "v12.4.0") - For the frontend
+- Node.js (Tested with "v12.4.0") - For the optional frontend
 
 ## Install & run a sample
 
-You need to checkout two repos: The [CircoCore](https://github.com/tisztamo/CircoCore), "backend" and the [CircoCore.js](https://github.com/tisztamo/CircoCore.js) "frontend".
+You need to checkout two repos: The [CircoCore](https://github.com/tisztamo/CircoCore) "backend" and the [CircoCore.js](https://github.com/tisztamo/CircoCore.js) "frontend".
 
-**In terminal #1 (frontend)**
-
-```bash
-git clone git@github.com:tisztamo/CircoCore.js.git
-cd CircoCore.js
-npm install
-npx ws
-```
-
-This starts a web server on port 8000. Open [http://localhost:8000](http://localhost:8000) to see that it works,
-but for the magic to happen you need the backend too.
-
-**In terminal #2 (backend)**
+**In terminal #1 (backend)**
 
 ```bash
 git clone git@github.com:tisztamo/CircoCore.git
@@ -33,4 +21,13 @@ NODE_COUNT=6 bin/localcluster.sh
 
 This starts a local cluster with six nodes running the sample project.
 
-Wait for the cluster to start and reload the frontend to connect to all the nodes!
+**In terminal #2 (monitoring frontend, optional)**
+
+```bash
+git clone git@github.com:tisztamo/CircoCore.js.git
+cd CircoCore.js
+npm install
+npx ws
+```
+
+This starts a web server on port 8000. Open [http://localhost:8000](http://localhost:8000)

@@ -27,7 +27,7 @@ function allocate_postcode()
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue
-        println("Bound to $postcode")
+        @debug "Bound to $postcode"
         inchannel = Channel(IN_CHANNEL_LENGTH)
         intask = Threads.@spawn arrivals(socket, inchannel)
         return postcode, socket, intask, inchannel

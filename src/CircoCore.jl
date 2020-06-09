@@ -161,7 +161,7 @@ target actor, the infoton pulls/pushes the actor toward/away from its source, de
 sign (positive pulls).
 
 The exact details of how the Infoton should act at its target is actively researched.
-Please check or overload [apply_infoton](@ref).
+Please check or overload [`apply_infoton`](@ref).
 """
 struct Infoton
     sourcepos::Pos
