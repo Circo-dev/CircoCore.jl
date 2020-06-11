@@ -21,6 +21,6 @@ $command --add -z&
 while [ ! -f $ROOTS_FILE ]; do sleep 0.01; done
 for i in `seq 2 $NODE_COUNT`; do
     $command&
-    sleep 0.1
+    sleep 1 # Parallel joins do not work correctly at the time
 done
 wait

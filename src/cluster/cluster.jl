@@ -188,7 +188,7 @@ function onmessage(me::ClusterActor, message::JoinResponse, service)
         me.joined = true
         initpeers(me, message.peers, service)
         send(service, me, me.eventdispatcher, Joined(collect(values(me.peers))))
-        @info "Joined to cluster using root node $(message.responderinfo.addr)"
+        @info "Joined to cluster using root node $(message.responderinfo.addr). ($(length(message.peers)) peers)"
     else
         requestjoin(me, service)
     end
@@ -223,7 +223,7 @@ function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
                 getanewfriend(me, service)
             end
         end
-        # println("Peer joined: $(message.peer.addr.box) at $(me.addr.box)")
+        # @info "Peer joined: $(message.peer.addr.box) at $(addr(me).box)"
     end
 end
 

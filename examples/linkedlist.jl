@@ -56,7 +56,7 @@ monitorextra(me::ListItem) = (
     return Infoton(scheduler.pos, energy)
 end
 
-@inline CircoCore.check_migration(me::ListItem, alternatives::MigrationAlternatives, service) = begin
+@inline CircoCore.check_migration(me::Union{ListItem, Coordinator}, alternatives::MigrationAlternatives, service) = begin
     migrate_to_nearest(me, alternatives, service, 0.01)
 end
 
@@ -122,7 +122,7 @@ function appenditem(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Appended, service)
-    #me.core.pos = Pos(0, 0, 0)
+    me.core.pos = Pos(0, 0, 0)
     me.itemcount += 1
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)
@@ -198,7 +198,7 @@ function mullist(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Reduce, service)
-    me.core.pos = Pos(0, 0, 0)
+    #me.core.pos = Pos(0, 0, 0)
     reducetime = now() - me.batchstarted
     if me.runidx == RUNS_IN_BATCH # reducetime > Millisecond(round(rand() * 1e5))
         @info "Batch $(me.batchidx), run $(me.runidx): Got reduce result $(message.result) in $reducetime."
