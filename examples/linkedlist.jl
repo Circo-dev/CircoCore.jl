@@ -127,9 +127,9 @@ function onmessage(me::Coordinator, message::Appended, service)
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)
     else
-        @info "#########################################################################################################"
-        @info "### List items added. Open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
-        @info "#########################################################################################################"
+        @info "#############################################################################################################################"
+        @info "### List items added. Start the frontend, open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
+        @info "#############################################################################################################################"
     end
 end
 

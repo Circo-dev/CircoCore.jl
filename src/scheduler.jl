@@ -201,8 +201,9 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
             msg_batch -= 1
             step!(scheduler)
         end
-        if !process_external || 
-            exit_when_done && scheduler.actorcount == scheduler.startup_actor_count 
+        if  isempty(scheduler.messagequeue) &&
+            (!process_external || 
+             exit_when_done && scheduler.actorcount == scheduler.startup_actor_count)
             return
         end
         process_post_and_timeout(scheduler)
