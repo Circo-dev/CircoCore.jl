@@ -14,7 +14,7 @@ You need to checkout two repos: The [CircoCore](https://github.com/tisztamo/Circ
 **In terminal #1 (backend)**
 
 ```bash
-git clone https://github.com/tisztamo/CircoCore.git
+git clone https://github.com/Circo-dev/CircoCore.git
 cd CircoCore/
 julia --project -e 'using Pkg;Pkg.instantiate()'
 NODE_COUNT=6 bin/localcluster.sh
@@ -25,7 +25,7 @@ This starts a local cluster with six nodes running the sample project.
 **In terminal #2 (monitoring frontend, optional)**
 
 ```bash
-git clone https://github.com/tisztamo/CircoCore.js.git
+git clone https://github.com/Circo-dev/CircoCore.js.git
 cd CircoCore.js
 npm install
 npx ws

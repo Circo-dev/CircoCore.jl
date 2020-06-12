@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-# This CircoCore sample creates a linked list of actors golding float values
+# This CircoCore sample creates a linked list of actors holding float values,
 # and calculates the sum of them over and over again.
-# It demonstrates Infoton optimization, CircoCores novel approach to solve the
+# It demonstrates Infoton optimization, CircoCore's novel approach to solve the
 # data locality problem
 
 module LinkedListTest
