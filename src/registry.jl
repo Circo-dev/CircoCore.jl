@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 import Base.show
 
+"""
+    NameQuery(name::String) <: Request
+
+A query that can be sent to a remote scheduler for querying its local registry.
+"""
 struct NameQuery <: Request
     name::String
     token::Token
@@ -30,13 +35,13 @@ function registername(service::LocalRegistry, name::String, handler::Addr)
     return true
 end
 
-function getname(registry::LocalRegistry, name::String)
+function getname(registry::LocalRegistry, name::String)::Union{Addr, Nothing}
     get(registry.register, name, nothing)
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
     send(scheduler.postoffice, Msg(
-            address(scheduler),
+            addr(scheduler),
             sender(message),
             NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token),
             Infoton(nullpos)

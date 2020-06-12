@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using Test
 using CircoCore
-import CircoCore.onmessage
-import CircoCore.onmigrate
-import CircoCore.deliver_locally!
+import CircoCore:onmessage, onmigrate, deliver_locally!
 
 include("migrate-base.jl")
 
@@ -37,6 +35,7 @@ end
     scheduler = ActorScheduler([resultsholder])
     startsource(postcode(scheduler),addr(resultsholder))
     scheduler(;exit_when_done=true)
+    println("Resultsholder Exited")
     shutdown!(scheduler)
     stayer = resultsholder.results.stayer
     @test stayer.responsereceived == 1

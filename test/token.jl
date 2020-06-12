@@ -2,9 +2,9 @@
 module TokenTest
 
 using Test
+using Dates
 using CircoCore
-import CircoCore.onschedule
-import CircoCore.onmessage
+import CircoCore: onschedule, onmessage
 
 MESSAGE_COUNT = 100
 
@@ -40,7 +40,7 @@ function onschedule(me::Requestor, service)
     registername(service, string(TResponse), me)
     me.responder = getname(service, string(TRequest))
     for i=1:MESSAGE_COUNT
-        send(service, me, me.responder, TRequest(i))
+        send(service, me, me.responder, TRequest(i); timeout = Second(2))
     end
 end
 

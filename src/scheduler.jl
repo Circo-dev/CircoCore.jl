@@ -1,34 +1,65 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures, Dates
 
-const VIEW_SIZE = 3000 # TODO eliminate
-const VIEW_HEIGHT = VIEW_SIZE / 3
+const VIEW_SIZE = 1000 # TODO eliminate
+const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
+
+function getpos(port) 
+    #return randpos()
+    port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
+    port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
+    port == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
+    port == 24724 && return Pos(0, 1, 0) * VIEW_SIZE
+    port == 24725 && return Pos(0, 0, -1) * VIEW_SIZE
+    port == 24726 && return Pos(0, 0, 1) * VIEW_SIZE
+    return randpos()
+end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
     pos::Pos
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
-    messagequeue::Queue{AbstractMsg}
+    messagequeue::Queue{Msg}
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
-    plugins::Plugins
+    startup_actor_count::UInt16 # Number of actors created by plugins
+    plugins::PluginStack
+    localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
+    actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(),pos=Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
-        scheduler = new(pos, PostOffice(), 0, Dict{ActorId,AbstractActor}([]), Queue{AbstractMsg}(),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, Plugins(plugins))
+    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
+        postoffice = PostOffice()
+        if isnothing(pos)# TODO scheduler positioning
+            pos = getpos(port(postoffice.postcode))
+        end
+        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, PluginStack(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
+        cache_hooks(scheduler)
         setup!(scheduler.plugins, scheduler)
+        scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
     end
 end
 
-function default_plugins()
-    return [MigrationService(), WebsocketService(), SpaceService()]
+pos(scheduler::ActorScheduler) = scheduler.pos
+
+function default_plugins(;roots=[])
+    return [ClusterService(roots), MigrationService(), WebsocketService()]
+end
+
+function randpos()
+    return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
+end
+
+function cache_hooks(scheduler::ActorScheduler)
+    scheduler.localroutes_hooks = hooks(scheduler, localroutes)
+    scheduler.actor_activity_sparse_hooks = hooks(scheduler, actor_activity_sparse)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -45,7 +76,7 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{T}) where T<:Response
+@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{<:Response})
     cleartimeout(scheduler.tokenservice, token(message.body), target(message))
     deliver_nonresponse_locally!(scheduler, message)
     return nothing
@@ -69,17 +100,20 @@ end
 @inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
-    isdefined(actor, :addr) && isscheduled(scheduler, actor) && return address(actor)
+    isfirstschedule = !isdefined(actor, :core)
+    if !isfirstschedule && isscheduled(scheduler, actor) 
+        return addr(actor)
+    end
     fill_corestate!(scheduler, actor)
     scheduler.actorcache[id(actor)] = actor
     scheduler.actorcount += 1
-    onschedule(actor, scheduler.service)
-    return address(actor)
+    isfirstschedule && onschedule(actor, scheduler.service)
+    return addr(actor)
 end
 
 @inline function unschedule!(scheduler::ActorScheduler, actor::AbstractActor)
     isscheduled(scheduler, actor) || return nothing
-    pop!(scheduler.actorcache, id(actor))
+    delete!(scheduler.actorcache, id(actor))
     scheduler.actorcount -= 1
     return nothing
 end
@@ -91,17 +125,25 @@ end
     return Infoton(scheduler.pos, energy)
 end
 
+@inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
+    onmessage(targetactor, body(message), scheduler.service)
+    apply_infoton(targetactor, message.infoton)
+    if rand(UInt8) < 30 # TODO: config and move to a hook
+        apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
+        if rand(UInt8) < 15
+            scheduler.actor_activity_sparse_hooks(targetactor)
+        end
+    end
+    return nothing
+end
+
 @inline function step!(scheduler::ActorScheduler)
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        route_locally(scheduler.plugins, scheduler, message)
+        scheduler.localroutes_hooks(message) #TODO print unhandled messages for debugging
     else
-        onmessage(targetactor, body(message), scheduler.service)
-        apply_infoton(scheduler.plugins, scheduler, targetactor, message.infoton)
-        if (rand(UInt8) < 30) # TODO: config or remove
-            apply_infoton(scheduler.plugins, scheduler, targetactor, scheduler_infoton(scheduler, targetactor))
-        end
+        handle_message_locally!(targetactor, message, scheduler)
     end
     return nothing
 end
@@ -116,7 +158,7 @@ end
         println("Fired timeouts: $firedtimeouts")
         for timeout in firedtimeouts
             deliver_locally!(scheduler, Msg(
-                address(scheduler),
+                addr(scheduler),
                 timeout.watcher,
                 timeout,
                 Infoton(nullpos)#TODO scheduler pos
@@ -154,11 +196,14 @@ end
 
 function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
     while true
-        while !isempty(scheduler.messagequeue)
+        msg_batch::UInt8 = 255
+        while msg_batch != 0 && !isempty(scheduler.messagequeue)
+            msg_batch -= 1
             step!(scheduler)
         end
-        if !process_external || 
-            exit_when_done && scheduler.actorcount == 0 
+        if  isempty(scheduler.messagequeue) &&
+            (!process_external || 
+             exit_when_done && scheduler.actorcount == scheduler.startup_actor_count)
             return
         end
         process_post_and_timeout(scheduler)
@@ -166,7 +211,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
 end
 
 function shutdown!(scheduler::ActorScheduler)
-    shutdown!(scheduler.plugins)
+    Plugins.shutdown!(scheduler.plugins, scheduler)
     shutdown!(scheduler.postoffice)
     println("Scheduler at $(postcode(scheduler)) exited.")
 end

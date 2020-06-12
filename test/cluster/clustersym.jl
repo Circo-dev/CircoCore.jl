@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using Test
 using CircoCore
-import CircoCore.onmessage
-import CircoCore.onmigrate
+import CircoCore:onmessage, onmigrate
 
 const PEER_COUNT = 100
 const ROOT_COUNT = 3
@@ -25,7 +24,7 @@ const ROOT_COUNT = 3
         node.servicename = ""
         push!(cluster, node)
         schedule!(scheduler, node)
-        #if rand() < 0.5
+        #if rand() < 0.5  # This simulates parallel joins, but the gossip protocol needs an update : currently not every parallel join is published to everywhere correctly.
             scheduler(;process_external=false)
         #end
     end

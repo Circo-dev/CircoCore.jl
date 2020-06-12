@@ -128,16 +128,15 @@ function appendpostcode(filename, po)
     end
 end
 
-function plugins()
-    plugins = default_plugins()
+function plugins(;roots=[])
+    plugins = default_plugins(;roots=roots)
     push!(plugins, MonitorService())
     return plugins
 end
 
 function startfirstnode(rootsfilename=nothing, zygotes=[])
-    root = ClusterActor("First Node")
-    initialactors = union([root], zygotes)
-    scheduler = ActorScheduler(initialactors;plugins=plugins())
+    scheduler = ActorScheduler(zygotes;plugins=plugins())
+    root = getname(scheduler.service, "cluster")
     println("First node started. To add nodes to this cluster, run:")
     if isnothing(rootsfilename)
         println("./circonode.sh --roots $(postcode(root))")
@@ -149,14 +148,12 @@ function startfirstnode(rootsfilename=nothing, zygotes=[])
 end
 
 function startnodeandconnect(roots, zygotes=[]; rootsfilename=nothing, addmetoroots=false)
-    root = ClusterActor(NodeInfo("Another Node"), roots)
-    initialactors = union([root], zygotes)
-    scheduler = ActorScheduler(initialactors;plugins=plugins())
+    scheduler = ActorScheduler(zygotes;plugins=plugins(;roots=roots))
+    root = getname(scheduler.service, "cluster")
     if addmetoroots
-        appendpostcode(rootsfilename, addr(root))
+        appendpostcode(rootsfilename, root)
     end
-    println("Node started. Postcode of this node$(addmetoroots ? " (added to $rootsfilename)" : ""):")
-    println(postcode(root))
+    @info "Node started. Postcode of this node$(addmetoroots ? " (added to $rootsfilename)" : ""): $(postcode(root))"
     scheduler()
 end
 

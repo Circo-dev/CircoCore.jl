@@ -18,7 +18,7 @@ end
 PostOffice() = PostOffice(UDPSocket(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
-address(post::PostOffice) = Addr(postcode(post), 0)
+addr(post::PostOffice) = Addr(postcode(post), 0)
 
 function allocate_postcode()
     socket = UDPSocket()
@@ -27,7 +27,7 @@ function allocate_postcode()
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue
-        println("Bound to $postcode")
+        @debug "Bound to $postcode"
         inchannel = Channel(IN_CHANNEL_LENGTH)
         intask = Threads.@spawn arrivals(socket, inchannel)
         return postcode, socket, intask, inchannel

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
+import Base.length
 
 struct MigrationRequest
     actor::AbstractActor
@@ -9,6 +10,22 @@ struct MigrationResponse
     to::Addr
     success::Bool
 end
+
+"""
+    RecipientMoved{TBody}
+
+If a message is undeliverable because the tartget actor moved to a known lcoation,
+this message will be sent back to the sender. The original message will not be delivered,
+but it gets included in the `RecipientMoved` message.
+
+```
+struct RecipientMoved{TBody}
+    oldaddress::Addr
+    newaddress::Addr
+    originalmessage::TBody
+end
+```
+"""
 struct RecipientMoved{TBody}
     oldaddress::Addr
     newaddress::Addr
@@ -21,21 +38,53 @@ struct MovingActor
     MovingActor(actor::AbstractActor) = new(actor, Queue{AbstractMsg}())
 end
 
-struct MigrationService <: SchedulerPlugin
+mutable struct MigrationAlternatives
+    peers::Array{NodeInfo}
+end
+length(a::MigrationAlternatives) = length(a.peers)
+
+mutable struct MigrationService <: Plugin
     movingactors::Dict{ActorId,MovingActor}
     movedactors::Dict{ActorId,Addr}
-    MigrationService() = new(Dict([]),Dict([]))
+    alternatives::MigrationAlternatives
+    helperactor::Addr
+    MigrationService() = new(Dict([]),Dict([]), MigrationAlternatives([]))
 end
 
-localroutes(plugin::MigrationService) = migration_routes!
+mutable struct MigrationHelper <: AbstractActor
+    service::MigrationService
+    core::CoreState
+    MigrationHelper(migration) = new(migration)
+end
+
 symbol(plugin::MigrationService) = :migration
 
-@inline function migrate(service::ActorService{TScheduler}, actor::AbstractActor, topostcode::PostCode) where {TScheduler}
+function setup!(migration::MigrationService, scheduler)
+    helper = MigrationHelper(migration)
+    migration.helperactor = spawn(scheduler.service, helper)
+end
+
+function onschedule(me::MigrationHelper, service)
+    @debug "cluster: $(getname(service, "cluster"))"
+    registername(service, "migration", me)
+    send(service, me, getname(service, "cluster"), Subscribe{PeerListUpdated}(addr(me)))
+end
+
+function onmessage(me::MigrationHelper, message::PeerListUpdated, service)
+    me.service.alternatives = MigrationAlternatives(message.peers) # TODO filter if lengthy
+end
+
+"""
+    migrate(service, actor::AbstractActor, topostcode::PostCode)
+
+
+"""
+@inline function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
     migrate!(service.scheduler, actor, topostcode)
 end
 
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
-    send(postoffice(scheduler), Msg(address(scheduler),
+    send(postoffice(scheduler), Msg(addr(scheduler),
         Addr(topostcode, 0),
         MigrationRequest(actor),
         Infoton(nullpos)))
@@ -44,21 +93,26 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
+    #println("Migration request: $(message)")
     actor = body(message).actor
-    fromaddress = address(actor)
+    fromaddress = addr(actor)
+    migration = scheduler.plugins[:migration] # TODO also handle fast back-and forth moving when the request comes earlier than the previous response
+    delete!(migration.movedactors, box(addr(body(message).actor)))
     schedule!(scheduler, actor)
     onmigrate(actor, scheduler.service)
     send(scheduler.postoffice, Msg(actor,
         Addr(postcode(fromaddress), 0),
-        MigrationResponse(fromaddress, address(actor), true)))
+        MigrationResponse(fromaddress, addr(actor), true)))
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
+    #println("Migration response: $(message)")
     migration = scheduler.plugins[:migration]
     response = body(message)
     movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
         migration.movedactors[box(response.from)] = response.to
+        #println("Messages waiting: $(movingactor.messages)")
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -67,28 +121,68 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
     end
 end
 
-function migration_routes!(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
-    if body(message) isa RecipientMoved
-        println("Got a RecipientMoved with invalid recipient, dropping.")
-        return false
-    else
-        newaddress = get(migration.movedactors, box(target(message)), nothing)
-        if isnothing(newaddress)
-            movingactor = get(migration.movingactors, box(target(message)), nothing)
-            if isnothing(movingactor)
-                return false
-            else
-                enqueue!(movingactor.messages, message)
-                return true
-            end
+function localroutes(migration::MigrationService, scheduler::AbstractActorScheduler, message::AbstractMsg)::Bool
+    newaddress = get(migration.movedactors, box(target(message)), nothing)
+    if isnothing(newaddress)
+        movingactor = get(migration.movingactors, box(target(message)), nothing)
+        if isnothing(movingactor)
+            return true
         else
+            enqueue!(movingactor.messages, message)
+            return false
+        end
+    else
+        if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
+            msg = Msg(
+                addr(scheduler),
+                newaddress,
+                body(message),
+                Infoton(nullpos)
+            )
+            #println("Forwarding message $message")
+            #println(":::$msg")
+            send(scheduler.postoffice, msg)
+        else # Do not forward normal messages but send back a RecipientMoved
             send(scheduler.postoffice, Msg(
-                address(scheduler),
+                addr(scheduler),
                 sender(message),
                 RecipientMoved(target(message), newaddress, body(message)),
                 Infoton(nullpos)
             ))
-            return true            
+        end    
+        return false       
+    end
+end
+
+@inline check_migration(me::AbstractActor, alternatives::MigrationAlternatives, service) = nothing
+
+@inline function actor_activity_sparse(migration::MigrationService, scheduler, actor::AbstractActor)
+    check_migration(actor, migration.alternatives, scheduler.service)
+end
+
+@inline function find_nearest(sourcepos::Pos, alternatives::MigrationAlternatives)::Union{NodeInfo, Nothing}
+    peers = alternatives.peers
+    if length(peers) < 2
+        return nothing
+    end
+    found = peers[1]
+    mindist = norm(pos(found) - sourcepos)
+    for peer in peers[2:end]
+        dist = norm(pos(peer) - sourcepos)
+        if dist < mindist
+            mindist = dist
+            found = peer
         end
     end
+    return found
+end
+
+@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=0.01)
+    nearest = find_nearest(pos(me), alternatives)
+    if isnothing(nearest) return nothing end
+    if box(nearest.addr) === box(addr(me)) return nothing end
+    if norm(pos(me) - pos(nearest)) < (1.0 - tolerance) * norm(pos(me) - pos(service))
+        migrate(service, me, postcode(nearest))
+    end
+    return nothing
 end

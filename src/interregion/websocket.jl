@@ -13,6 +13,7 @@ struct Registered
     accepted::Bool
 end
 
+println("Please ignore the following warning about method redefinition:")
 MsgPack.msgpack_type(::Type) = MsgPack.StructType() # TODO this drops the warning "incremental compilation may be fatally broken for this module"
 
 MsgPack.msgpack_type(::Type{ActorId}) = MsgPack.StringType()
@@ -20,10 +21,10 @@ MsgPack.to_msgpack(::MsgPack.StringType, id::ActorId) = string(id, base=16)
 MsgPack.from_msgpack(::Type{ActorId}, str::AbstractString) = parse(ActorId, str;base=16)
 
 MsgPack.construct(::Type{Msg{TBody}}, args...) where TBody = begin
-     Msg{TBody}(args[1], args[2], args[3], Infoton(nullpos))
+    Msg{TBody}(args[1], args[2], args[3], Infoton(nullpos))
 end
-
-mutable struct WebsocketService <: SchedulerPlugin
+        
+mutable struct WebsocketService <: Plugin
     actor_connections::Dict{ActorId, IO}
     typeregistry::TypeRegistry
     socket
@@ -31,7 +32,6 @@ mutable struct WebsocketService <: SchedulerPlugin
 end
 
 symbol(plugin::WebsocketService) = :websocket
-localroutes(plugin::WebsocketService) = websocket_routes!
 
 function setup!(service::WebsocketService, scheduler)
     listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS
@@ -149,11 +149,11 @@ function shutdown!(service::WebsocketService)
     isdefined(service, :socket) && close(service.socket)
 end
 
-function websocket_routes!(ws_plugin::WebsocketService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
+function localroutes(ws_plugin::WebsocketService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
     ws = get(ws_plugin.actor_connections, box(target(msg)), nothing)
     if !isnothing(ws)
         sendws(msg, ws)
-        return true
+        return false
     end
-    return false
+    return true
 end

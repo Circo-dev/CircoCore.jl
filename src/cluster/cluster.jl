@@ -8,12 +8,28 @@ const MAX_DOWNSTREAM_FRIENDS = 25
 const TARGET_FRIEND_COUNT = 5
 const MIN_FRIEND_COUNT = 3
 
+mutable struct ClusterService <: Plugin
+    roots::Array{PostCode}
+    helperactor::Addr
+    ClusterService(roots=[]) = new(roots)
+end
+
+CircoCore.setup!(cluster::ClusterService, scheduler) = begin
+    helper = ClusterActor(;roots=cluster.roots)
+    cluster.helperactor = spawn(scheduler.service, helper)
+end
+
+
 mutable struct NodeInfo
     name::String
     addr::Addr
+    pos::Pos
     NodeInfo(name) = new(name)
     NodeInfo() = new()
 end
+pos(i::NodeInfo) = i.pos
+addr(i::NodeInfo) = i.addr
+postcode(i::NodeInfo) = postcode(addr(i))
 
 struct Joined <: Event
     peers::Array{NodeInfo}
@@ -44,8 +60,9 @@ mutable struct ClusterActor <: AbstractActor
     core::CoreState
     ClusterActor(myinfo, roots) = new(myinfo, roots, false, 0, Dict(), Dict(), Set(), 0, NAME)
     ClusterActor(myinfo::NodeInfo) = ClusterActor(myinfo, [])
-    ClusterActor(name::String) = ClusterActor(NodeInfo(name))
+    ClusterActor(;roots=[]) = ClusterActor(NodeInfo("unnamed"), roots)
 end
+monitorextra(me::ClusterActor) = (myinfo=me.myinfo, peers=values(me.peers))
 
 struct JoinRequest
     info::NodeInfo
@@ -99,7 +116,7 @@ function requestjoin(me, service)
     me.joinrequestcount += 1
     rootaddr = Addr(root)
     if isbaseaddress(rootaddr)
-        send(service, me, Addr(root), NameQuery("cluster"))
+        send(service, me, Addr(root), NameQuery("cluster");timeout=Second(10))
     else
         send(service, me, rootaddr, JoinRequest(me.myinfo))
     end
@@ -107,6 +124,7 @@ end
 
 function onschedule(me::ClusterActor, service)
     me.myinfo.addr = addr(me)
+    me.myinfo.pos = pos(service)
     me.eventdispatcher = spawn(service, EventDispatcher())
     requestjoin(me, service)
 end
@@ -170,7 +188,7 @@ function onmessage(me::ClusterActor, message::JoinResponse, service)
         me.joined = true
         initpeers(me, message.peers, service)
         send(service, me, me.eventdispatcher, Joined(collect(values(me.peers))))
-        println("Joined to cluster using root node $(message.responderinfo.addr)")
+        @info "Joined to cluster using root node $(message.responderinfo.addr). ($(length(message.peers)) peers)"
     else
         requestjoin(me, service)
     end
@@ -205,7 +223,7 @@ function onmessage(me::ClusterActor, message::PeerJoinedNotification, service)
                 getanewfriend(me, service)
             end
         end
-        # println("Peer joined: $(message.peer.addr.box) at $(me.addr.box)")
+        # @info "Peer joined: $(message.peer.addr.box) at $(addr(me).box)"
     end
 end
 
@@ -256,3 +274,10 @@ end
 function onmessage(me::ClusterActor, message::UnfriendRequest, service)
     pop!(me.downstream_friends, message.requestor)
 end
+
+# TODO: update peers
+#@inline function CircoCore.actor_activity_sparse(cluster::ClusterService, scheduler, actor::AbstractActor)
+#   if rand(UInt8) == 0
+#        
+#    end
+#end

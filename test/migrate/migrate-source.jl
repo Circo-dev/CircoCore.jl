@@ -34,5 +34,6 @@ function migratetoremote(targetpostcode, resultsholder_address)
     cmd = MigrateCommand(targetpostcode, addr(stayer))
     message = Msg(addr(migrant), cmd)
     scheduler(message; process_external=true)
+    println("Source Exited")
     shutdown!(scheduler)
 end
