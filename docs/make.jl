@@ -8,7 +8,7 @@ makedocs(;
     pages=[
         "index.md",
         "install.md",
-        "sample.md",
+        "tutorial.md",
         "reference.md",
         "troubleshooting.md",
     ],

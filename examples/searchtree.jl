@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-# Simple search tree for testing cluster functions and for analyzing space optimization strategies
+# Simple search tree for testing cluster functions and for analyzing infoton optimization strategies
 
 module SearchTreeTest
 
@@ -8,7 +8,7 @@ using CircoCore, CircoCore.Debug, DataStructures, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, check_migration
 
 # Infoton optimization parameters
-const TARGET_DISTANCE = 300
+const TARGET_DISTANCE = 80
 const I = 1.0
 
 # Tree parameters
@@ -73,7 +73,7 @@ monitorextra(me::TreeNode) =
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
     #dist = norm(scheduler.pos - actor.core.pos)
     #dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 2e-3 # / dist  # disabled: "/ dist" would mean force degrades linearly with distance.
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 6e-4 # / dist  # disabled: "/ dist" would mean that force degrades linearly with distance.
     return Infoton(scheduler.pos, energy)
 end
 

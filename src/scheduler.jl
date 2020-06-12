@@ -8,12 +8,12 @@ const TIMEOUTCHECK_INTERVAL = Second(1)
 
 function getpos(port) 
     #return randpos()
-    port == 24721 && return Pos(-1000, 0, 0)
-    port == 24722 && return Pos(1000, 0, 0)
-    port == 24723 && return Pos(0, -1000, 0)
-    port == 24724 && return Pos(0, 1000, 0)
-    port == 24725 && return Pos(0, 0, -1000)
-    port == 24726 && return Pos(0, 0, 1000)
+    port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
+    port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
+    port == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
+    port == 24724 && return Pos(0, 1, 0) * VIEW_SIZE
+    port == 24725 && return Pos(0, 0, -1) * VIEW_SIZE
+    port == 24726 && return Pos(0, 0, 1) * VIEW_SIZE
     return randpos()
 end
 

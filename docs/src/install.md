@@ -2,10 +2,10 @@
 
 ## Requirements
 
-- Linux or OSX
-- Julia >= v"1.4"
-- git (Tested with "version 2.17.1")
-- Node.js (Tested with "v12.4.0") - For the optional frontend
+- Linux or OSX 
+- Julia >= v"1.4" [download](https://julialang.org/)
+- git (Tested with "version 2.17.1") [download](https://git-scm.com/download/linux)
+- Node.js (Tested with "v12.4.0") [download](https://nodejs.org/en/download/) - For the optional frontend
 
 ## Install & run a sample
 

@@ -1,13 +1,16 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-# This Circo sample creates a linked list of random floats and calculates the sum of them over and over again.
+# This CircoCore sample creates a linked list of actors golding float values
+# and calculates the sum of them over and over again.
+# It demonstrates Infoton optimization, CircoCores novel approach to solve the
+# data locality problem
 
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
 const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started together
 
-const SCHEDULER_TARGET_ACTORCOUNT = 750.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, check_migration
@@ -52,7 +55,7 @@ monitorextra(me::ListItem) = (
 )
 
 @inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 1e-3
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 3e-3
     return Infoton(scheduler.pos, energy)
 end
 
@@ -116,7 +119,7 @@ function onschedule(me::Coordinator, service)
 end
 
 function appenditem(me::Coordinator, service)
-    item = ListItem(1.00001)
+    item = ListItem(1.0 + me.itemcount * 1e-7)
     spawn(service, item)
     send(service, me, me.list, Append(addr(me), addr(item)))
 end

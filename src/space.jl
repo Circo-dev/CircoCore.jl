@@ -3,7 +3,7 @@
 using LinearAlgebra
 
 const I = 1.0
-const TARGET_DISTANCE = 3.0
+const TARGET_DISTANCE = 15.0
 
 """
     apply_infoton(targetactor::AbstractActor, infoton::Infoton)
