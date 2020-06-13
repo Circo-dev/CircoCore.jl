@@ -28,7 +28,7 @@ This starts a local cluster with six nodes running the sample project.
 git clone https://github.com/Circo-dev/CircoCore.js.git
 cd CircoCore.js
 npm install
-npx ws
+npm run serve
 ```
 
 This starts a web server on port 8000. Open [http://localhost:8000](http://localhost:8000)
