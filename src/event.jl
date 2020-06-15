@@ -22,6 +22,7 @@ mutable struct EventDispatcher <: AbstractActor
     core::CoreState
     EventDispatcher() = new(Dict([]))
 end
+monitorprojection(::Type{EventDispatcher}) = JS("projections.nonimportant")
 
 function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent<:Event}
     if !haskey(me.listeners, TEvent)

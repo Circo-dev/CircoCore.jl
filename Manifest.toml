@@ -5,9 +5,9 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "af6d9c86e191c917c2276fbede1137e8ea20157f"
+git-tree-sha1 = "be680f1ad03c0a03796aa3fda5a2180df7f83b46"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.17.17"
+version = "0.17.18"
 
 [[Dates]]
 deps = ["Printf"]
@@ -19,9 +19,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[DocStringExtensions]]
 deps = ["LibGit2", "Markdown", "Pkg", "Test"]
-git-tree-sha1 = "88bb0edb352b16608036faadcc071adda068582a"
+git-tree-sha1 = "c5714d9bcdba66389612dc4c47ed827c64112997"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.8.1"
+version = "0.8.2"
 
 [[Documenter]]
 deps = ["Base64", "Dates", "DocStringExtensions", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "REPL", "Test", "Unicode"]
@@ -31,9 +31,9 @@ version = "0.24.11"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "IniFile", "MbedTLS", "Sockets"]
-git-tree-sha1 = "fe31f4ff144392ad8176f5c7c03cca6ba320271c"
+git-tree-sha1 = "ec87d5e2acbe1693789efbbe14f5ea7525758f71"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.8.14"
+version = "0.8.15"
 
 [[IniFile]]
 deps = ["Test"]
@@ -97,18 +97,18 @@ version = "1.2.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "f0abb338b4d00306500056a3fd44c221b8473ef2"
+git-tree-sha1 = "eb3e09940c0d7ae01b01d9291ebad7b081c844d3"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "1.0.4"
+version = "1.0.5"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Plugins]]
-git-tree-sha1 = "baedbd6f681361ff178f09310a608a3cad10d883"
+git-tree-sha1 = "7755490866e2f4649b1cf3e1b886b2662e57e89d"
 uuid = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
-version = "0.1.0"
+version = "0.1.2"
 
 [[Printf]]
 deps = ["Unicode"]

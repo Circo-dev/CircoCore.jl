@@ -5,7 +5,7 @@
 module SearchTreeTest
 
 using CircoCore, CircoCore.Debug, DataStructures, LinearAlgebra
-import CircoCore: onmessage, onschedule, monitorextra, check_migration
+import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
 
 # Infoton optimization parameters
 const TARGET_DISTANCE = 80
@@ -17,6 +17,9 @@ const ITEMS_PER_LEAF = 1000
 const SIBLINGINFO_FREQ = 2 #0..255
 const FULLSPEED_PARALLELISM = 100
 const SCHEDULER_TARGET_ACTORCOUNT = 600.0
+
+const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
+const NODESCALE_FACTOR = 1 / ITEMS_PER_LEAF / 2
 
 # Test Coordinator that fills the tree and sends Search requests to it
 mutable struct Coordinator <: AbstractActor
@@ -65,6 +68,19 @@ monitorextra(me::TreeNode) =
  splitval = me.splitvalue,
  size = me.size)
 
+ monitorprojection(::Type{TreeNode{TValue}}) where TValue = JS("{
+    geometry: new THREE.TetrahedronBufferGeometry(10, 2),
+    scale: function(actor) {
+        if (actor.extra.left) {
+            return { x: 0.4 , y: 0.5, z: 0.4 }
+        } else {
+            return { x: 0.2 + actor.extra.size * $NODESCALE_FACTOR , y: 0.2 + actor.extra.size * $NODESCALE_FACTOR, z: 0.2 + actor.extra.size * $NODESCALE_FACTOR }
+        }
+    },
+    color: function(actor) {
+        return actor.extra.size < $RED_AFTER ? 0x389826 : (actor.extra.left ? 0x9558b2 : 0xcb3c33)
+    }
+}")
 
 # --- Infoton optimization. We overwrite the default behaviors to allow easy experimentation
 

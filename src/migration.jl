@@ -57,6 +57,8 @@ mutable struct MigrationHelper <: AbstractActor
     MigrationHelper(migration) = new(migration)
 end
 
+monitorprojection(::Type{MigrationHelper}) = JS("projections.nonimportant")
+
 symbol(plugin::MigrationService) = :migration
 
 function setup!(migration::MigrationService, scheduler)

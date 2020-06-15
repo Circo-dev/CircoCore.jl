@@ -310,6 +310,9 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
     migrate_to_nearest, MigrationAlternatives,
 
+    # Monitoring
+    JS, 
+
     Debug,
 
     cli
