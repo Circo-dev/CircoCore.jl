@@ -63,6 +63,7 @@ mutable struct ClusterActor <: AbstractActor
     ClusterActor(;roots=[]) = ClusterActor(NodeInfo("unnamed"), roots)
 end
 monitorextra(me::ClusterActor) = (myinfo=me.myinfo, peers=values(me.peers))
+monitorprojection(::Type{ClusterActor}) = JS("projections.nonimportant")
 
 struct JoinRequest
     info::NodeInfo

@@ -13,7 +13,7 @@ const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started tog
 const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
-import CircoCore: onmessage, onschedule, monitorextra, check_migration
+import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
 
 # Test coordinator: Creates the list and sends the reduce operations to it to calculate the sum
 mutable struct Coordinator <: AbstractActor
@@ -34,6 +34,11 @@ monitorextra(me::Coordinator)  = (
     batchidx = me.batchidx,
     list = boxof(me.list)
 )
+monitorprojection(::Type{Coordinator}) = JS("{
+    geometry: new THREE.SphereBufferGeometry(25, 7, 7),
+    color: 0xcb3c33
+}")
+
 
 mutable struct LinkedList <: AbstractActor
     head::Addr
@@ -41,6 +46,12 @@ mutable struct LinkedList <: AbstractActor
     core::CoreState
     LinkedList(head) = new(head)
 end
+
+monitorprojection(::Type{LinkedList}) = JS("{
+    geometry: new THREE.BoxBufferGeometry(20, 20, 20),
+    color: 0x9558B2
+}")
+
 
 mutable struct ListItem{TData} <: AbstractActor
     data::TData
@@ -53,6 +64,10 @@ monitorextra(me::ListItem) = (
     data = me.data,
     next = boxof(me.next)
 )
+
+monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
+    geometry: new THREE.BoxBufferGeometry(10, 10, 10)
+}")
 
 @inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
     energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 3e-3

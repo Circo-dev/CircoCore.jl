@@ -21,6 +21,16 @@ monitorextra(actor::AbstractActor) = noextra
 
 monitorinfo(actor::AbstractActor) = ActorInfo(actor, monitorextra(actor))
 
+struct JS
+    src::String
+end
+
+monitorprojection(::Type{<: AbstractActor}) = JS("{
+    geometry: new THREE.BoxBufferGeometry(20, 20, 20),
+    scale: { x: 1, y: 1, z: 1 },
+    rotation: { x: 0, y: 0, z: 0 }
+}")
+
 struct ActorListRequest <: Request
     respondto::Addr
     token::Token
@@ -43,16 +53,38 @@ struct ActorInterfaceResponse <: Response
     token::Token
 end
 
+struct MonitorProjectionRequest <: Request
+    respondto::Addr
+    typename::String
+    token::Token
+end
+
+struct MonitorProjectionResponse <: Response
+    projection::JS
+    token::Token
+end
+
 mutable struct MonitorActor{TMonitor} <: AbstractActor
     monitor::TMonitor
     core::CoreState
     MonitorActor(monitor) = new{typeof(monitor)}(monitor)
 end
 
-monitorextra(actor::MonitorActor{T}) where T = (
+monitorextra(actor::MonitorActor)= (
     actorcount = UInt32(actor.monitor.scheduler.actorcount),
     queuelength = UInt32(length(actor.monitor.scheduler.messagequeue))
     )
+
+monitorprojection(::Type{MonitorActor{TMonitor}}) where TMonitor = JS("
+{
+    geometry: new THREE.BoxBufferGeometry(5, 5, 5),
+    scale: me => {
+        const plussize = me.extra.actorcount * 0.00002
+        // Works only for origo-centered setups:
+        return { x: 1 + plussize * Math.abs(me.y + me.z), y: 1 + plussize * Math.abs(me.x + me.z), z: 1 + plussize * Math.abs(me.x + me.y)}
+    },
+    color: 0x4063d8
+}")
 
 mutable struct MonitorService <: Plugin
     actor::MonitorActor
@@ -71,6 +103,12 @@ function onmessage(me::MonitorActor, request::ActorListRequest, service)
     me.core.pos = me.monitor.scheduler.pos
     result = [monitorinfo(actor) for actor in values(me.monitor.scheduler.actorcache)]
     send(service, me, request.respondto, ActorListResponse(result, request.token))
+end
+
+function onmessage(me::MonitorActor, request::MonitorProjectionRequest, service)
+    projection = monitorprojection(parsetype(request.typename))
+    @debug "monitorprojection for $(request.typename): $projection"
+    send(service, me, request.respondto, MonitorProjectionResponse(projection, request.token))
 end
 
 # Retrieves the message type from an onmessage method signature
