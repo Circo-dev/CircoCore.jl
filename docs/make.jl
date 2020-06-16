@@ -9,6 +9,7 @@ makedocs(;
         "index.md",
         "install.md",
         "tutorial.md",
+        "infotons.md",
         "reference.md",
         "troubleshooting.md",
     ],
