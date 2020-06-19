@@ -97,8 +97,8 @@ end
         sleep(2)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
-        @test pinger.pings_sent > 1e3
-        @test pinger.pongs_got > 1e3
+        @test pinger.pings_sent > 1e2
+        @test pinger.pongs_got > 1e2
         shutdown!(host)
         endpingcount = pinger.pings_sent
         sleep(0.1)
