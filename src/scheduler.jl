@@ -65,11 +65,11 @@ end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
     @debug "deliver! $message"
-    if postcode(scheduler) == postcode(target(message))
+    #if postcode(scheduler) == postcode(target(message))
         deliver_locally!(scheduler, message)
-    else
-        send(scheduler.postoffice, message)
-    end
+    #else
+    #    send(scheduler.postoffice, message)
+    #end
     return nothing
 end
 
@@ -176,6 +176,7 @@ end
     incomingmessage = nothing
     hadtimeout = false
     sleeplength = 0.001
+    enter_ts = time_ns()
     while true
         yield() # Allow the postoffice "arrivals" and plugin tasks to run
         incomingmessage = getmessage(scheduler.postoffice)
@@ -188,8 +189,10 @@ end
                 scheduler.shutdown
             return nothing
         else
-            sleep(sleeplength)
-            sleeplength = min(sleeplength * 1.002, 0.03)
+            if time_ns() - enter_ts > 1_000_000
+                sleep(sleeplength)
+                sleeplength = min(sleeplength * 1.002, 0.03)
+            end
         end
     end
 end

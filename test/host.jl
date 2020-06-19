@@ -23,15 +23,14 @@ struct CreatePeer
 end
 
 function onschedule(me::PingPonger, service)
-    @info "Scheduled+"
     if !isnothing(me.target_postcode)
-        @info "Migrating to $(me.target_postcode)"
+        @debug "Migrating to $(me.target_postcode)"
         migrate(service, me, me.target_postcode)
     end
 end
 
 function onmigrate(me::PingPonger, service)
-    @info "Migrated!!!"
+    @debug "Migrated!!!"
 end
 
 function sendping(service, me::PingPonger)
@@ -64,7 +63,7 @@ function onmessage(me::PingPonger, ::Debug.Stop, service)
 end
 
 function onmessage(me::PingPonger, message::RecipientMoved, service)
-    @info "Peer moved"
+    @debug "Peer moved"
     if me.peer == message.oldaddress
         me.peer = message.newaddress
     else
@@ -107,29 +106,29 @@ end
         @printf "Inter-thread ping-pong performance: %f rounds/sec\n" (rounds_made / wall_time_used * 1e9)
     end
 
-    # @testset "In-thread Ping-Pong inside Host" begin
-    #     pinger = PingPonger(nothing)
-    #     host = Host(1, default_plugins;zygote=[pinger])
+    @testset "In-thread Ping-Pong inside Host" begin
+        pinger = PingPonger(nothing)
+        host = Host(1, default_plugins;zygote=[pinger])
 
-    #     hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
-    #     sleep(0.4)
-    #     @test pinger.pings_sent > 1e4
-    #     @test pinger.pongs_got > 1e4
+        hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
+        sleep(0.4)
+        @test pinger.pings_sent > 1e4
+        @test pinger.pongs_got > 1e4
         
-    #     startpingcount = pinger.pings_sent
-    #     startts = Base.time_ns()
-    #     sleep(1)
-    #     rounds_made = pinger.pings_sent - startpingcount
-    #     wall_time_used = Base.time_ns() - startts
-    #     @test pinger.pings_sent > 1e5
-    #     @test pinger.pongs_got > 1e5
-    #     shutdown!(host)
-    #     endpingcount = pinger.pings_sent
-    #     sleep(0.1)
-    #     @test pinger.pongs_got in [pinger.pings_sent, pinger.pings_sent - 1]
-    #     @test endpingcount === pinger.pings_sent
-    #     @printf "In-thread ping-pong performance: %f rounds/sec\n" (rounds_made / wall_time_used * 1e9)
-    # end
+        startpingcount = pinger.pings_sent
+        startts = Base.time_ns()
+        sleep(1)
+        rounds_made = pinger.pings_sent - startpingcount
+        wall_time_used = Base.time_ns() - startts
+        @test pinger.pings_sent > 1e5
+        @test pinger.pongs_got > 1e5
+        shutdown!(host)
+        endpingcount = pinger.pings_sent
+        sleep(0.1)
+        @test pinger.pongs_got in [pinger.pings_sent, pinger.pings_sent - 1]
+        @test endpingcount === pinger.pings_sent
+        @printf "In-thread ping-pong performance: %f rounds/sec\n" (rounds_made / wall_time_used * 1e9)
+    end
 
 end
 
