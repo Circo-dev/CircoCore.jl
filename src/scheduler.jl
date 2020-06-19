@@ -7,7 +7,7 @@ const VIEW_HEIGHT = VIEW_SIZE
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
 function getpos(port) 
-    #return randpos()
+    # return randpos()
     port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
     port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
     port == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
@@ -26,6 +26,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
+    shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
@@ -37,7 +38,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             pos = getpos(port(postoffice.postcode))
         end
         scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, PluginStack(plugins))
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         cache_hooks(scheduler)
         setup!(scheduler.plugins, scheduler)
@@ -47,9 +48,9 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     end
 end
 
-pos(scheduler::ActorScheduler) = scheduler.pos
+pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
-function default_plugins(;roots=[])
+function default_plugins(;roots = [])
     return [ClusterService(roots), MigrationService(), WebsocketService()]
 end
 
@@ -63,6 +64,7 @@ function cache_hooks(scheduler::ActorScheduler)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
+    @debug "deliver! $message"
     if postcode(scheduler) == postcode(target(message))
         deliver_locally!(scheduler, message)
     else
@@ -83,6 +85,7 @@ end
 end
 
 @inline function deliver_nonresponse_locally!(scheduler::ActorScheduler, message::AbstractMsg)
+    @debug "deliver_nonresponse_locally! $message"
     if box(target(message)) == 0
         handle_special!(scheduler, message)
     else
@@ -141,7 +144,7 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        scheduler.localroutes_hooks(message) #TODO print unhandled messages for debugging
+        scheduler.localroutes_hooks(message) # TODO print unhandled messages for debugging
     else
         handle_message_locally!(targetactor, message, scheduler)
     end
@@ -161,7 +164,7 @@ end
                 addr(scheduler),
                 timeout.watcher,
                 timeout,
-                Infoton(nullpos)#TODO scheduler pos
+                Infoton(nullpos)# TODO scheduler pos
             ))
         end
         return true
@@ -180,7 +183,9 @@ end
         if !isnothing(incomingmessage)
             deliver_locally!(scheduler, incomingmessage)
             return nothing
-        elseif hadtimeout || !isempty(scheduler.messagequeue) # Plugins may deliver messages directly
+        elseif hadtimeout ||
+                !isempty(scheduler.messagequeue) ||# Plugins may deliver messages directly
+                scheduler.shutdown
             return nothing
         else
             sleep(sleeplength)
@@ -189,21 +194,28 @@ end
     end
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMsg;process_external=false, exit_when_done=true)
+function (scheduler::ActorScheduler)(message::AbstractMsg;process_external = false, exit_when_done = true)
     deliver!(scheduler, message)
-    scheduler(process_external=process_external, exit_when_done=exit_when_done)
+    scheduler(process_external = process_external, exit_when_done = exit_when_done)
 end
 
-function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
+@inline function nomorework(scheduler::ActorScheduler, process_external::Bool, exit_when_done::Bool)
+    return isempty(scheduler.messagequeue) &&
+        (
+            !process_external ||
+            exit_when_done && scheduler.actorcount == scheduler.startup_actor_count
+        )
+end
+
+function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     while true
         msg_batch::UInt8 = 255
         while msg_batch != 0 && !isempty(scheduler.messagequeue)
             msg_batch -= 1
             step!(scheduler)
         end
-        if  isempty(scheduler.messagequeue) &&
-            (!process_external || 
-             exit_when_done && scheduler.actorcount == scheduler.startup_actor_count)
+        if scheduler.shutdown || nomorework(scheduler, process_external, exit_when_done)
+            @debug "Scheduler loop $(postcode(scheduler)) exiting."
             return
         end
         process_post_and_timeout(scheduler)
@@ -211,6 +223,7 @@ function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=fals
 end
 
 function shutdown!(scheduler::ActorScheduler)
+    scheduler.shutdown = true
     Plugins.shutdown!(scheduler.plugins, scheduler)
     shutdown!(scheduler.postoffice)
     println("Scheduler at $(postcode(scheduler)) exited.")

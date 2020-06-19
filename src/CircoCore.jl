@@ -275,6 +275,7 @@ include("space.jl")
 include("interregion/websocket.jl")
 include("monitor.jl")
 include("scheduler.jl")
+include("host.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("migration.jl")
@@ -309,6 +310,9 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     # Cluster management
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
     migrate_to_nearest, MigrationAlternatives,
+
+    # Multithreading
+    Host, createhost,
 
     # Monitoring
     JS, 

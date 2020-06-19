@@ -4,6 +4,10 @@ struct ActorService{TScheduler}
     scheduler::TScheduler
 end
 
+function plugin(service::ActorService, symbol::Symbol)
+    return service.scheduler.plugins[symbol]
+end
+
 """
     send(service, sender::AbstractActor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Second = Second(2))
 

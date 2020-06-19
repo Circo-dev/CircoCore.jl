@@ -145,7 +145,7 @@ function unmarshal(registry::TypeRegistry, buf)
 end
 
 
-function shutdown!(service::WebsocketService)
+function Plugins.shutdown!(service::WebsocketService, scheduler)
     isdefined(service, :socket) && close(service.socket)
 end
 

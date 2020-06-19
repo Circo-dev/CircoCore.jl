@@ -59,7 +59,7 @@ end
 
 monitorprojection(::Type{MigrationHelper}) = JS("projections.nonimportant")
 
-symbol(plugin::MigrationService) = :migration
+symbol(::MigrationService) = :migration
 
 function setup!(migration::MigrationService, scheduler)
     helper = MigrationHelper(migration)
@@ -95,7 +95,7 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
-    #println("Migration request: $(message)")
+    @debug "Migration request: $(message)"
     actor = body(message).actor
     fromaddress = addr(actor)
     migration = scheduler.plugins[:migration] # TODO also handle fast back-and forth moving when the request comes earlier than the previous response
