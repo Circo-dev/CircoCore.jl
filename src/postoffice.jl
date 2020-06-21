@@ -60,7 +60,7 @@ function arrivals(socket::UDPSocket, channel::Channel)
 end
 
 @inline function send(post::PostOffice, message)
-    @debug "PostOffice delivery: $message"
+    @debug "PostOffice delivery at $(postcode(post)): $message"
     parts = split(postcode(target(message)), ":")
     ip = parse(IPAddr, parts[1])
     port = parse(UInt16, parts[2])

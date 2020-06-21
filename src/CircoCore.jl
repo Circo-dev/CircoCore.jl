@@ -49,8 +49,9 @@ A string that identifies a scheduler.
 "192.168.1.11:24721"
 
 """
-PostCode = String
+PostCode = String # TODO (perf): destructured storage
 port(postcode::PostCode) = parse(UInt32, split(postcode, ":")[end])
+network_host(postcode::PostCode) = SubString(postcode, 1, findfirst(":", postcode)[1])
 
 """
     Addr(postcode::PostCode, box::ActorId)

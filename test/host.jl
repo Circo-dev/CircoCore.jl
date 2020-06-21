@@ -99,8 +99,8 @@ end
         @test pinger.pings_sent > 1e2
         @test pinger.pongs_got > 1e2
         shutdown!(host)
-        endpingcount = pinger.pings_sent
         sleep(0.1)
+        endpingcount = pinger.pings_sent
         @test pinger.pongs_got in [pinger.pings_sent, pinger.pings_sent - 1]
         @test endpingcount === pinger.pings_sent
         @printf "Inter-thread ping-pong performance: %f rounds/sec\n" (rounds_made / wall_time_used * 1e9)

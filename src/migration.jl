@@ -108,13 +108,13 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
-    #println("Migration response: $(message)")
+    @debug("Migration response: at $(postcode(scheduler)): $(message)")
     migration = scheduler.plugins[:migration]
     response = body(message)
     movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
+        @debug "$(response.from) migrated to $(response.to) (at $(postcode(scheduler)))"
         migration.movedactors[box(response.from)] = response.to
-        #println("Messages waiting: $(movingactor.messages)")
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -134,6 +134,10 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
             return false
         end
     else
+        if target(message) == newaddress # This happens in local cluster, could be better handled
+            @debug "Migrated to same address as target (at $(postcode(scheduler))). $message"
+            return true
+        end
         if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
             msg = Msg(
                 addr(scheduler),
@@ -141,14 +145,17 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
                 body(message),
                 Infoton(nullpos)
             )
-            #println("Forwarding message $message")
-            #println(":::$msg")
+            @debug "Forwarding message $message"
+            @debug "forwarding as $msg"
             send(scheduler.postoffice, msg)
         else # Do not forward normal messages but send back a RecipientMoved
+            recipientmoved = RecipientMoved(target(message), newaddress, body(message))
+            @debug "Recipient Moved: $recipientmoved"
+            @debug "$(migration.movedactors)"
             send(scheduler.postoffice, Msg(
                 addr(scheduler),
                 sender(message),
-                RecipientMoved(target(message), newaddress, body(message)),
+                recipientmoved,
                 Infoton(nullpos)
             ))
         end    

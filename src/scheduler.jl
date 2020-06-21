@@ -65,11 +65,11 @@ end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
     @debug "deliver! $message"
-    #if postcode(scheduler) == postcode(target(message))
+    if network_host(postcode(scheduler)) == network_host(postcode(target(message)))
         deliver_locally!(scheduler, message)
-    #else
-    #    send(scheduler.postoffice, message)
-    #end
+    else
+        send(scheduler.postoffice, message)
+    end
     return nothing
 end
 
@@ -85,7 +85,6 @@ end
 end
 
 @inline function deliver_nonresponse_locally!(scheduler::ActorScheduler, message::AbstractMsg)
-    @debug "deliver_nonresponse_locally! $message"
     if box(target(message)) == 0
         handle_special!(scheduler, message)
     else
@@ -144,7 +143,11 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        scheduler.localroutes_hooks(message) # TODO print unhandled messages for debugging
+        if scheduler.localroutes_hooks(message) # TODO print unhandled messages for debugging
+            if port(postcode(target(message))) != port(postcode(scheduler)) # Local delivery to another thread failed, e.g.
+                send(scheduler.postoffice, message)
+            end
+        end
     else
         handle_message_locally!(targetactor, message, scheduler)
     end
