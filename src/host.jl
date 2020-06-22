@@ -38,7 +38,7 @@ function arrivals(hs::HostService, scheduler)
     end
 end
 
-function localroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
+function hostroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
     peer = get(hostservice.peers, postcode(target(msg)), nothing)
     if !isnothing(peer)
         @debug "Inter-thread delivery of $(hostservice.postcode): $msg"

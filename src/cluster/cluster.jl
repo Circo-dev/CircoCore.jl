@@ -13,12 +13,11 @@ mutable struct ClusterService <: Plugin
     helperactor::Addr
     ClusterService(roots=[]) = new(roots)
 end
-
+CircoCore.symbol(::ClusterService) = :cluster
 CircoCore.setup!(cluster::ClusterService, scheduler) = begin
     helper = ClusterActor(;roots=cluster.roots)
     cluster.helperactor = spawn(scheduler.service, helper)
 end
-
 
 mutable struct NodeInfo
     name::String

@@ -134,10 +134,6 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
             return false
         end
     else
-        if target(message) == newaddress # This happens in local cluster, could be better handled
-            @debug "Migrated to same address as target (at $(postcode(scheduler))). $message"
-            return true
-        end
         if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
             msg = Msg(
                 addr(scheduler),

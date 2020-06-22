@@ -30,6 +30,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
+    hostroutes_hooks::Plugins.HookList
     actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
     function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
@@ -60,17 +61,32 @@ end
 
 function cache_hooks(scheduler::ActorScheduler)
     scheduler.localroutes_hooks = hooks(scheduler, localroutes)
+    scheduler.hostroutes_hooks = hooks(scheduler, hostroutes)
     scheduler.actor_activity_sparse_hooks = hooks(scheduler, actor_activity_sparse)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
     @debug "deliver! $message"
-    if network_host(postcode(scheduler)) == network_host(postcode(target(message)))
+    target_postcode = postcode(target(message))
+    if postcode(scheduler) == target_postcode
         deliver_locally!(scheduler, message)
-    else
-        send(scheduler.postoffice, message)
+        return nothing
     end
+    if network_host(postcode(scheduler)) == network_host(target_postcode)
+        if deliver_onhost!(scheduler, message)
+            return nothing
+        end
+    end
+    send(scheduler.postoffice, message)
     return nothing
+end
+
+@inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
+    if scheduler.hostroutes_hooks(msg)
+        @debug "Unhandled host delivery: $message"
+        return false
+    end
+    return true
 end
 
 @inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -143,10 +159,8 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        if scheduler.localroutes_hooks(message) # TODO print unhandled messages for debugging
-            if port(postcode(target(message))) != port(postcode(scheduler)) # Local delivery to another thread failed, e.g.
-                send(scheduler.postoffice, message)
-            end
+        if scheduler.localroutes_hooks(message)
+            @debug "Cannot deliver on host: $message"
         end
     else
         handle_message_locally!(targetactor, message, scheduler)
