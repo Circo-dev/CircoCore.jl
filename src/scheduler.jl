@@ -6,6 +6,10 @@ const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
+hostroutes(::Plugin, ::Any, ::Any) = false
+localroutes(::Plugin, ::Any, ::Any) = false
+actor_activity_sparse(::Plugin, ::Any, ::Any) = false
+
 function getpos(port) 
     # return randpos()
     port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
@@ -33,7 +37,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     hostroutes_hooks::Plugins.HookList
     actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
+    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = default_plugins(), pos = nothing)
+        if isnothing(actors) 
+            actors = []
+        end
         postoffice = PostOffice()
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
@@ -51,8 +58,8 @@ end
 
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
-function default_plugins(;roots = [])
-    return [ClusterService(roots), MigrationService(), WebsocketService()]
+function default_plugins(;options = NamedTuple())
+    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options)]
 end
 
 function randpos()
@@ -66,7 +73,7 @@ function cache_hooks(scheduler::ActorScheduler)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
-    @debug "deliver! $message"
+    @debug "deliver! at $(postcode(scheduler)) $message"
     target_postcode = postcode(target(message))
     if postcode(scheduler) == target_postcode
         deliver_locally!(scheduler, message)
@@ -82,7 +89,7 @@ end
 end
 
 @inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
-    if scheduler.hostroutes_hooks(msg)
+    if !scheduler.hostroutes_hooks(msg)
         @debug "Unhandled host delivery: $message"
         return false
     end
@@ -159,7 +166,7 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        if scheduler.localroutes_hooks(message)
+        if !scheduler.localroutes_hooks(message)
             @debug "Cannot deliver on host: $message"
         end
     else

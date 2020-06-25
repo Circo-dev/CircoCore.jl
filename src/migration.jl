@@ -48,7 +48,7 @@ mutable struct MigrationService <: Plugin
     movedactors::Dict{ActorId,Addr}
     alternatives::MigrationAlternatives
     helperactor::Addr
-    MigrationService() = new(Dict([]),Dict([]), MigrationAlternatives([]))
+    MigrationService(;options = NamedTuple()) = new(Dict([]),Dict([]), MigrationAlternatives([]))
 end
 
 mutable struct MigrationHelper <: AbstractActor
@@ -128,10 +128,10 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
     if isnothing(newaddress)
         movingactor = get(migration.movingactors, box(target(message)), nothing)
         if isnothing(movingactor)
-            return true
+            return false
         else
             enqueue!(movingactor.messages, message)
-            return false
+            return true
         end
     else
         if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
@@ -155,7 +155,7 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
                 Infoton(nullpos)
             ))
         end    
-        return false       
+        return true       
     end
 end
 

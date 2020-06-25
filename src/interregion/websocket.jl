@@ -28,7 +28,7 @@ mutable struct WebsocketService <: Plugin
     actor_connections::Dict{ActorId, IO}
     typeregistry::TypeRegistry
     socket
-    WebsocketService() = new(Dict(), TypeRegistry())
+    WebsocketService(;options = NamedTuple()) = new(Dict(), TypeRegistry())
 end
 
 symbol(plugin::WebsocketService) = :websocket
@@ -153,7 +153,7 @@ function localroutes(ws_plugin::WebsocketService, scheduler::AbstractActorSchedu
     ws = get(ws_plugin.actor_connections, box(target(msg)), nothing)
     if !isnothing(ws)
         sendws(msg, ws)
-        return false
+        return true
     end
-    return true
+    return false
 end

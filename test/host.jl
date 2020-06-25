@@ -85,7 +85,7 @@ end
 
     @testset "Inter-thread Ping-Pong inside Host" begin
         pinger = PingPonger(nothing)
-        host = Host(2, default_plugins;zygote=[pinger])
+        host = Host(2, default_plugins; options = (zygote=[pinger],))
         hosttask = @async host(Msg(addr(pinger), CreatePeer(postcode(host.schedulers[end]))))
         sleep(5.4)
         @test pinger.pings_sent > 10
@@ -108,7 +108,7 @@ end
 
     @testset "In-thread Ping-Pong inside Host" begin
         pinger = PingPonger(nothing)
-        host = Host(1, default_plugins;zygote=[pinger])
+        host = Host(1, default_plugins; options = (zygote=[pinger],))
 
         hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
         sleep(0.4)

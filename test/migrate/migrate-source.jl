@@ -5,11 +5,13 @@ using CircoCore
 import CircoCore.onmessage
 
 function onmessage(me::Migrant, message::MigrateCommand, service)
+    @debug "MigrateCommand"
     me.stayeraddress = message.stayeraddress
     migrate(service, me, message.topostcode)
 end
 
 function onmessage(me::Stayer, message::MigrateDone, service)
+    @debug "MigrateDone received: $message"
     me.newaddress_selfreport = message.newaddress
     send(service, me, me.oldmigrantaddress, SimpleRequest(addr(me)))
 end

@@ -105,8 +105,9 @@ end
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = infoton.energy
-    if energy > 0 && difflen < TARGET_DISTANCE
+    if energy > 0 && difflen < TARGET_DISTANCE || energy < 0 && difflen > TARGET_DISTANCE * 20
         return nothing
+        energy = -energy
     end
     targetactor.core.pos += diff / difflen * energy * I
     return nothing
