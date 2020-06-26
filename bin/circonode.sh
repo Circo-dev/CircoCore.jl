@@ -23,4 +23,4 @@ BOOT_SCRIPT=$(cat <<-END
     circonode(@isdefined(zygote) ? zygote : nothing)
 END
 )
-julia --project -e "$BOOT_SCRIPT" -- "$@"
+JULIA_EXCLUSIVE=1 julia --project -e "$BOOT_SCRIPT" -- "$@"

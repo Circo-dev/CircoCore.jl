@@ -8,7 +8,7 @@
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
-const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started together
+const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
 const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
 

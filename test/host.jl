@@ -91,17 +91,20 @@ end
         @test pinger.pings_sent > 10
         @test pinger.pongs_got > 10
         
+        @info "Measuring inter-thread ping-pong performance"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
-        sleep(2)
+        sleep(1.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
+        @info "$rounds_made rounds in $wall_time_used ns"
         @test pinger.pings_sent > 1e2
         @test pinger.pongs_got > 1e2
         shutdown!(host)
         sleep(0.1)
         endpingcount = pinger.pings_sent
         @test pinger.pongs_got in [pinger.pings_sent, pinger.pings_sent - 1]
+        sleep(0.1)
         @test endpingcount === pinger.pings_sent
         @printf "Inter-thread ping-pong performance: %f rounds/sec\n" (rounds_made / wall_time_used * 1e9)
     end
@@ -114,10 +117,11 @@ end
         sleep(0.4)
         @test pinger.pings_sent > 1e4
         @test pinger.pongs_got > 1e4
-        
+
+        @info "Measuring in-thread ping-pong performance"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
-        sleep(1)
+        sleep(1.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
         @test pinger.pings_sent > 1e5

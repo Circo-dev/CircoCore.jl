@@ -3,15 +3,21 @@ using Base.Threads
 
 const MSG_BUFFER_SIZE = 10000
 
+mutable struct HostActor <: AbstractActor
+    core::CoreState
+    HostActor() = new()
+end
+
 mutable struct HostService <: Plugin
-    iamzygote
     in_msg::Channel{Msg}
+    iamzygote
     peers::Dict{PostCode,HostService}
+    helper::Addr
     arrivals::Task
     postcode::PostCode
     HostService(;options=NamedTuple()) = new(
-        get(options, :iamzygote, false),
         Channel{Msg}(get(options, :buffer_size, MSG_BUFFER_SIZE)),
+        get(options, :iamzygote, false),
         Dict()
     )
 end
@@ -22,15 +28,29 @@ is_zygote(hs::HostService) = !isnothing(hs.zygote)
 
 function Plugins.setup!(hs::HostService, scheduler)
     hs.postcode = postcode(scheduler)
+    hs.helper = spawn(scheduler.service, HostActor())
+end
+
+function schedule_start(hs::HostService, scheduler)
+    @debug "Host arrivals scheduled on $(Threads.threadid())"
     hs.arrivals = Task(()->arrivals(hs, scheduler))
     schedule(hs.arrivals)
 end
 
-function addpeers!(hs::HostService, peers::Array{HostService})
+function schedule_stop(hs::HostService, scheduler)
+    @info "TODO: stop tasks"
+end
+
+function addpeers!(hs::HostService, peers::Array{HostService}, scheduler)
     for peer in peers
         if postcode(peer) != postcode(hs)
             hs.peers[postcode(peer)] = peer
         end
+    end
+    cluster = get(scheduler.plugins, :cluster, nothing)
+    if !isnothing(cluster) && !hs.iamzygote && length(cluster.roots) == 0
+        root = peers[1].postcode
+        deliver!(scheduler, Msg(cluster.helper, ForceAddRoot(root))) # TODO avoid using the inner API
     end
 end
 
@@ -39,6 +59,7 @@ function arrivals(hs::HostService, scheduler)
         msg = take!(hs.in_msg)
         @debug "arrived at $(hs.postcode): $msg"
         deliver!(scheduler, msg)
+        yield()
     end
 end
 
@@ -60,7 +81,7 @@ end
 function Host(threadcount::Int, pluginsfun; options=NamedTuple())
     schedulers = create_schedulers(threadcount, pluginsfun, options)
     hostservices = [scheduler.plugins[:host] for scheduler in schedulers]
-    addpeers(hostservices)
+    addpeers(hostservices, schedulers)
     return Host(schedulers)
 end
 
@@ -76,9 +97,9 @@ function create_schedulers(threadcount::Number, pluginsfun, options)
     return schedulers
 end
 
-function addpeers(hostservices::Array{HostService})
-    for hostservice in hostservices
-        addpeers!(hostservice, hostservices)
+function addpeers(hostservices::Array{HostService}, schedulers)
+    for i in 1:length(hostservices)
+        addpeers!(hostservices[i], hostservices, schedulers[i])
     end
 end
 

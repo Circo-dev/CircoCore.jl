@@ -6,9 +6,18 @@ const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
+# Lifecycle hooks
+schedule_start(::Plugin, ::Any) = false
+schedule_stop(::Plugin, ::Any) = false
+
+# Event hooks
 hostroutes(::Plugin, ::Any, ::Any) = false
 localroutes(::Plugin, ::Any, ::Any) = false
 actor_activity_sparse(::Plugin, ::Any, ::Any) = false
+
+
+schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
+schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
 
 function getpos(port) 
     # return randpos()
@@ -235,6 +244,7 @@ end
 end
 
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
+    schedule_start_hook(scheduler.plugins, scheduler)
     while true
         msg_batch::UInt8 = 255
         while msg_batch != 0 && !isempty(scheduler.messagequeue)
@@ -247,6 +257,7 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
         end
         process_post_and_timeout(scheduler)
     end
+    schedule_stop_hook(scheduler.plugins, scheduler)
 end
 
 function shutdown!(scheduler::ActorScheduler)

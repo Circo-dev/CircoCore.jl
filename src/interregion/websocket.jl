@@ -33,7 +33,7 @@ end
 
 symbol(plugin::WebsocketService) = :websocket
 
-function setup!(service::WebsocketService, scheduler)
+function schedule_start(service::WebsocketService, scheduler)
     listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS
     ipaddr = IPv4(0) # TODO config
     try
@@ -50,6 +50,11 @@ function setup!(service::WebsocketService, scheduler)
             end
         end
     end
+end
+
+function schedule_stop(service::WebsocketService, scheduler)
+    #@info "TODO: stop websocket tasks"
+    isdefined(service, :socket) && close(service.socket)
 end
 
 function sendws(msg::Msg, ws)
@@ -99,6 +104,7 @@ function readtypename_safely(buf)
 end
 
 function handle_connection(service::WebsocketService, ws, scheduler)
+    @info "ws handle_connection on thread $(Threads.threadid())"
     buf = nothing
     msg = nothing
     try
@@ -146,7 +152,6 @@ end
 
 
 function Plugins.shutdown!(service::WebsocketService, scheduler)
-    isdefined(service, :socket) && close(service.socket)
 end
 
 function localroutes(ws_plugin::WebsocketService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool

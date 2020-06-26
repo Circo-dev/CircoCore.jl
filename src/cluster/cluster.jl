@@ -10,13 +10,13 @@ const MIN_FRIEND_COUNT = 3
 
 mutable struct ClusterService <: Plugin
     roots::Array{PostCode}
-    helperactor::Addr
+    helper::Addr
     ClusterService(;options = NamedTuple()) = new(get(options, :roots, []))
 end
 CircoCore.symbol(::ClusterService) = :cluster
 CircoCore.setup!(cluster::ClusterService, scheduler) = begin
     helper = ClusterActor(;roots=cluster.roots)
-    cluster.helperactor = spawn(scheduler.service, helper)
+    cluster.helper = spawn(scheduler.service, helper)
 end
 
 mutable struct NodeInfo
@@ -101,7 +101,11 @@ struct UnfriendRequest
     requestor::Addr
 end
 
-function requestjoin(me, service)
+struct ForceAddRoot
+    root::PostCode
+end
+
+function requestjoin(me::ClusterActor, service)
     if !isempty(me.servicename)
         registername(service, NAME, me)
     end
@@ -109,10 +113,13 @@ function requestjoin(me, service)
         registerpeer(me, me.myinfo, service)
         return
     end
-    root = rand(me.roots)
     if me.joinrequestcount >= MAX_JOINREQUEST_COUNT
         error("Cannot join: $(me.joinrequestcount) unsuccesful attempt.")
     end
+    sendjoinrequest(me, rand(me.roots), service)
+end
+
+function sendjoinrequest(me::ClusterActor, root::PostCode, service)
     me.joinrequestcount += 1
     rootaddr = Addr(root)
     if isbaseaddress(rootaddr)
@@ -120,6 +127,11 @@ function requestjoin(me, service)
     else
         send(service, me, rootaddr, JoinRequest(me.myinfo))
     end
+end
+ 
+function onmessage(me::ClusterActor, messsage::ForceAddRoot, service)
+    push!(me.roots, messsage.root)
+    sendjoinrequest(me, messsage.root, service)
 end
 
 function onschedule(me::ClusterActor, service)
