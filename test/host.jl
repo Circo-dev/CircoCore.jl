@@ -87,7 +87,9 @@ end
         pinger = PingPonger(nothing)
         host = Host(2, default_plugins; options = (zygote=[pinger],))
         hosttask = @async host(Msg(addr(pinger), CreatePeer(postcode(host.schedulers[end]))))
-        sleep(5.4)
+        @info "Sleeping to allow ping-pong to start. Time is $(Base.time_ns() / 1e9)"
+        sleep(8.0)
+        @info "Woken up. Time is $(Base.time_ns() / 1e9)"
         @test pinger.pings_sent > 10
         @test pinger.pongs_got > 10
         
@@ -114,7 +116,10 @@ end
         host = Host(1, default_plugins; options = (zygote=[pinger],))
 
         hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
-        sleep(4.0)
+
+        @info "Sleeping to allow ping-pong to start. Time is $(Base.time_ns() / 1e9)"
+        sleep(8.0)
+        @info "Woken up. Time is $(Base.time_ns() / 1e9)"
         @test pinger.pings_sent > 1e4
         @test pinger.pongs_got > 1e4
 
