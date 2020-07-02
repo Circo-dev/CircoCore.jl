@@ -24,7 +24,6 @@ end
 
 symbol(::HostService) = :host
 postcode(hs::HostService) = hs.postcode
-is_zygote(hs::HostService) = !isnothing(hs.zygote)
 
 function Plugins.setup!(hs::HostService, scheduler)
     hs.postcode = postcode(scheduler)

@@ -104,12 +104,17 @@ function readtypename_safely(buf)
 end
 
 function handle_connection(service::WebsocketService, ws, scheduler)
-    @info "ws handle_connection on thread $(Threads.threadid())"
+    @debug "ws handle_connection on thread $(Threads.threadid())"
     buf = nothing
     msg = nothing
     try
         while !eof(ws)
-            buf = readavailable(ws)
+            try
+                buf = readavailable(ws)
+            catch e
+                @debug "Websocket closed: $e"
+                return
+            end
             msg = unmarshal(service.typeregistry, buf)
             handlemsg(service, msg, ws, scheduler)
         end

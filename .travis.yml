@@ -4,6 +4,7 @@ os:
   - osx
 julia:
   - nightly
+  - 1.5
   - 1.4
 script:
   - julia --project --check-bounds=yes -e 'import Pkg; Pkg.activate("."); Pkg.build(); Pkg.test("CircoCore"; coverage=false)'

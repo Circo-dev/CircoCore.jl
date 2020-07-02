@@ -62,7 +62,7 @@ mutable struct ListItem{TData} <: AbstractActor
 end
 monitorextra(me::ListItem) = (
     data = me.data,
-    next = boxof(me.next)
+    next = isnothing(me.next) ? nothing : boxof(me.next)
 )
 
 monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
@@ -140,7 +140,7 @@ function appenditem(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Appended, service)
-    me.core.pos = Pos(0, 0, 0)
+    me.core.pos = nullpos
     me.itemcount += 1
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)

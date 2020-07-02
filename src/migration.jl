@@ -2,6 +2,8 @@
 using DataStructures
 import Base.length
 
+const DEFAULT_TOLERANCE = 1e-7
+
 struct MigrationRequest
     actor::AbstractActor
 end
@@ -182,7 +184,7 @@ end
     return found
 end
 
-@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=0.01)
+@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=DEFAULT_TOLERANCE)
     nearest = find_nearest(pos(me), alternatives)
     if isnothing(nearest) return nothing end
     if box(nearest.addr) === box(addr(me)) return nothing end

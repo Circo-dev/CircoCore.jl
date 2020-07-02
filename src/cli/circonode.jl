@@ -4,18 +4,19 @@ using ..CircoCore
 
 const INITSCRIPT_ENVNAME = "CIRCO_INITSCRIPT"
 const DEFAULT_INITSCRIPT = "circo.jl"
-const VERSION = v"0.1.0"
+const VERSION = v"0.2.0"
 
 doc = """Start a Circo cluster node.
 
 Usage:
-  circonode.sh [--roots CIRCO_POSTCODE1,... | --rootsfile FILENAME [--add]] [--zygote]
+  circonode.sh [--roots CIRCO_POSTCODE1,... | --rootsfile FILENAME [--add]] [--threads N] [--zygote]
 
 Options:
   -r --roots      Connect to an existing cluster using one of the listed nodes.
-  -f --rootsfile   Read the list of roots from a file. Separator: comma or newline.
+  -f --rootsfile  Read the list of roots from a file. Separator: comma or newline.
   -a --add        Add the address of this node to the roots file, create the file if missing.
   -z --zygote     Call zygote() from the init script and schedule the actor/actors returned by it.
+  -t --threads    Number of threads (schedulers) to start. Defaults to 1.
   -h --help       Show this screen.
   --version       Show version.
 
@@ -40,6 +41,10 @@ Examples:
 
   circonode.sh -z 
     Start a node and schedule the actor/actors returned by zygote(), as defined in circo.jl.
+
+  CIRCO_INITSCRIPT=examples/searchtree.jl circonode.sh -t 6 -z
+    Start six schedulers, connect them into a local (in-process) cluster, and run the zygote defined in
+  examples/searchtree.jl on the first scheduler.
 """
 function usage()
     println(doc)

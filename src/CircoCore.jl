@@ -283,7 +283,7 @@ include("migration.jl")
 include("debug.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
+export AbstractActor, CoreState, ActorId, id, ActorService,
     ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
@@ -306,14 +306,14 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     Event, EventDispatcher, Subscribe, fire,
 
     # Space
-    Infoton,
+    Pos, pos, nullpos, Infoton,
 
     # Cluster management
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
     migrate_to_nearest, MigrationAlternatives,
 
     # Multithreading
-    Host, createhost,
+    Host,
 
     # Monitoring
     JS, 

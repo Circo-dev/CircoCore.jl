@@ -99,7 +99,7 @@ end
 
 @inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
     if !scheduler.hostroutes_hooks(msg)
-        @debug "Unhandled host delivery: $message"
+        @debug "Unhandled host delivery: $msg"
         return false
     end
     return true

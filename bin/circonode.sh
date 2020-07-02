@@ -23,4 +23,8 @@ BOOT_SCRIPT=$(cat <<-END
     circonode(@isdefined(zygote) ? zygote : nothing)
 END
 )
+ROOTS_FILE=${ROOTS_FILE:-roots.txt}
+export JULIA_NUM_THREADS=${JULIA_NUM_THREADS:-10000}
+
+# JULIA_EXCLUSIVE is needed as a workaround to a crash at websocket disconnection
 JULIA_EXCLUSIVE=1 julia --project -e "$BOOT_SCRIPT" -- "$@"

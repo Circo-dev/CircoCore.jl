@@ -15,7 +15,8 @@ const I = 1.0
 const ITEM_COUNT = 1_000_000
 const ITEMS_PER_LEAF = 1000
 const SIBLINGINFO_FREQ = 2 #0..255
-const FULLSPEED_PARALLELISM = 1000
+const SIBLINGINFO_ENERGY = -1.0
+const FULLSPEED_PARALLELISM = 100
 const SCHEDULER_TARGET_ACTORCOUNT = 600.0
 
 const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
@@ -96,17 +97,18 @@ end
 CircoCore.scheduler_infoton(scheduler, actor::AbstractActor) = actorcount_scheduler_infoton(scheduler, actor)
 
 @inline CircoCore.check_migration(me::Union{TreeNode, Coordinator}, alternatives::MigrationAlternatives, service) = begin
-    if norm(pos(service) - pos(me)) > 700 # Do not check for alternatives if too close to the current scheduler
-        migrate_to_nearest(me, alternatives, service)
+    if length(alternatives) < 5 && rand(UInt8) == 0
+        println("$alternatives")
     end
+    migrate_to_nearest(me, alternatives, service)
 end
 
 @inline CircoCore.apply_infoton(targetactor::AbstractActor, infoton::Infoton) = begin
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = infoton.energy
-    if energy > 0 && difflen < TARGET_DISTANCE || energy < 0 && difflen > TARGET_DISTANCE * 20
-        return nothing
+    if energy > 0 && difflen < TARGET_DISTANCE# || energy < 0 && difflen > TARGET_DISTANCE * 20
+        return nothing # Comment out this line to preserve (absolute) energy. This version seems to work better.
         energy = -energy
     end
     targetactor.core.pos += diff / difflen * energy * I
@@ -139,7 +141,7 @@ struct SiblingInfo
 end
 
 genvalue() = rand(UInt32)
-nearpos(pos::Pos=Pos(0, 0, 0), maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * maxdistance, rand() * maxdistance)
+nearpos(pos::Pos=nullpos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, rand() * maxdistance, rand() * maxdistance)
 
 function onschedule(me::Coordinator, service)
     @debug "onschedule: $me"
@@ -301,7 +303,7 @@ function onmessage(me::TreeNode, message::Search, service)
         send(service, me, child, message)
     end
     if SIBLINGINFO_FREQ > 0 && !isnothing(me.sibling) && rand(UInt8) < SIBLINGINFO_FREQ
-        send(service, me, me.sibling, SiblingInfo(me.size), -1) # To push the sibling away
+        send(service, me, me.sibling, SiblingInfo(me.size), SIBLINGINFO_ENERGY) # To push the sibling away
     end
 end
 
