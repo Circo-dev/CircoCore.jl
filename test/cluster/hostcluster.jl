@@ -4,13 +4,13 @@ using Test, Printf
 using CircoCore
 import CircoCore:onschedule, onmessage, onmigrate
 
-const CLUSTER_SIZE = 3
+const CLUSTER_SIZE = 15
 
 @testset "HostCluster" begin
     @testset "Host cluster with internal root" begin
         host = Host(CLUSTER_SIZE, default_plugins)
         hosttask = @async host()
-        sleep(5.0)
+        sleep(CLUSTER_SIZE + 3.0)
         for i in 1:CLUSTER_SIZE
             scheduler = host.schedulers[i]
             helperaddr = scheduler.plugins[:cluster].helper

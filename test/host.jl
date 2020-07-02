@@ -114,7 +114,7 @@ end
         host = Host(1, default_plugins; options = (zygote=[pinger],))
 
         hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
-        sleep(0.4)
+        sleep(2.4)
         @test pinger.pings_sent > 1e4
         @test pinger.pongs_got > 1e4
 

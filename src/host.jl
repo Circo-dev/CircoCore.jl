@@ -103,7 +103,8 @@ function addpeers(hostservices::Array{HostService}, schedulers)
 end
 
 function (ts::Host)(;process_external=true, exit_when_done=false)
-    tasks = [(Threads.@spawn scheduler(;process_external=process_external, exit_when_done=exit_when_done)) for scheduler in ts.schedulers]
+    # TODO sleeping is a workaround for a bug in cluster.jl
+    tasks = [(sleep(1.0);Threads.@spawn scheduler(;process_external=process_external, exit_when_done=exit_when_done)) for scheduler in ts.schedulers]
     for task in tasks
         wait(task)
     end
