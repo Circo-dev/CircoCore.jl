@@ -98,7 +98,7 @@ CircoCore.scheduler_infoton(scheduler, actor::AbstractActor) = actorcount_schedu
 
 @inline CircoCore.check_migration(me::Union{TreeNode, Coordinator}, alternatives::MigrationAlternatives, service) = begin
     if length(alternatives) < 5 && rand(UInt8) == 0
-        println("$alternatives")
+        @debug "Only $(length(alternatives)) alternatives at $(box(me)) : $alternatives"
     end
     migrate_to_nearest(me, alternatives, service)
 end
