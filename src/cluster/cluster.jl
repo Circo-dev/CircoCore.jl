@@ -10,15 +10,14 @@ const MIN_FRIEND_COUNT = 3
 
 mutable struct ClusterService <: Plugin
     roots::Array{PostCode}
-    helperactor::Addr
-    ClusterService(roots=[]) = new(roots)
+    helper::Addr
+    ClusterService(;options = NamedTuple()) = new(get(options, :roots, []))
 end
-
+CircoCore.symbol(::ClusterService) = :cluster
 CircoCore.setup!(cluster::ClusterService, scheduler) = begin
     helper = ClusterActor(;roots=cluster.roots)
-    cluster.helperactor = spawn(scheduler.service, helper)
+    cluster.helper = spawn(scheduler.service, helper)
 end
-
 
 mutable struct NodeInfo
     name::String
@@ -102,7 +101,12 @@ struct UnfriendRequest
     requestor::Addr
 end
 
-function requestjoin(me, service)
+struct ForceAddRoot
+    root::PostCode
+end
+
+function requestjoin(me::ClusterActor, service)
+    @debug "$(addr(me)) : Requesting join"
     if !isempty(me.servicename)
         registername(service, NAME, me)
     end
@@ -110,17 +114,28 @@ function requestjoin(me, service)
         registerpeer(me, me.myinfo, service)
         return
     end
-    root = rand(me.roots)
     if me.joinrequestcount >= MAX_JOINREQUEST_COUNT
         error("Cannot join: $(me.joinrequestcount) unsuccesful attempt.")
     end
+    sendjoinrequest(me, rand(me.roots), service)
+end
+
+function sendjoinrequest(me::ClusterActor, root::PostCode, service)
     me.joinrequestcount += 1
     rootaddr = Addr(root)
     if isbaseaddress(rootaddr)
+        @debug "$(addr(me)) : Querying name 'cluster'"
         send(service, me, Addr(root), NameQuery("cluster");timeout=Second(10))
     else
+        @info "Got direct root address: $root"
         send(service, me, rootaddr, JoinRequest(me.myinfo))
     end
+end
+ 
+function onmessage(me::ClusterActor, msg::ForceAddRoot, service)
+    @debug "$(addr(me)) : Got $msg"
+    push!(me.roots, msg.root)
+    sendjoinrequest(me, msg.root, service)
 end
 
 function onschedule(me::ClusterActor, service)
@@ -136,11 +151,13 @@ function setpeer(me::ClusterActor, peer::NodeInfo)
         return false
     end
     me.peers[peer.addr] = peer
+    @debug "$(addr(me)) :Peer $peer set."
     return true
 end
 
 function registerpeer(me::ClusterActor, newpeer::NodeInfo, service)
     if setpeer(me, newpeer)
+        @debug "$(addr(me)) : PeerList updated"
         fire(service, me, PeerListUpdated(collect(values(me.peers))))
         for friend in me.downstream_friends
             send(service, me, friend, PeerJoinedNotification(newpeer, addr(me)))
@@ -164,9 +181,13 @@ function onmessage(me::ClusterActor, messsage::Subscribe{PeerListUpdated}, servi
     send(service, me, me.eventdispatcher, messsage)
 end
 
-function onmessage(me::ClusterActor, message::NameResponse, service)
-    root = message.handler
+function onmessage(me::ClusterActor, msg::NameResponse, service)
+    if msg.query.name != "cluster"
+        @error "Got unrequested $msg"
+    end
+    root = msg.handler
     if isnothing(root)
+        @debug "$(addr(me)) : Got no handler for cluster query"
         requestjoin(me, service)
     else
         send(service, me, root, JoinRequest(me.myinfo))

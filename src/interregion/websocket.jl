@@ -28,12 +28,12 @@ mutable struct WebsocketService <: Plugin
     actor_connections::Dict{ActorId, IO}
     typeregistry::TypeRegistry
     socket
-    WebsocketService() = new(Dict(), TypeRegistry())
+    WebsocketService(;options = NamedTuple()) = new(Dict(), TypeRegistry())
 end
 
 symbol(plugin::WebsocketService) = :websocket
 
-function setup!(service::WebsocketService, scheduler)
+function schedule_start(service::WebsocketService, scheduler)
     listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS
     ipaddr = IPv4(0) # TODO config
     try
@@ -50,6 +50,11 @@ function setup!(service::WebsocketService, scheduler)
             end
         end
     end
+end
+
+function schedule_stop(service::WebsocketService, scheduler)
+    #@info "TODO: stop websocket tasks"
+    isdefined(service, :socket) && close(service.socket)
 end
 
 function sendws(msg::Msg, ws)
@@ -99,11 +104,17 @@ function readtypename_safely(buf)
 end
 
 function handle_connection(service::WebsocketService, ws, scheduler)
+    @debug "ws handle_connection on thread $(Threads.threadid())"
     buf = nothing
     msg = nothing
     try
         while !eof(ws)
-            buf = readavailable(ws)
+            try
+                buf = readavailable(ws)
+            catch e
+                @debug "Websocket closed: $e"
+                return
+            end
             msg = unmarshal(service.typeregistry, buf)
             handlemsg(service, msg, ws, scheduler)
         end
@@ -145,15 +156,14 @@ function unmarshal(registry::TypeRegistry, buf)
 end
 
 
-function shutdown!(service::WebsocketService)
-    isdefined(service, :socket) && close(service.socket)
+function Plugins.shutdown!(service::WebsocketService, scheduler)
 end
 
 function localroutes(ws_plugin::WebsocketService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
     ws = get(ws_plugin.actor_connections, box(target(msg)), nothing)
     if !isnothing(ws)
         sendws(msg, ws)
-        return false
+        return true
     end
-    return true
+    return false
 end

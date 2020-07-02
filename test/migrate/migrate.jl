@@ -6,7 +6,7 @@ import CircoCore:onmessage, onmigrate, deliver_locally!
 include("migrate-base.jl")
 
 function onmigrate(me::Migrant, service)
-    println("Successfully migrated to $me")
+    @debug "Successfully migrated to $me"
     send(service, me, me.stayeraddress, MigrateDone(addr(me)))
 end
 
@@ -25,7 +25,7 @@ function onmessage(me::ResultsHolder, message::Results, service)
 end
 
 function startsource(targetpostcode, resultsholder_address)
-    source = "include(\"migrate/migrate-source.jl\");migratetoremote(\"$targetpostcode\", \"$resultsholder_address\")"
+    source = "try cd(\"test\") catch e end;include(\"migrate/migrate-source.jl\");migratetoremote(\"$targetpostcode\", \"$resultsholder_address\")"
     println(source)
     run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end

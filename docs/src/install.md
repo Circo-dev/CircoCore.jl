@@ -17,10 +17,10 @@ You need to checkout two repos: The [CircoCore](https://github.com/tisztamo/Circ
 git clone https://github.com/Circo-dev/CircoCore.git
 cd CircoCore/
 julia --project -e 'using Pkg;Pkg.instantiate()'
-NODE_COUNT=6 bin/localcluster.sh
+bin/circonode.sh --threads 6 --zygote
 ```
 
-This starts a local cluster with six nodes running the sample project.
+This starts a local (in-process) cluster with six schedulers running the sample project.
 
 **In terminal #2 (monitoring frontend, optional)**
 

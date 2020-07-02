@@ -89,7 +89,7 @@ monitorprojection(::Type{MonitorActor{TMonitor}}) where TMonitor = JS("
 mutable struct MonitorService <: Plugin
     actor::MonitorActor
     scheduler::AbstractActorScheduler
-    MonitorService() = new()
+    MonitorService(;options = NamedTuple()) = new()
 end
 
 function setup!(monitor::MonitorService, scheduler)

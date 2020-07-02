@@ -40,6 +40,7 @@ function getname(registry::LocalRegistry, name::String)::Union{Addr, Nothing}
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
+    @debug "Registry handle_special! $message"
     send(scheduler.postoffice, Msg(
             addr(scheduler),
             sender(message),

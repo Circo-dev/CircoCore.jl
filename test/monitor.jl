@@ -3,7 +3,7 @@ module TokenTest
 
 using Test
 using CircoCore
-import CircoCore:monitorprojection, JavaScriptSource
+import CircoCore: monitorprojection
 
 mutable struct EmptyActor <: AbstractActor
     core::CoreState

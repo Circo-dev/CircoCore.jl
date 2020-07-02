@@ -2,6 +2,8 @@
 using DataStructures
 import Base.length
 
+const DEFAULT_TOLERANCE = 1e-7
+
 struct MigrationRequest
     actor::AbstractActor
 end
@@ -48,7 +50,7 @@ mutable struct MigrationService <: Plugin
     movedactors::Dict{ActorId,Addr}
     alternatives::MigrationAlternatives
     helperactor::Addr
-    MigrationService() = new(Dict([]),Dict([]), MigrationAlternatives([]))
+    MigrationService(;options = NamedTuple()) = new(Dict([]),Dict([]), MigrationAlternatives([]))
 end
 
 mutable struct MigrationHelper <: AbstractActor
@@ -59,7 +61,7 @@ end
 
 monitorprojection(::Type{MigrationHelper}) = JS("projections.nonimportant")
 
-symbol(plugin::MigrationService) = :migration
+symbol(::MigrationService) = :migration
 
 function setup!(migration::MigrationService, scheduler)
     helper = MigrationHelper(migration)
@@ -95,7 +97,7 @@ function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topos
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
-    #println("Migration request: $(message)")
+    @debug "Migration request: $(message)"
     actor = body(message).actor
     fromaddress = addr(actor)
     migration = scheduler.plugins[:migration] # TODO also handle fast back-and forth moving when the request comes earlier than the previous response
@@ -108,13 +110,13 @@ function handle_special!(scheduler::AbstractActorScheduler, message::Msg{Migrati
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationResponse})
-    #println("Migration response: $(message)")
+    @debug("Migration response: at $(postcode(scheduler)): $(message)")
     migration = scheduler.plugins[:migration]
     response = body(message)
     movingactor = pop!(migration.movingactors, box(response.to))
     if response.success
+        @debug "$(response.from) migrated to $(response.to) (at $(postcode(scheduler)))"
         migration.movedactors[box(response.from)] = response.to
-        #println("Messages waiting: $(movingactor.messages)")
         for message in movingactor.messages
             deliver!(scheduler, message)
         end
@@ -128,10 +130,10 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
     if isnothing(newaddress)
         movingactor = get(migration.movingactors, box(target(message)), nothing)
         if isnothing(movingactor)
-            return true
+            return false
         else
             enqueue!(movingactor.messages, message)
-            return false
+            return true
         end
     else
         if body(message) isa RecipientMoved # Got a RecipientMoved, but the original sender also moved. Forward the RecipientMoved
@@ -141,18 +143,21 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
                 body(message),
                 Infoton(nullpos)
             )
-            #println("Forwarding message $message")
-            #println(":::$msg")
+            @debug "Forwarding message $message"
+            @debug "forwarding as $msg"
             send(scheduler.postoffice, msg)
         else # Do not forward normal messages but send back a RecipientMoved
+            recipientmoved = RecipientMoved(target(message), newaddress, body(message))
+            @debug "Recipient Moved: $recipientmoved"
+            @debug "$(migration.movedactors)"
             send(scheduler.postoffice, Msg(
                 addr(scheduler),
                 sender(message),
-                RecipientMoved(target(message), newaddress, body(message)),
+                recipientmoved,
                 Infoton(nullpos)
             ))
         end    
-        return false       
+        return true       
     end
 end
 
@@ -179,7 +184,7 @@ end
     return found
 end
 
-@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=0.01)
+@inline function migrate_to_nearest(me::AbstractActor, alternatives::MigrationAlternatives, service, tolerance=DEFAULT_TOLERANCE)
     nearest = find_nearest(pos(me), alternatives)
     if isnothing(nearest) return nothing end
     if box(nearest.addr) === box(addr(me)) return nothing end

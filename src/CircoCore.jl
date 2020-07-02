@@ -49,8 +49,9 @@ A string that identifies a scheduler.
 "192.168.1.11:24721"
 
 """
-PostCode = String
+PostCode = String # TODO (perf): destructured storage
 port(postcode::PostCode) = parse(UInt32, split(postcode, ":")[end])
+network_host(postcode::PostCode) = SubString(postcode, 1, findfirst(":", postcode)[1])
 
 """
     Addr(postcode::PostCode, box::ActorId)
@@ -275,13 +276,14 @@ include("space.jl")
 include("interregion/websocket.jl")
 include("monitor.jl")
 include("scheduler.jl")
+include("host.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("migration.jl")
 include("debug.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
+export AbstractActor, CoreState, ActorId, id, ActorService,
     ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
@@ -304,11 +306,14 @@ export AbstractActor, CoreState, ActorId, id, Pos, pos, ActorService,
     Event, EventDispatcher, Subscribe, fire,
 
     # Space
-    Infoton,
+    Pos, pos, nullpos, Infoton,
 
     # Cluster management
     ClusterActor, NodeInfo, Joined, PeerListUpdated,
     migrate_to_nearest, MigrationAlternatives,
+
+    # Multithreading
+    Host,
 
     # Monitoring
     JS, 

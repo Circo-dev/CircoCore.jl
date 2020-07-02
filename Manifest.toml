@@ -106,9 +106,9 @@ deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "R
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Plugins]]
-git-tree-sha1 = "7755490866e2f4649b1cf3e1b886b2662e57e89d"
+git-tree-sha1 = "b46c8051053eeab3d112e429f7b33fde5673270d"
 uuid = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
-version = "0.1.2"
+version = "0.2.1"
 
 [[Printf]]
 deps = ["Unicode"]

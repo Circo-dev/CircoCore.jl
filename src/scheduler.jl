@@ -6,8 +6,21 @@ const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = Second(1)
 
+# Lifecycle hooks
+schedule_start(::Plugin, ::Any) = false
+schedule_stop(::Plugin, ::Any) = false
+
+# Event hooks
+hostroutes(::Plugin, ::Any, ::Any) = false
+localroutes(::Plugin, ::Any, ::Any) = false
+actor_activity_sparse(::Plugin, ::Any, ::Any) = false
+
+
+schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
+schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
+
 function getpos(port) 
-    #return randpos()
+    # return randpos()
     port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
     port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
     port == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
@@ -26,18 +39,23 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
+    shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
+    hostroutes_hooks::Plugins.HookList
     actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::AbstractArray;plugins = default_plugins(), pos = nothing)
+    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = default_plugins(), pos = nothing)
+        if isnothing(actors) 
+            actors = []
+        end
         postoffice = PostOffice()
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
         end
         scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, PluginStack(plugins))
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         cache_hooks(scheduler)
         setup!(scheduler.plugins, scheduler)
@@ -47,10 +65,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     end
 end
 
-pos(scheduler::ActorScheduler) = scheduler.pos
+pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
-function default_plugins(;roots=[])
-    return [ClusterService(roots), MigrationService(), WebsocketService()]
+function default_plugins(;options = NamedTuple())
+    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options)]
 end
 
 function randpos()
@@ -59,16 +77,32 @@ end
 
 function cache_hooks(scheduler::ActorScheduler)
     scheduler.localroutes_hooks = hooks(scheduler, localroutes)
+    scheduler.hostroutes_hooks = hooks(scheduler, hostroutes)
     scheduler.actor_activity_sparse_hooks = hooks(scheduler, actor_activity_sparse)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
-    if postcode(scheduler) == postcode(target(message))
+    @debug "deliver! at $(postcode(scheduler)) $message"
+    target_postcode = postcode(target(message))
+    if postcode(scheduler) == target_postcode
         deliver_locally!(scheduler, message)
-    else
-        send(scheduler.postoffice, message)
+        return nothing
     end
+    if network_host(postcode(scheduler)) == network_host(target_postcode)
+        if deliver_onhost!(scheduler, message)
+            return nothing
+        end
+    end
+    send(scheduler.postoffice, message)
     return nothing
+end
+
+@inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
+    if !scheduler.hostroutes_hooks(msg)
+        @debug "Unhandled host delivery: $msg"
+        return false
+    end
+    return true
 end
 
 @inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -141,7 +175,9 @@ end
     message = dequeue!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        scheduler.localroutes_hooks(message) #TODO print unhandled messages for debugging
+        if !scheduler.localroutes_hooks(message)
+            @debug "Cannot deliver on host: $message"
+        end
     else
         handle_message_locally!(targetactor, message, scheduler)
     end
@@ -161,7 +197,7 @@ end
                 addr(scheduler),
                 timeout.watcher,
                 timeout,
-                Infoton(nullpos)#TODO scheduler pos
+                Infoton(nullpos)# TODO scheduler pos
             ))
         end
         return true
@@ -173,6 +209,7 @@ end
     incomingmessage = nothing
     hadtimeout = false
     sleeplength = 0.001
+    enter_ts = time_ns()
     while true
         yield() # Allow the postoffice "arrivals" and plugin tasks to run
         incomingmessage = getmessage(scheduler.postoffice)
@@ -180,37 +217,51 @@ end
         if !isnothing(incomingmessage)
             deliver_locally!(scheduler, incomingmessage)
             return nothing
-        elseif hadtimeout || !isempty(scheduler.messagequeue) # Plugins may deliver messages directly
+        elseif hadtimeout ||
+                !isempty(scheduler.messagequeue) ||# Plugins may deliver messages directly
+                scheduler.shutdown
             return nothing
         else
-            sleep(sleeplength)
-            sleeplength = min(sleeplength * 1.002, 0.03)
+            if time_ns() - enter_ts > 1_000_000
+                sleep(sleeplength)
+                sleeplength = min(sleeplength * 1.002, 0.03)
+            end
         end
     end
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMsg;process_external=false, exit_when_done=true)
+function (scheduler::ActorScheduler)(message::AbstractMsg;process_external = false, exit_when_done = true)
     deliver!(scheduler, message)
-    scheduler(process_external=process_external, exit_when_done=exit_when_done)
+    scheduler(process_external = process_external, exit_when_done = exit_when_done)
 end
 
-function (scheduler::ActorScheduler)(;process_external=true, exit_when_done=false)
+@inline function nomorework(scheduler::ActorScheduler, process_external::Bool, exit_when_done::Bool)
+    return isempty(scheduler.messagequeue) &&
+        (
+            !process_external ||
+            exit_when_done && scheduler.actorcount == scheduler.startup_actor_count
+        )
+end
+
+function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
+    schedule_start_hook(scheduler.plugins, scheduler)
     while true
         msg_batch::UInt8 = 255
         while msg_batch != 0 && !isempty(scheduler.messagequeue)
             msg_batch -= 1
             step!(scheduler)
         end
-        if  isempty(scheduler.messagequeue) &&
-            (!process_external || 
-             exit_when_done && scheduler.actorcount == scheduler.startup_actor_count)
+        if scheduler.shutdown || nomorework(scheduler, process_external, exit_when_done)
+            @debug "Scheduler loop $(postcode(scheduler)) exiting."
             return
         end
         process_post_and_timeout(scheduler)
     end
+    schedule_stop_hook(scheduler.plugins, scheduler)
 end
 
 function shutdown!(scheduler::ActorScheduler)
+    scheduler.shutdown = true
     Plugins.shutdown!(scheduler.plugins, scheduler)
     shutdown!(scheduler.postoffice)
     println("Scheduler at $(postcode(scheduler)) exited.")

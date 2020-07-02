@@ -8,7 +8,7 @@
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
-const RUNS_IN_BATCH = 100 # Parallelism. All the runs of a batch are started together
+const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
 const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
 
@@ -62,7 +62,7 @@ mutable struct ListItem{TData} <: AbstractActor
 end
 monitorextra(me::ListItem) = (
     data = me.data,
-    next = boxof(me.next)
+    next = isnothing(me.next) ? nothing : boxof(me.next)
 )
 
 monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
@@ -140,7 +140,7 @@ function appenditem(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Appended, service)
-    me.core.pos = Pos(0, 0, 0)
+    me.core.pos = nullpos
     me.itemcount += 1
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)

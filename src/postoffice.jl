@@ -49,6 +49,7 @@ function arrivals(socket::UDPSocket, channel::Channel)
             rawmessage = recv(socket)
             stream = IOBuffer(rawmessage)
             msg = deserialize(stream)
+            @debug "Postoffice got message $msg"
             put!(channel, msg)
         end
     catch e
@@ -59,6 +60,7 @@ function arrivals(socket::UDPSocket, channel::Channel)
 end
 
 @inline function send(post::PostOffice, message)
+    @debug "PostOffice delivery at $(postcode(post)): $message"
     parts = split(postcode(target(message)), ":")
     ip = parse(IPAddr, parts[1])
     port = parse(UInt16, parts[2])
