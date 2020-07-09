@@ -2,7 +2,7 @@
 using DataStructures
 import Base.length
 
-const DEFAULT_TOLERANCE = 1e-7
+const DEFAULT_TOLERANCE = 1e-2
 
 struct MigrationRequest
     actor::AbstractActor
@@ -84,16 +84,20 @@ end
 
 """
 @inline function migrate(service::ActorService, actor::AbstractActor, topostcode::PostCode)
-    migrate!(service.scheduler, actor, topostcode)
+    return migrate!(service.scheduler, actor, topostcode)
 end
 
 function migrate!(scheduler::AbstractActorScheduler, actor::AbstractActor, topostcode::PostCode)
+    if topostcode == postcode(scheduler)
+        return false
+    end
     send(postoffice(scheduler), Msg(addr(scheduler),
         Addr(topostcode, 0),
         MigrationRequest(actor),
         Infoton(nullpos)))
     unschedule!(scheduler, actor)
     scheduler.plugins[:migration].movingactors[id(actor)] = MovingActor(actor)
+    return true
 end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})

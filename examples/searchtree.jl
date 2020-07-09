@@ -8,7 +8,7 @@ using CircoCore, CircoCore.Debug, DataStructures, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
 
 # Infoton optimization parameters
-const TARGET_DISTANCE = 80
+const TARGET_DISTANCE = 150.0
 const I = 1.0
 
 # Tree parameters
@@ -17,7 +17,7 @@ const ITEMS_PER_LEAF = 1000
 const SIBLINGINFO_FREQ = 2 #0..255
 const SIBLINGINFO_ENERGY = -1.0
 const FULLSPEED_PARALLELISM = 100
-const SCHEDULER_TARGET_ACTORCOUNT = 600.0
+const SCHEDULER_TARGET_ACTORCOUNT = 500.0
 
 const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
 const NODESCALE_FACTOR = 1 / ITEMS_PER_LEAF / 2
@@ -88,9 +88,9 @@ monitorextra(me::TreeNode) =
 # Schedulers pull/push their actors based on the number of actors they schedule 
 # SCHEDULER_TARGET_ACTOURCOUNT configures the target actorcount.
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
-    #dist = norm(scheduler.pos - actor.core.pos)
-    #dist === 0.0 && return Infoton(scheduler.pos, 0.0)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 6e-4 # / dist  # disabled: "/ dist" would mean that force degrades linearly with distance.
+    dist = norm(scheduler.pos - actor.core.pos)
+    dist === 0.0 && return Infoton(scheduler.pos, 0.0)
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 2e-4  # disabled: "/ dist" would mean that force degrades linearly with distance.
     return Infoton(scheduler.pos, energy)
 end
 
@@ -100,7 +100,15 @@ CircoCore.scheduler_infoton(scheduler, actor::AbstractActor) = actorcount_schedu
     if length(alternatives) < 5 && rand(UInt8) == 0
         @debug "Only $(length(alternatives)) alternatives at $(box(me)) : $alternatives"
     end
+    # if rand(UInt16) == 0
+    #     target = rand(alternatives.peers)
+    #     me.core.pos = target.pos + Pos(1.0, 1.0, 1.0)
+    #     @info "Random migration from $(addr(me)) to $target"
+    #     migrate(service, me, postcode(target))
+    #     return nothing
+    # end
     migrate_to_nearest(me, alternatives, service)
+    return nothing
 end
 
 @inline CircoCore.apply_infoton(targetactor::AbstractActor, infoton::Infoton) = begin
@@ -145,7 +153,7 @@ nearpos(pos::Pos=nullpos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, ra
 
 function onschedule(me::Coordinator, service)
     @debug "onschedule: $me"
-    me.core.pos = nearpos()
+    me.core.pos = nearpos(nullpos, 1000.0)
     me.root = createnode(Array{UInt32}(undef, 0), service, nearpos(me.core.pos))
     if me.runmode !== STOP
         startround(me, service)
