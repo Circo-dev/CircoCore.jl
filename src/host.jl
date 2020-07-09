@@ -7,11 +7,8 @@ mutable struct HostActor <: AbstractActor
     core::CoreState
     HostActor() = new()
 end
-<<<<<<< HEAD
 monitorprojection(::Type{HostActor}) = JS("projections.nonimportant")
 
-=======
->>>>>>> upstream/master
 
 mutable struct HostService <: Plugin
     in_msg::Channel{Msg}
