@@ -7,6 +7,8 @@ mutable struct HostActor <: AbstractActor
     core::CoreState
     HostActor() = new()
 end
+monitorprojection(::Type{HostActor}) = JS("projections.nonimportant")
+
 
 mutable struct HostService <: Plugin
     in_msg::Channel{Msg}
@@ -103,8 +105,11 @@ function addpeers(hostservices::Array{HostService}, schedulers)
 end
 
 function (ts::Host)(;process_external=true, exit_when_done=false)
-    # TODO sleeping is a workaround for a bug in cluster.jl
-    tasks = [(sleep(1.0);Threads.@spawn scheduler(;process_external=process_external, exit_when_done=exit_when_done)) for scheduler in ts.schedulers]
+    tasks = []
+    for scheduler in ts.schedulers
+        sleep(length(tasks) in (4:length(ts.schedulers) - 4)  ? 0.1 : 1.0) # TODO sleeping is a workaround for a bug in cluster.jl
+        push!(tasks, Threads.@spawn scheduler(;process_external=process_external, exit_when_done=exit_when_done))
+    end
     for task in tasks
         wait(task)
     end

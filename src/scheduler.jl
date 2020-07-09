@@ -76,9 +76,9 @@ function randpos()
 end
 
 function cache_hooks(scheduler::ActorScheduler)
-    scheduler.localroutes_hooks = hooks(scheduler, localroutes)
-    scheduler.hostroutes_hooks = hooks(scheduler, hostroutes)
-    scheduler.actor_activity_sparse_hooks = hooks(scheduler, actor_activity_sparse)
+    scheduler.localroutes_hooks = hooklist(scheduler, localroutes)
+    scheduler.hostroutes_hooks = hooklist(scheduler, hostroutes)
+    scheduler.actor_activity_sparse_hooks = hooklist(scheduler, actor_activity_sparse)
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
