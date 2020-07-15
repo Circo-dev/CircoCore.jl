@@ -160,11 +160,3 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
-
-[[Vec]]
-deps = ["LinearAlgebra", "Printf", "Random", "StaticArrays"]
-git-tree-sha1 = "6277414ebe60873b872929eeda97aa4be710ea0e"
-repo-rev = "master"
-repo-url = "https://github.com/sisl/Vec.jl.git"
-uuid = "44eeaf0b-fee4-471f-9310-ed6585cb3142"
-version = "2.0.2"

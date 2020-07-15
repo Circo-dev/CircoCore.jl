@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
-using Vec, Plugins
+using Plugins, StaticArrays
 
 import Base: show, string
 import Plugins: setup!, shutdown!, symbol
@@ -142,15 +142,17 @@ pos(a::AbstractActor) = a.core.pos
 
 A point in the 3D "actor space".
 
-Pos is currently an alias to VecE3{Float32}. See [Vec.jl](https://github.com/sisl/Vec.jl)
+Pos is currently an alias to SVector{3, Float32}
 """
-Pos=VecE3{Float32}
+Pos=SVector{3, Float32}
 
 mutable struct CoreState
     addr::Addr
     pos::Pos
 end
 nullpos = Pos(0, 0, 0)
+
+dist(a::Pos, b::Pos) = sqrt((a[1]-b[1])^2 + (a[2]-b[2])^2 + (a[3]-b[3])^2)
 
 """
     Infoton(sourcepos::Pos, energy::Real = 1)
