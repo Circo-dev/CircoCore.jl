@@ -282,7 +282,7 @@ include("host.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("migration.jl")
-include("debug.jl")
+include("debug/debug.jl")
 include("cli/circonode.jl")
 
 export AbstractActor, CoreState, ActorId, id, ActorService,

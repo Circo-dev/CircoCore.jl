@@ -5,7 +5,7 @@ using LinearAlgebra
 const I = 1.0
 const TARGET_DISTANCE = 1.50
 
-mutable struct Space <: Plugin
+struct Space <: Plugin
 end
 
 @inline function localdelivery(space::Space, scheduler, msg, targetactor)
