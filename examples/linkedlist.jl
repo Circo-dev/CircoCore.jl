@@ -5,12 +5,14 @@
 # It demonstrates Infoton optimization, CircoCore's novel approach to solve the
 # data locality problem
 
+include("utils/loggerconfig.jl")
+
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
 const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
-const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 4000.0 # Schedulers will push away their actors if they have more than this
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
@@ -166,9 +168,11 @@ onmessage(me::LinkedList, message::Reduce, service) = send(service, me, me.head,
 
 function onmessage(me::LinkedList, message::RecipientMoved, service) # TODO a default implementation like this
     if me.head == message.oldaddress
+        @debug "RM List: head: $(me.head) msg: $message"
         me.head = message.newaddress
         send(service, me, me.head, message.originalmessage)
     else
+        @debug "RM List: forwarding msg: $message"
         send(service, me, message.newaddress, message.originalmessage)
     end
 end
@@ -177,7 +181,7 @@ function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
     if isdefined(me, :prev)
-       send(service, me, me.prev, Ack())
+       #send(service, me, me.prev, Ack())
     end
 end    
 
@@ -185,12 +189,15 @@ onmessage(me::ListItem, message::Ack, service) = nothing
 
 function onmessage(me::ListItem, message::RecipientMoved, service)
     if me.next == message.oldaddress
+        @debug "RM: next: $(me.next) msg: $message"
         me.next = message.newaddress
         send(service, me, me.next, message.originalmessage)
     elseif isdefined(me, :prev) && me.prev == message.oldaddress
+        @debug "RM: prev: $(me.prev) msg: $message"
         me.prev = message.newaddress
         send(service, me, me.prev, message.originalmessage)
     else        
+        @debug "RM: forwarding msg: $message"
         send(service, me, message.newaddress, message.originalmessage)
     end
 end
