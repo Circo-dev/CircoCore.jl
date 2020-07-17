@@ -14,11 +14,12 @@ schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
 schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 
 # Event hooks
-hostroutes(::Plugin, ::Any, ::Any) = false
-localroutes(::Plugin, ::Any, ::Any) = false
-actor_activity_sparse(::Plugin, ::Any, ::Any) = false
+function hostroutes end
+function localdelivery end
+function localroutes end
+function actor_activity_sparse end
 
-scheduler_hooks = [hostroutes, localroutes, actor_activity_sparse]
+scheduler_hooks = [hostroutes, localdelivery, localroutes, actor_activity_sparse]
 
 function getpos(port) 
     # return randpos()
@@ -65,7 +66,7 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function default_plugins(;options = NamedTuple())
-    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options)]
+    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
 end
 
 function randpos()
@@ -151,15 +152,13 @@ end
     return Infoton(scheduler.pos, energy)
 end
 
+# Not clear why: without this on 1.4.2 the hook is dynamically dispatched when two arguments are used.
+# (With one argument it works correctly, just like in Plugins.jl 06e10515 tests)
+call_twoargs(op, msg, targetactor) = op(msg, targetactor)
+
 @inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
+    call_twoargs(hooks(scheduler).localdelivery, message, targetactor)
     onmessage(targetactor, body(message), scheduler.service)
-    apply_infoton(targetactor, message.infoton)
-    if rand(UInt8) < 30 # TODO: config and move to a hook
-        apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
-        if rand(UInt8) < 15
-            hooks(scheduler).actor_activity_sparse(targetactor)
-        end
-    end
     return nothing
 end
 
