@@ -12,7 +12,7 @@ module LinkedListTest
 const LIST_LENGTH = 4_000
 const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
-const SCHEDULER_TARGET_ACTORCOUNT = 4000.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
