@@ -139,12 +139,33 @@ pos(a::AbstractActor) = a.core.pos
 
 """
     Pos(x::Real, y::Real, z::Real)
+    Pos(coords)
 
 A point in the 3D "actor space".
 
-Pos is currently an alias to SVector{3, Float32}
+You can access the coords by pos.x, pos.y, pos.z.
+
+Pos is implemented using an SVector{3, Float32}.
 """
-Pos=SVector{3, Float32}
+struct Pos 
+    coords::SVector{3, Float32}
+    Pos(x, y, z) = new(SVector{3, Float32}(x, y, z))
+    Pos(coords) = new(coords)
+end
+
+dist(a::Pos, b::Pos) = sqrt((a.coords[1]-b.coords[1])^2 + (a.coords[2]-b.coords[2])^2 + (a.coords[3]-b.coords[3])^2)
+Base.:*(a::Pos, x::Real) = Pos(a.coords * x)
+Base.:/(a::Pos, x::Real) = Pos(a.coords / x)
+Base.:+(a::Pos, b::Pos) = Pos(a.coords + b.coords)
+Base.:-(a::Pos, b::Pos) = Pos(a.coords - b.coords)
+Base.getproperty(pos::Pos, symbol::Symbol) = (symbol == :x) ? getfield(pos, :coords)[1] :
+                                        (symbol == :y) ? getfield(pos, :coords)[2] :
+                                        (symbol == :z) ? getfield(pos, :coords)[3] :
+                                        getfield(pos, symbol)
+
+Base.iterate(a::Pos) = iterate(a.coords)
+Base.iterate(a::Pos, state) = iterate(a.coords, state)
+Base.length(a::Pos) = length(a.coords)
 
 mutable struct CoreState
     addr::Addr
@@ -152,7 +173,7 @@ mutable struct CoreState
 end
 nullpos = Pos(0, 0, 0)
 
-dist(a::Pos, b::Pos) = sqrt((a[1]-b[1])^2 + (a[2]-b[2])^2 + (a[3]-b[3])^2)
+
 
 """
     Infoton(sourcepos::Pos, energy::Real = 1)

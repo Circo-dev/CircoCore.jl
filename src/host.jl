@@ -58,17 +58,17 @@ end
 function arrivals(hs::HostService, scheduler)
     while true
         msg = take!(hs.in_msg)
-        @debug "arrived at $(hs.postcode): $msg"
+        #@debug "arrived at $(hs.postcode): $msg"
         deliver!(scheduler, msg)
         yield()
     end
 end
 
 function hostroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
-    @debug "hostroutes in host.jl $msg"
+    #@debug "hostroutes in host.jl $msg"
     peer = get(hostservice.peers, postcode(target(msg)), nothing)
     if !isnothing(peer)
-        @debug "Inter-thread delivery of $(hostservice.postcode): $msg"
+        #@debug "Inter-thread delivery of $(hostservice.postcode): $msg"
         put!(peer.in_msg, msg)
         return true
     end
