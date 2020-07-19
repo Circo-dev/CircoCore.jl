@@ -147,7 +147,7 @@ You can access the coords by pos.x, pos.y, pos.z.
 
 Pos is implemented using an SVector{3, Float32}.
 """
-struct Pos 
+struct Pos <: AbstractVector{Float32}
     coords::SVector{3, Float32}
     Pos(x, y, z) = new(SVector{3, Float32}(x, y, z))
     Pos(coords) = new(coords)
@@ -158,14 +158,20 @@ Base.:*(a::Pos, x::Real) = Pos(a.coords * x)
 Base.:/(a::Pos, x::Real) = Pos(a.coords / x)
 Base.:+(a::Pos, b::Pos) = Pos(a.coords + b.coords)
 Base.:-(a::Pos, b::Pos) = Pos(a.coords - b.coords)
+Base.getindex(pos::Pos, i::Int) = getindex(pos.coords, i)
 Base.getproperty(pos::Pos, symbol::Symbol) = (symbol == :x) ? getfield(pos, :coords)[1] :
                                         (symbol == :y) ? getfield(pos, :coords)[2] :
                                         (symbol == :z) ? getfield(pos, :coords)[3] :
                                         getfield(pos, symbol)
+Base.iterate(pos::Pos) = iterate(pos.coords)
+Base.iterate(pos::Pos, state) = iterate(pos.coords, state)
+Base.length(pos::Pos) = length(pos.coords)
+Base.size(pos::Pos) = size(pos.coords)
 
-Base.iterate(a::Pos) = iterate(a.coords)
-Base.iterate(a::Pos, state) = iterate(a.coords, state)
-Base.length(a::Pos) = length(a.coords)
+Base.show(io::IO, ::MIME"text/plain", pos::Pos) = begin
+    print(io, "Pos($(pos[1]), $(pos[2]), $(pos[3]))")
+end
+
 
 mutable struct CoreState
     addr::Addr
