@@ -1,5 +1,45 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
+
+export AbstractActor, CoreState, ActorId, id, ActorService,
+    ActorScheduler, deliver!, schedule!, shutdown!,
+
+    #Plugins
+    default_plugins,
+    MonitorService, monitorextra,
+
+    # Messaging
+    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
+    RecipientMoved,
+
+    Token, TokenId, Tokenized, token, Request, Response, Timeout,
+
+    # Actor API
+    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
+
+    # Actor lifecycle callbacks
+    onschedule, onmessage, onmigrate,
+
+    # Events
+    Event, EventDispatcher, Subscribe, fire,
+
+    # Space
+    Pos, pos, nullpos, Infoton,
+
+    # Cluster management
+    ClusterActor, NodeInfo, Joined, PeerListUpdated,
+    migrate_to_nearest, MigrationAlternatives,
+
+    # Multithreading
+    Host,
+
+    # Monitoring
+    JS, 
+
+    Debug,
+
+    cli
+
 using Plugins, StaticArrays
 
 import Base: show, string
@@ -312,44 +352,6 @@ include("migration.jl")
 include("debug/debug.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, ActorService,
-    ActorScheduler, deliver!, schedule!, shutdown!,
-
-    #Plugins
-    default_plugins,
-    MonitorService, monitorextra,
-
-    # Messaging
-    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
-    RecipientMoved,
-
-    Token, TokenId, Tokenized, token, Request, Response, Timeout,
-
-    # Actor API
-    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
-
-    # Actor lifecycle callbacks
-    onschedule, onmessage, onmigrate,
-
-    # Events
-    Event, EventDispatcher, Subscribe, fire,
-
-    # Space
-    Pos, pos, nullpos, Infoton,
-
-    # Cluster management
-    ClusterActor, NodeInfo, Joined, PeerListUpdated,
-    migrate_to_nearest, MigrationAlternatives,
-
-    # Multithreading
-    Host,
-
-    # Monitoring
-    JS, 
-
-    Debug,
-
-    cli
 
 end
 
