@@ -56,7 +56,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
         scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), CircularBuffer{Msg}(msgqueue_capacity),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins, scheduler_hooks))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
-        setup!(scheduler.plugins, scheduler)
+        setup_plugins!(scheduler)
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -71,6 +71,17 @@ end
 
 function randpos()
     return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
+end
+
+function setup_plugins!(scheduler::ActorScheduler)
+    res = Plugins.setup!(scheduler.plugins, scheduler)
+    if !res.allok
+        for (i, result) in enumerate(res.results)
+            if result isa Tuple && result[1] isa Exception
+                @error "Error seting up plugin $(typeof(scheduler.plugins[i])):" result
+            end
+        end
+    end
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
