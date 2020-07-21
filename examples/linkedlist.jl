@@ -22,10 +22,11 @@ mutable struct Coordinator <: AbstractActor
     itemcount::Int
     batchidx::Int
     runidx::Int
+    isrunning::Bool
     batchstarted::DateTime
     list::Addr
     core::CoreState
-    Coordinator() = new(0, 0, 0)
+    Coordinator() = new(0, 0, 0, false)
 end
 
 boxof(addr) = !isnothing(addr) ? addr.box : nothing # Helper
@@ -155,9 +156,14 @@ end
 
 
 function onmessage(me::Coordinator, message::Run, service)
-    if me.batchidx == 0 && me.runidx == 0
+    if !me.isrunning
+        me.isrunning = true
         startbatch(me, service)
     end
+end
+
+function onmessage(me::Coordinator, message::Stop, service)
+    me.isrunning = false
 end
 
 onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
@@ -230,7 +236,7 @@ function onmessage(me::Coordinator, message::Reduce, service)
     end
     #sleep(0.001)
     me.runidx += 1
-    if me.runidx >= RUNS_IN_BATCH + 1
+    if me.isrunning && me.runidx >= RUNS_IN_BATCH + 1
         startbatch(me, service)
     end
 end
