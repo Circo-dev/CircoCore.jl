@@ -37,7 +37,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
-    messagequeue::CircularBuffer{Msg}
+    messagequeue::Deque{Msg}# CircularBuffer{Msg}
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
@@ -53,7 +53,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
         end
-        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), CircularBuffer{Msg}(msgqueue_capacity),
+        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Deque{Msg}(),#msgqueue_capacity),
          LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins, scheduler_hooks))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         setup_plugins!(scheduler)
@@ -66,7 +66,7 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function default_plugins(;options = NamedTuple())
-    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
+    return [Debug.MsgStats(), ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
 end
 
 function randpos()
@@ -78,7 +78,7 @@ function setup_plugins!(scheduler::ActorScheduler)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception
-                @error "Error seting up plugin $(typeof(scheduler.plugins[i])):" result
+                @error "Error setting up plugin $(typeof(scheduler.plugins[i])):" result
             end
         end
     end
@@ -136,6 +136,9 @@ end
 end
 
 @inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
+
+# Provide the same API for plugins
+spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
     isfirstschedule = !isdefined(actor, :core)

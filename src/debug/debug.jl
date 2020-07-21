@@ -1,5 +1,4 @@
 module Debug
-using ..CircoCore
 
 export Run, Step, Stop, MsgStats
 

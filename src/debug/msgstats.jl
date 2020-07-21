@@ -1,11 +1,32 @@
 using Plugins
+using CircoCore
 
-struct MsgStats <: Plugin
+mutable struct MsgStats <: Plugin
     typefrequencies::Dict{DataType, Int}
-    MsgStats() = new(Dict())
+    helper::Addr
+    MsgStats() = begin
+        return new(Dict())
+    end
 end
 
-symbol(::MsgStats) = :msgstats
+mutable struct MsgStatsHelper <: AbstractActor
+    stats::MsgStats
+    core::CoreState
+    MsgStatsHelper(stats) = new(stats)
+end
+
+CircoCore.monitorextra(actor::MsgStatsHelper) = (
+    (; (Symbol(k) => v for (k,v) in actor.stats.typefrequencies)...)
+)
+    
+
+CircoCore.symbol(::MsgStats) = :msgstats
+
+Plugins.setup!(stats::MsgStats, scheduler) = begin
+    helper = MsgStatsHelper(stats)
+    stats.helper = spawn(scheduler, helper)
+    @info "MsgStats initialized"
+end
 
 @inline function CircoCore.localdelivery(stats::MsgStats, scheduler, msg::CircoCore.Msg{T}, targetactor) where T
     current = get(stats.typefrequencies, T, nothing)
