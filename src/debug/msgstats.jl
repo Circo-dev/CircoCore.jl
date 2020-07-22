@@ -15,17 +15,18 @@ mutable struct MsgStatsHelper <: AbstractActor
     MsgStatsHelper(stats) = new(stats)
 end
 
+struct ResetStats a::UInt8 end
+registermsg(ResetStats, ui=true)
+
 CircoCore.monitorextra(actor::MsgStatsHelper) = (
     (; (Symbol(k) => v for (k,v) in actor.stats.typefrequencies)...)
 )
     
-
 CircoCore.symbol(::MsgStats) = :msgstats
 
 Plugins.setup!(stats::MsgStats, scheduler) = begin
     helper = MsgStatsHelper(stats)
     stats.helper = spawn(scheduler, helper)
-    @info "MsgStats initialized"
 end
 
 @inline function CircoCore.localdelivery(stats::MsgStats, scheduler, msg::CircoCore.Msg{T}, targetactor) where T
@@ -36,6 +37,10 @@ end
     end
     stats.typefrequencies[T] = current + 1
     return false
+end
+
+CircoCore.onmessage(me::MsgStatsHelper, msg::ResetStats, service) = begin
+    empty!(me.stats.typefrequencies)
 end
 
 # function Base.show(io::IO, stats::MsgStats)

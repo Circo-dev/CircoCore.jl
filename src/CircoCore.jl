@@ -34,7 +34,7 @@ export AbstractActor, CoreState, ActorId, id, ActorService,
     Host,
 
     # Monitoring
-    JS, 
+    JS, registermsg,
 
     Debug,
 

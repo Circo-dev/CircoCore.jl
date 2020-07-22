@@ -47,9 +47,47 @@ struct ActorInterfaceRequest <: Request
     token::Token
 end
 
+struct MessageType
+    typename::String
+    registrator_snippet::JS
+end
+
+MessageType(T::Type, params::NamedTuple=NamedTuple();ui = false) = MessageType(string(T), generate_registrator(T, params; ui=ui))
+
+function generate_registrator(T::Type, params::NamedTuple;ui=false)
+    typename = string(T)
+    lastdot = findlast(".", typename)
+    classname = isnothing(lastdot) ? typename : typename[lastdot[1] + 1:end]
+    return JS(
+"""
+class $classname {
+    constructor() {
+        this.a=42
+    }
+}
+registerMsg("$typename", $classname, { ui: $ui })
+""")
+end
+
+const msgtype_registry = Dict()
+
+function registermsg(msgtype::Type, params::NamedTuple = NamedTuple();ui=false)
+    reg =  MessageType(msgtype, params; ui = ui)
+    msgtype_registry[msgtype] = reg
+    return reg
+end
+
+function getregisteredmsg(msgtype::Type)
+    retval = get(msgtype_registry, msgtype, nothing)
+    if isnothing(retval)
+        retval = registermsg(msgtype)
+    end
+    return retval
+end
+
 struct ActorInterfaceResponse <: Response
     box::ActorId
-    messagetypes::Vector{String}
+    messagetypes::Vector{MessageType}
     token::Token
 end
 
@@ -112,19 +150,19 @@ function onmessage(me::MonitorActor, request::MonitorProjectionRequest, service)
 end
 
 # Retrieves the message type from an onmessage method signature
-messagetype(::Type{Tuple{A,B,C,D}}) where {D, C, B, A} = C
+extract_messagetype(::Type{Tuple{A,B,C,D}}) where {D, C, B, A} = C
 
 function onmessage(me::MonitorActor, request::ActorInterfaceRequest, service)
     actor = getactorbyid(me.monitor.scheduler, request.box)
     if isnothing(actor)
         return nothing # TODO a general notfound response
     end
-    result = Vector{String}()
+    result = Vector{MessageType}()
     for m in methods(onmessage, [typeof(actor), Any, Any])
         if typeof(m.sig) === DataType # TODO handle UnionAll message types
-            typename = string(messagetype(m.sig))
-            if typename !== "Any"
-                push!(result, typename)
+            type = extract_messagetype(m.sig)
+            if type != Any
+                push!(result, getregisteredmsg(type))
             end
         end
     end
