@@ -51,7 +51,7 @@ function usage()
 end
 
 function parse_args(args)
-    longs = Set(["roots", "rootsfile", "add", "help", "version", "threads"])
+    longs = Set(["roots", "rootsfile", "add", "help", "version", "threads", "zygote"])
     shorts = Dict([("-r", "roots"), ("--root", "roots"), ("-f", "rootsfile"),
      ("-a", "add"), ("-z", "zygote"), ("-h", "help"), ("-t", "threads")])
     defaults = Dict([("zygote", "zygote")])
