@@ -1,6 +1,46 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
-using Vec, Plugins
+
+export AbstractActor, CoreState, ActorId, id, ActorService,
+    ActorScheduler, deliver!, schedule!, shutdown!,
+
+    #Plugins
+    default_plugins,
+    MonitorService, monitorextra,
+
+    # Messaging
+    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
+    RecipientMoved,
+
+    Token, TokenId, Tokenized, token, Request, Response, Timeout,
+
+    # Actor API
+    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
+
+    # Actor lifecycle callbacks
+    onschedule, onmessage, onmigrate,
+
+    # Events
+    Event, EventDispatcher, Subscribe, fire,
+
+    # Space
+    Pos, pos, nullpos, Infoton,
+
+    # Cluster management
+    ClusterActor, NodeInfo, Joined, PeerListUpdated,
+    migrate_to_nearest, MigrationAlternatives,
+
+    # Multithreading
+    Host,
+
+    # Monitoring
+    JS, registermsg,
+
+    Debug,
+
+    cli
+
+using Plugins, StaticArrays
 
 import Base: show, string
 import Plugins: setup!, shutdown!, symbol
@@ -139,18 +179,47 @@ pos(a::AbstractActor) = a.core.pos
 
 """
     Pos(x::Real, y::Real, z::Real)
+    Pos(coords)
 
 A point in the 3D "actor space".
 
-Pos is currently an alias to VecE3{Float32}. See [Vec.jl](https://github.com/sisl/Vec.jl)
+You can access the coords by pos.x, pos.y, pos.z.
+
+Pos is implemented using an SVector{3, Float32}.
 """
-Pos=VecE3{Float32}
+struct Pos <: AbstractVector{Float32}
+    coords::SVector{3, Float32}
+    Pos(x, y, z) = new(SVector{3, Float32}(x, y, z))
+    Pos(coords) = new(coords)
+end
+
+dist(a::Pos, b::Pos) = sqrt((a.coords[1]-b.coords[1])^2 + (a.coords[2]-b.coords[2])^2 + (a.coords[3]-b.coords[3])^2)
+Base.:*(a::Pos, x::Real) = Pos(a.coords * x)
+Base.:/(a::Pos, x::Real) = Pos(a.coords / x)
+Base.:+(a::Pos, b::Pos) = Pos(a.coords + b.coords)
+Base.:-(a::Pos, b::Pos) = Pos(a.coords - b.coords)
+Base.getindex(pos::Pos, i::Int) = getindex(pos.coords, i)
+Base.getproperty(pos::Pos, symbol::Symbol) = (symbol == :x) ? getfield(pos, :coords)[1] :
+                                        (symbol == :y) ? getfield(pos, :coords)[2] :
+                                        (symbol == :z) ? getfield(pos, :coords)[3] :
+                                        getfield(pos, symbol)
+Base.iterate(pos::Pos) = iterate(pos.coords)
+Base.iterate(pos::Pos, state) = iterate(pos.coords, state)
+Base.length(pos::Pos) = length(pos.coords)
+Base.size(pos::Pos) = size(pos.coords)
+
+Base.show(io::IO, ::MIME"text/plain", pos::Pos) = begin
+    print(io, "Pos($(pos[1]), $(pos[2]), $(pos[3]))")
+end
+
 
 mutable struct CoreState
     addr::Addr
     pos::Pos
 end
 nullpos = Pos(0, 0, 0)
+
+
 
 """
     Infoton(sourcepos::Pos, energy::Real = 1)
@@ -280,47 +349,9 @@ include("host.jl")
 include("event.jl")
 include("cluster/cluster.jl")
 include("migration.jl")
-include("debug.jl")
+include("debug/debug.jl")
 include("cli/circonode.jl")
 
-export AbstractActor, CoreState, ActorId, id, ActorService,
-    ActorScheduler, deliver!, schedule!, shutdown!,
-
-    #Plugins
-    default_plugins,
-    MonitorService, monitorextra,
-
-    # Messaging
-    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
-    RecipientMoved,
-
-    Token, TokenId, Tokenized, token, Request, Response, Timeout,
-
-    # Actor API
-    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
-
-    # Actor lifecycle callbacks
-    onschedule, onmessage, onmigrate,
-
-    # Events
-    Event, EventDispatcher, Subscribe, fire,
-
-    # Space
-    Pos, pos, nullpos, Infoton,
-
-    # Cluster management
-    ClusterActor, NodeInfo, Joined, PeerListUpdated,
-    migrate_to_nearest, MigrationAlternatives,
-
-    # Multithreading
-    Host,
-
-    # Monitoring
-    JS, 
-
-    Debug,
-
-    cli
 
 end
 

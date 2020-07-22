@@ -10,14 +10,16 @@ const TIMEOUTCHECK_INTERVAL = Second(1)
 schedule_start(::Plugin, ::Any) = false
 schedule_stop(::Plugin, ::Any) = false
 
-# Event hooks
-hostroutes(::Plugin, ::Any, ::Any) = false
-localroutes(::Plugin, ::Any, ::Any) = false
-actor_activity_sparse(::Plugin, ::Any, ::Any) = false
-
-
-schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
+schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
+
+# Event hooks
+function hostroutes end
+function localdelivery end
+function localroutes end
+function actor_activity_sparse end
+
+scheduler_hooks = [hostroutes, localdelivery, localroutes, actor_activity_sparse]
 
 function getpos(port) 
     # return randpos()
@@ -35,18 +37,15 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     postoffice::PostOffice
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
-    messagequeue::Queue{Msg}
+    messagequeue::Deque{Msg}# CircularBuffer{Msg}
     registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::DateTime
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
-    localroutes_hooks::Plugins.HookList# TODO Tried to move this to a type parameter but somehow it slowed the clusterfull test down. Seems that not the hook call is slow but something else. Needs a deeper investigation.
-    hostroutes_hooks::Plugins.HookList
-    actor_activity_sparse_hooks::Plugins.HookList
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = default_plugins(), pos = nothing)
+    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = default_plugins(), pos = nothing, msgqueue_capacity = 100_000)
         if isnothing(actors) 
             actors = []
         end
@@ -54,11 +53,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
         end
-        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Queue{Msg}(),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins))
+        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Deque{Msg}(),#msgqueue_capacity),
+         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins, scheduler_hooks))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
-        cache_hooks(scheduler)
-        setup!(scheduler.plugins, scheduler)
+        setup_plugins!(scheduler)
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -68,23 +66,29 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function default_plugins(;options = NamedTuple())
-    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options)]
+    return [Debug.MsgStats(), ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
 end
 
 function randpos()
     return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
 end
 
-function cache_hooks(scheduler::ActorScheduler)
-    scheduler.localroutes_hooks = hooklist(scheduler, localroutes)
-    scheduler.hostroutes_hooks = hooklist(scheduler, hostroutes)
-    scheduler.actor_activity_sparse_hooks = hooklist(scheduler, actor_activity_sparse)
+function setup_plugins!(scheduler::ActorScheduler)
+    res = Plugins.setup!(scheduler.plugins, scheduler)
+    if !res.allok
+        for (i, result) in enumerate(res.results)
+            if result isa Tuple && result[1] isa Exception
+                @error "Error setting up plugin $(typeof(scheduler.plugins[i])):" result
+            end
+        end
+    end
 end
 
 @inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
-    @debug "deliver! at $(postcode(scheduler)) $message"
+    # Disabled as degrades the ping-pong performance even if debugging is not enabled:
+    # @debug "deliver! at $(postcode(scheduler)) $message"
     target_postcode = postcode(target(message))
-    if postcode(scheduler) == target_postcode
+    if postcode(scheduler) === target_postcode
         deliver_locally!(scheduler, message)
         return nothing
     end
@@ -98,7 +102,7 @@ end
 end
 
 @inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
-    if !scheduler.hostroutes_hooks(msg)
+    if !hooks(scheduler).hostroutes(msg)
         @debug "Unhandled host delivery: $msg"
         return false
     end
@@ -120,7 +124,7 @@ end
     if box(target(message)) == 0
         handle_special!(scheduler, message)
     else
-        enqueue!(scheduler.messagequeue, message)
+        push!(scheduler.messagequeue, message)
     end
     return nothing
 end
@@ -132,6 +136,9 @@ end
 end
 
 @inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
+
+# Provide the same API for plugins
+spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
     isfirstschedule = !isdefined(actor, :core)
@@ -159,23 +166,21 @@ end
     return Infoton(scheduler.pos, energy)
 end
 
+# Not clear why: without this on 1.4.2 the hook is dynamically dispatched when two arguments are used.
+# (With one argument it works correctly, just like in Plugins.jl 06e10515 tests)
+call_twoargs(op, msg, targetactor) = op(msg, targetactor)
+
 @inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
+    call_twoargs(hooks(scheduler).localdelivery, message, targetactor)
     onmessage(targetactor, body(message), scheduler.service)
-    apply_infoton(targetactor, message.infoton)
-    if rand(UInt8) < 30 # TODO: config and move to a hook
-        apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
-        if rand(UInt8) < 15
-            scheduler.actor_activity_sparse_hooks(targetactor)
-        end
-    end
     return nothing
 end
 
 @inline function step!(scheduler::ActorScheduler)
-    message = dequeue!(scheduler.messagequeue)
+    message = popfirst!(scheduler.messagequeue)
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
     if isnothing(targetactor)
-        if !scheduler.localroutes_hooks(message)
+        if !hooks(scheduler).localroutes(message)
             @debug "Cannot deliver on host: $message"
         end
     else

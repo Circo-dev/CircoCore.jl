@@ -67,12 +67,12 @@ e.g. "`spawn(service`" as a single unit of thought and not forget to write out t
 
 Consistency is just as important as convenience. But performance is king. 
 """
-@inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1) where {TBody, TScheduler}
+@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1)
     message = Msg(sender, to, messagebody, energy)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::ActorService{TScheduler}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout::Second = Second(2)) where {TBody<:Request, TScheduler}
+@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout::Second = Second(2)) where {TBody<:Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = Msg(sender, to, messagebody, energy)
     deliver!(service.scheduler, message)

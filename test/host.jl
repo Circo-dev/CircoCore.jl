@@ -126,7 +126,7 @@ end
         @info "Measuring in-thread ping-pong performance"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
-        sleep(1.0)
+        sleep(2.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
         @test pinger.pings_sent > 1e5

@@ -5,6 +5,8 @@
 # It demonstrates Infoton optimization, CircoCore's novel approach to solve the
 # data locality problem
 
+# include("utils/loggerconfig.jl")
+
 module LinkedListTest
 
 const LIST_LENGTH = 4_000
@@ -20,10 +22,11 @@ mutable struct Coordinator <: AbstractActor
     itemcount::Int
     batchidx::Int
     runidx::Int
+    isrunning::Bool
     batchstarted::DateTime
     list::Addr
     core::CoreState
-    Coordinator() = new(0, 0, 0)
+    Coordinator() = new(0, 0, 0, false)
 end
 
 boxof(addr) = !isnothing(addr) ? addr.box : nothing # Helper
@@ -61,7 +64,7 @@ mutable struct ListItem{TData} <: AbstractActor
     ListItem(data) = new{typeof(data)}(data)
 end
 monitorextra(me::ListItem) = (
-    data = me.data,
+    data = isdefined(me, :data) ? me.data : "undefined",
     next = isnothing(me.next) ? nothing : boxof(me.next)
 )
 
@@ -153,9 +156,14 @@ end
 
 
 function onmessage(me::Coordinator, message::Run, service)
-    if me.batchidx == 0 && me.runidx == 0
+    if !me.isrunning
+        me.isrunning = true
         startbatch(me, service)
     end
+end
+
+function onmessage(me::Coordinator, message::Stop, service)
+    me.isrunning = false
 end
 
 onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
@@ -166,9 +174,11 @@ onmessage(me::LinkedList, message::Reduce, service) = send(service, me, me.head,
 
 function onmessage(me::LinkedList, message::RecipientMoved, service) # TODO a default implementation like this
     if me.head == message.oldaddress
+        @debug "RM List: head: $(me.head) msg: $message"
         me.head = message.newaddress
         send(service, me, me.head, message.originalmessage)
     else
+        @debug "RM List: forwarding msg: $message"
         send(service, me, message.newaddress, message.originalmessage)
     end
 end
@@ -177,7 +187,7 @@ function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
     if isdefined(me, :prev)
-       send(service, me, me.prev, Ack())
+       #send(service, me, me.prev, Ack())
     end
 end    
 
@@ -185,12 +195,15 @@ onmessage(me::ListItem, message::Ack, service) = nothing
 
 function onmessage(me::ListItem, message::RecipientMoved, service)
     if me.next == message.oldaddress
+        @debug "RM: next: $(me.next) msg: $message"
         me.next = message.newaddress
         send(service, me, me.next, message.originalmessage)
     elseif isdefined(me, :prev) && me.prev == message.oldaddress
+        @debug "RM: prev: $(me.prev) msg: $message"
         me.prev = message.newaddress
         send(service, me, me.prev, message.originalmessage)
     else        
+        @debug "RM: forwarding msg: $message"
         send(service, me, message.newaddress, message.originalmessage)
     end
 end
@@ -223,7 +236,7 @@ function onmessage(me::Coordinator, message::Reduce, service)
     end
     #sleep(0.001)
     me.runidx += 1
-    if me.runidx >= RUNS_IN_BATCH + 1
+    if me.isrunning && me.runidx >= RUNS_IN_BATCH + 1
         startbatch(me, service)
     end
 end

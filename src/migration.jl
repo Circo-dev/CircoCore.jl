@@ -153,7 +153,7 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
         else # Do not forward normal messages but send back a RecipientMoved
             recipientmoved = RecipientMoved(target(message), newaddress, body(message))
             @debug "Recipient Moved: $recipientmoved"
-            @debug "$(migration.movedactors)"
+            #@debug "$(migration.movedactors)"
             send(scheduler.postoffice, Msg(
                 addr(scheduler),
                 sender(message),
