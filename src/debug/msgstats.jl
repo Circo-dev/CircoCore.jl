@@ -2,10 +2,10 @@ using Plugins
 using CircoCore
 
 mutable struct MsgStats <: Plugin
-    typefrequencies::Dict{DataType, Int}
+    typefrequencies::IdDict{Any, Int}
     helper::Addr
     MsgStats() = begin
-        return new(Dict())
+        return new(IdDict())
     end
 end
 
