@@ -27,13 +27,13 @@ An infoton acting on an actor.
 Please check the source and the examples for more info.
 """
 @inline function apply_infoton(targetactor::AbstractActor, infoton::Infoton)
-    diff = infoton.sourcepos - targetactor.core.pos
-    difflen = norm(diff)
+    @fastmath diff = infoton.sourcepos - targetactor.core.pos
+    @fastmath difflen = norm(diff)
     energy = infoton.energy
-    if energy > 0 && difflen < TARGET_DISTANCE #|| energy < 0 && difflen > TARGET_DISTANCE / 2
+    if @fastmath energy > 0 && difflen < TARGET_DISTANCE #|| energy < 0 && difflen > TARGET_DISTANCE / 2
         return nothing
         energy = -energy
     end
-    targetactor.core.pos += diff / difflen * energy * I
+    @fastmath targetactor.core.pos += diff / difflen * energy * I
     return nothing
 end
