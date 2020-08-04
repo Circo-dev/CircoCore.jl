@@ -133,7 +133,7 @@ function onschedule(me::Coordinator, service)
     me.itemcount = 0
     spawn(service, list)
     me.list = addr(list)
-    appenditem(me, service)    
+    appenditem(me, service)
 end
 
 function appenditem(me::Coordinator, service)
@@ -189,7 +189,7 @@ function onmessage(me::ListItem, message::Reduce, service)
     if isdefined(me, :prev)
        #send(service, me, me.prev, Ack())
     end
-end    
+end
 
 onmessage(me::ListItem, message::Ack, service) = nothing
 
@@ -202,7 +202,7 @@ function onmessage(me::ListItem, message::RecipientMoved, service)
         @debug "RM: prev: $(me.prev) msg: $message"
         me.prev = message.newaddress
         send(service, me, me.prev, message.originalmessage)
-    else        
+    else
         @debug "RM: forwarding msg: $message"
         send(service, me, message.newaddress, message.originalmessage)
     end
@@ -243,3 +243,4 @@ end
 
 end
 zygote() = LinkedListTest.Coordinator()
+plugins() = [Debug.MsgStats()]

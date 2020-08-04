@@ -20,7 +20,7 @@ BOOT_SCRIPT=$(cat <<-END
             println(stderr, "Cannot open \$(initscript)")
         end
     end
-    circonode(@isdefined(zygote) ? zygote : nothing)
+    circonode(@isdefined(zygote) ? zygote : nothing, @isdefined(plugins) ? plugins : nothing)
 END
 )
 ROOTS_FILE=${ROOTS_FILE:-roots.txt}

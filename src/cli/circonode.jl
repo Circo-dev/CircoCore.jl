@@ -29,17 +29,17 @@ Init script:
     Put your actor definitions to "$DEFAULT_INITSCRIPT" or the file named in $INITSCRIPT_ENVNAME environment variable.
 
     If the --zygote option is used then the zygote() function defined in the init script will be called
-  and the returned actors will be scheduled on the started node. 
+  and the returned actors will be scheduled on the started node.
 
 Examples:
-  circonode.sh --roots tcp://192.168.1.11:24721/345d60e5554274be,tcp://192.168.1.11:24722/9e1e5b208732de32 
+  circonode.sh --roots tcp://192.168.1.11:24721/345d60e5554274be,tcp://192.168.1.11:24722/9e1e5b208732de32
     Start a node and connect it to the cluster through one of the listed roots
 
   circonode.sh -f roots.txt -a
     Start a node using the roots read from roots.txt and append its own adress to the file.
   Also create the file (-a) if it does not exists.
 
-  circonode.sh -z 
+  circonode.sh -z
     Start a node and schedule the actor/actors returned by zygote(), as defined in circo.jl.
 
   CIRCO_INITSCRIPT=examples/searchtree.jl circonode.sh -t 6 -z
@@ -58,7 +58,7 @@ function parse_args(args)
     parsed = Dict()
     key = nothing
     for arg in args
-        if isnothing(key) || startswith(arg, "-") 
+        if isnothing(key) || startswith(arg, "-")
             try
                 key = startswith(arg, "--") ? arg[3:end] : arg
                 key in longs || (key = shorts[arg])
@@ -76,7 +76,7 @@ function parse_args(args)
     return parsed
 end
 
-function circonode(zygote;kvargs...)
+function circonode(zygote, userplugins;kvargs...)
     try
         args = merge(parse_args(ARGS), kvargs)
         roots = []
@@ -100,10 +100,11 @@ function circonode(zygote;kvargs...)
             zygoteresult = zygote isa Function ? zygote() : zygote
             zygoteresult = zygoteresult isa AbstractArray ? zygoteresult : [zygoteresult]
         end
+        userpluginsresult = userplugins isa Function ? userplugins() : userplugins
         if isempty(roots)
-            startfirstnode(rootsfilename, threads, zygoteresult)
+            startfirstnode(rootsfilename, threads, zygoteresult, userpluginsresult)
         else
-            startnodeandconnect(roots, threads, zygoteresult; rootsfilename=rootsfilename, addmetoroots=addmetoroots)
+            startnodeandconnect(roots, threads, zygoteresult, userpluginsresult; rootsfilename=rootsfilename, addmetoroots=addmetoroots)
         end
     catch e
         e isa String ? (println(stderr, e);return -1) : rethrow()
@@ -138,13 +139,16 @@ function appendpostcode(filename, po)
 end
 
 function plugins(;options=NamedTuple())
-    plugins = default_plugins(; options=options)
+    plugins = core_plugins(; options=options)
+    if isdefined(options, :userplugins) && !isnothing(options.userplugins)
+        push!(plugins, options.userplugins...)
+    end
     push!(plugins, MonitorService(;options=options))
     return plugins
 end
 
-function startfirstnode(rootsfilename=nothing, threads=1, zygote=[])
-    host = Host(threads, plugins; options=(zygote = zygote,))
+function startfirstnode(rootsfilename=nothing, threads=1, zygote=[], userplugins = [])
+    host = Host(threads, plugins; options=(userplugins = userplugins, zygote = zygote))
     scheduler = host.schedulers[1]
     root = getname(scheduler.service, "cluster")
     println("First node started. To add nodes to this cluster, run:")
@@ -157,8 +161,8 @@ function startfirstnode(rootsfilename=nothing, threads=1, zygote=[])
     host()
 end
 
-function startnodeandconnect(roots, threads=1, zygote=[]; rootsfilename=nothing, addmetoroots=false)
-    host = Host(threads, plugins; options=(zygote = zygote, roots = roots))
+function startnodeandconnect(roots, threads=1, zygote=[], userplugins=[]; rootsfilename=nothing, addmetoroots=false)
+    host = Host(threads, plugins; options=(userplugins = userplugins, zygote = zygote, roots = roots))
     scheduler = host.schedulers[1]
     root = getname(scheduler.service, "cluster")
     if addmetoroots

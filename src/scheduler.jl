@@ -21,7 +21,7 @@ function actor_activity_sparse end
 
 scheduler_hooks = [hostroutes, localdelivery, localroutes, actor_activity_sparse]
 
-function getpos(port) 
+function getpos(port)
     # return randpos()
     port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
     port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
@@ -45,8 +45,8 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = default_plugins(), pos = nothing, msgqueue_capacity = 100_000)
-        if isnothing(actors) 
+    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = core_plugins(), pos = nothing, msgqueue_capacity = 100_000)
+        if isnothing(actors)
             actors = []
         end
         postoffice = PostOffice()
@@ -65,8 +65,8 @@ end
 
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
-function default_plugins(;options = NamedTuple())
-    return [Debug.MsgStats(), ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
+function core_plugins(;options = NamedTuple())
+    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
 end
 
 function randpos()
@@ -142,7 +142,7 @@ spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, ac
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
     isfirstschedule = !isdefined(actor, :core)
-    if !isfirstschedule && isscheduled(scheduler, actor) 
+    if !isfirstschedule && isscheduled(scheduler, actor)
         return addr(actor)
     end
     fill_corestate!(scheduler, actor)

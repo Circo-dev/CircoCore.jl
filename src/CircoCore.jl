@@ -5,7 +5,7 @@ export AbstractActor, CoreState, ActorId, id, ActorService,
     ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
-    default_plugins,
+    core_plugins,
     MonitorService, monitorextra,
 
     # Messaging
@@ -55,7 +55,7 @@ A cluster-unique id that is randomly generated when the actor is spawned (first 
 ActorId = UInt64
 
 """
-    abstract type AbstractActor    
+    abstract type AbstractActor
 
 Supertype of all actors.
 
@@ -354,4 +354,3 @@ include("cli/circonode.jl")
 
 
 end
-
