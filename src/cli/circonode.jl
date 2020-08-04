@@ -76,7 +76,7 @@ function parse_args(args)
     return parsed
 end
 
-function circonode(zygote, userplugins;kvargs...)
+function circonode(zygote, userplugins::Function;kvargs...)
     try
         args = merge(parse_args(ARGS), kvargs)
         roots = []
@@ -100,11 +100,10 @@ function circonode(zygote, userplugins;kvargs...)
             zygoteresult = zygote isa Function ? zygote() : zygote
             zygoteresult = zygoteresult isa AbstractArray ? zygoteresult : [zygoteresult]
         end
-        userpluginsresult = userplugins isa Function ? userplugins() : userplugins
         if isempty(roots)
-            startfirstnode(rootsfilename, threads, zygoteresult, userpluginsresult)
+            startfirstnode(rootsfilename, threads, zygoteresult, userplugins)
         else
-            startnodeandconnect(roots, threads, zygoteresult, userpluginsresult; rootsfilename=rootsfilename, addmetoroots=addmetoroots)
+            startnodeandconnect(roots, threads, zygoteresult, userplugins; rootsfilename=rootsfilename, addmetoroots=addmetoroots)
         end
     catch e
         e isa String ? (println(stderr, e);return -1) : rethrow()
@@ -139,15 +138,18 @@ function appendpostcode(filename, po)
 end
 
 function plugins(;options=NamedTuple())
-    plugins = CircoCore.core_plugins(; options=options)
-    if isdefined(options, :userplugins) && !isnothing(options.userplugins)
-        push!(plugins, options.userplugins...)
+    core_plugins = CircoCore.core_plugins(; options=options)
+    if isdefined(options, :userplugins)
+        if !(options.userplugins isa Function)
+            error("options.userplugins must be a Function, not $(typeof(options.userplugins))")
+        end
+        push!(core_plugins, (options.userplugins())...)
     end
-    push!(plugins, MonitorService(;options=options))
-    return plugins
+    push!(core_plugins, MonitorService(;options=options))
+    return core_plugins
 end
 
-function startfirstnode(rootsfilename=nothing, threads=1, zygote=[], userplugins = [])
+function startfirstnode(rootsfilename=nothing, threads=1, zygote=[], userplugins = () -> [])
     host = Host(threads, plugins; options=(userplugins = userplugins, zygote = zygote))
     scheduler = host.schedulers[1]
     root = getname(scheduler.service, "cluster")
@@ -161,7 +163,7 @@ function startfirstnode(rootsfilename=nothing, threads=1, zygote=[], userplugins
     host()
 end
 
-function startnodeandconnect(roots, threads=1, zygote=[], userplugins=[]; rootsfilename=nothing, addmetoroots=false)
+function startnodeandconnect(roots, threads=1, zygote=[], userplugins = () -> []; rootsfilename=nothing, addmetoroots=false)
     host = Host(threads, plugins; options=(userplugins = userplugins, zygote = zygote, roots = roots))
     scheduler = host.schedulers[1]
     root = getname(scheduler.service, "cluster")

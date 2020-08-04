@@ -65,7 +65,7 @@ mutable struct ListItem{TData} <: AbstractActor
 end
 monitorextra(me::ListItem) = (
     data = isdefined(me, :data) ? me.data : "undefined",
-    next = isnothing(me.next) ? nothing : boxof(me.next)
+    next = isdefined(me, :next) && !isnothing(me.next) ? boxof(me.next) : nothing
 )
 
 monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
