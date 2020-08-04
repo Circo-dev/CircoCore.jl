@@ -139,7 +139,7 @@ function appendpostcode(filename, po)
 end
 
 function plugins(;options=NamedTuple())
-    plugins = core_plugins(; options=options)
+    plugins = CircoCore.core_plugins(; options=options)
     if isdefined(options, :userplugins) && !isnothing(options.userplugins)
         push!(plugins, options.userplugins...)
     end

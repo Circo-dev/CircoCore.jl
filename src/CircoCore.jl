@@ -5,7 +5,6 @@ export AbstractActor, CoreState, ActorId, id, ActorService,
     ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
-    core_plugins,
     MonitorService, monitorextra,
 
     # Messaging

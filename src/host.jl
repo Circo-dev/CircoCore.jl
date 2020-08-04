@@ -79,7 +79,7 @@ struct Host
     schedulers::Array{ActorScheduler}
 end
 
-function Host(threadcount::Int, pluginsfun; options=NamedTuple())
+function Host(threadcount::Int, pluginsfun = core_plugins; options=NamedTuple())
     schedulers = create_schedulers(threadcount, pluginsfun, options)
     hostservices = [scheduler.plugins[:host] for scheduler in schedulers]
     addpeers(hostservices, schedulers)

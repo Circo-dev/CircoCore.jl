@@ -8,7 +8,7 @@ const CLUSTER_SIZE = 30
 
 @testset "HostCluster" begin
     @testset "Host cluster with internal root" begin
-        host = Host(CLUSTER_SIZE, default_plugins)
+        host = Host(CLUSTER_SIZE)
         hosttask = @async host()
         sleep(CLUSTER_SIZE * 0.2 + 9.0)
         for i in 1:CLUSTER_SIZE

@@ -36,11 +36,11 @@ end
 function sendping(service, me::PingPonger)
     send(service, me, me.peer, Ping())
     me.pings_sent += 1
-end 
+end
 
 function sendpong(service, me::PingPonger)
     send(service, me, me.peer, Pong())
-end 
+end
 
 function onmessage(me::PingPonger, message::CreatePeer, service)
     peer = PingPonger(addr(me), message.target_postcode)
@@ -74,7 +74,7 @@ end
 
 @testset "Host" begin
     @testset "Empty host creation and run" begin
-        host = Host(3, default_plugins)
+        host = Host(3)
         @test length(host.schedulers) == 3
         for i in 1:3
             @test length(host.schedulers[i].plugins[:host].peers) == 2
@@ -85,14 +85,14 @@ end
 
     @testset "Inter-thread Ping-Pong inside Host" begin
         pinger = PingPonger(nothing)
-        host = Host(2, default_plugins; options = (zygote=[pinger],))
+        host = Host(2; options = (zygote=[pinger],))
         hosttask = @async host(Msg(addr(pinger), CreatePeer(postcode(host.schedulers[end]))))
         @info "Sleeping to allow ping-pong to start. Time is $(Base.time_ns() / 1e9)"
         sleep(8.0)
         @info "Woken up. Time is $(Base.time_ns() / 1e9)"
         @test pinger.pings_sent > 10
         @test pinger.pongs_got > 10
-        
+
         @info "Measuring inter-thread ping-pong performance"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
@@ -113,7 +113,7 @@ end
 
     @testset "In-thread Ping-Pong inside Host" begin
         pinger = PingPonger(nothing)
-        host = Host(1, default_plugins; options = (zygote=[pinger],))
+        host = Host(1; options = (zygote=[pinger],))
 
         hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
 

@@ -32,7 +32,7 @@ end
 @testset "Debug" begin
     tester = StatsTester()
     stats = Debug.MsgStats()
-    scheduler = ActorScheduler([tester];plugins=[stats, default_plugins()...])
+    scheduler = ActorScheduler([tester];plugins=[stats, CircoCore.core_plugins()...])
     scheduler(Msg(tester, addr(tester), Start()))
     @show stats
     @test stats.typefrequencies[Ack] == SAMPLE_COUNT #scheduler.plugins[:msgstats]
