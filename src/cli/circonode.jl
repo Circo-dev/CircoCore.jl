@@ -76,9 +76,12 @@ function parse_args(args)
     return parsed
 end
 
-function circonode(zygote, userplugins::Function;kvargs...)
+function circonode(zygote, userplugins::Union{Function, Nothing} = () -> [];kvargs...)
     try
         args = merge(parse_args(ARGS), kvargs)
+        if isnothing(userplugins)
+            userplugins = () -> []
+        end
         roots = []
         rootsfilename = nothing
         addmetoroots = false

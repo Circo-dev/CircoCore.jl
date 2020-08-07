@@ -17,7 +17,7 @@ const ITEMS_PER_LEAF = 1000
 const SIBLINGINFO_FREQ = 2 #0..255
 const SIBLINGINFO_ENERGY = -1.0
 const FULLSPEED_PARALLELISM = 100
-const SCHEDULER_TARGET_ACTORCOUNT = 500.0
+const SCHEDULER_TARGET_ACTORCOUNT = 800.0
 
 const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
 const NODESCALE_FACTOR = 1 / ITEMS_PER_LEAF / 2
@@ -33,9 +33,9 @@ mutable struct Coordinator <: AbstractActor
     Coordinator() = new(STOP, 0, 0, 0)
 end
 
-# Implement monitorextra() to publish part of an actor's state
+# Implement monitorextra() to publish part of an actor's state on the UI
 monitorextra(me::Coordinator)  = (
-    runmode=me.runmode,    
+    runmode=me.runmode,
     size = me.size,
     root =!isnothing(me.root) ? me.root.box : nothing
 )
@@ -64,7 +64,7 @@ mutable struct TreeNode{TValue} <: AbstractActor
     core::CoreState
     TreeNode(values) = new{eltype(values)}(SortedSet(values), length(values), nothing, nothing, nothing, nothing)
 end
-monitorextra(me::TreeNode) = 
+monitorextra(me::TreeNode) =
 (left = isnothing(me.left) ? nothing : me.left.box,
  right = isnothing(me.right) ? nothing : me.right.box,
  sibling = isnothing(me.sibling) ? nothing : me.sibling.box,
@@ -87,7 +87,7 @@ monitorextra(me::TreeNode) =
 
 # --- Infoton optimization. We overwrite the default behaviors to allow easy experimentation
 
-# Schedulers pull/push their actors based on the number of actors they schedule 
+# Schedulers pull/push their actors based on the number of actors they schedule
 # SCHEDULER_TARGET_ACTOURCOUNT configures the target actorcount.
 @inline function actorcount_scheduler_infoton(scheduler, actor::AbstractActor)
     dist = norm(scheduler.pos - actor.core.pos)
@@ -184,7 +184,7 @@ function startround(me::Coordinator, service, parallel = 1)
         me.runmode = STOP
         return nothing
     end
-    if (me.runmode != FULLSPEED && rand() > 0.01 * me.runmode) 
+    if (me.runmode != FULLSPEED && rand() > 0.01 * me.runmode)
         sleep(0.001)
     end
     for i in 1:parallel
@@ -209,7 +209,7 @@ function onmessage(me::Coordinator, message::RecipientMoved, service) # TODO a d
     if !isnothing(me.root) && box(me.root) === box(message.oldaddress)
         me.root = message.newaddress
     else
-        @info "unhandled, forwarding: $message" 
+        @info "unhandled, forwarding: $message"
     end
     send(service, me, message.newaddress, message.originalmessage)
 end
@@ -327,3 +327,4 @@ end
 end
 
 zygote() = [SearchTreeTest.Coordinator() for i = 1:1]
+plugins() = [Debug.MsgStats()]

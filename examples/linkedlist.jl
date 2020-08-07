@@ -9,10 +9,10 @@
 
 module LinkedListTest
 
-const LIST_LENGTH = 4_000
+const LIST_LENGTH = 400
 const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
-const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 85.0 # Schedulers will push away their actors if they have more than this
 const AUTO_START = false
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
@@ -74,7 +74,7 @@ monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
 }")
 
 @inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 3e-3
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 7e-3
     return Infoton(scheduler.pos, energy)
 end
 
@@ -243,7 +243,7 @@ function mullist(me::Coordinator, service)
 end
 
 function onmessage(me::Coordinator, message::Reduce, service)
-    #me.core.pos = Pos(0, 0, 0)
+    me.core.pos = Pos(300, 100, 100)
     reducetime = now() - me.batchstarted
     if me.runidx == RUNS_IN_BATCH # reducetime > Millisecond(round(rand() * 1e5))
         @info "Batch $(me.batchidx), run $(me.runidx): Got reduce result $(message.result) in $reducetime."
