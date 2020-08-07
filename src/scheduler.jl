@@ -171,8 +171,8 @@ end
 call_twoargs(op, msg, targetactor) = op(msg, targetactor)
 
 @inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
-    call_twoargs(hooks(scheduler).localdelivery, message, targetactor)
     onmessage(targetactor, body(message), scheduler.service)
+    call_twoargs(hooks(scheduler).localdelivery, message, targetactor)
     return nothing
 end
 
@@ -250,17 +250,21 @@ end
 
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     schedule_start_hook(scheduler.plugins, scheduler)
-    while true
-        msg_batch::UInt8 = 255
-        while msg_batch != 0 && !isempty(scheduler.messagequeue)
-            msg_batch -= 1
-            step!(scheduler)
+    try
+        while true
+            msg_batch::UInt8 = 255
+            while msg_batch != 0 && !isempty(scheduler.messagequeue)
+                msg_batch -= 1
+                step!(scheduler)
+            end
+            if scheduler.shutdown || nomorework(scheduler, process_external, exit_when_done)
+                @debug "Scheduler loop $(postcode(scheduler)) exiting."
+                return
+            end
+            process_post_and_timeout(scheduler)
         end
-        if scheduler.shutdown || nomorework(scheduler, process_external, exit_when_done)
-            @debug "Scheduler loop $(postcode(scheduler)) exiting."
-            return
-        end
-        process_post_and_timeout(scheduler)
+    catch e
+        @error "Error while scheduling" exception = (e, catch_backtrace())
     end
     schedule_stop_hook(scheduler.plugins, scheduler)
 end

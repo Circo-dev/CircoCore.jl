@@ -124,6 +124,18 @@ monitorprojection(::Type{MonitorActor{TMonitor}}) where TMonitor = JS("
     color: 0x4063d8
 }")
 
+"""
+    Throw
+
+Message that throws an error from the monitoring actor
+"""
+struct Throw a::UInt8 end
+registermsg(Throw; ui = true)
+
+function CircoCore.onmessage(me::MonitorActor, msg::Throw, service)
+    error("Exception forced from $me")
+end
+
 mutable struct MonitorService <: Plugin
     actor::MonitorActor
     scheduler::AbstractActorScheduler

@@ -94,7 +94,7 @@ function circonode(zygote, userplugins::Function;kvargs...)
             append!(roots, readroots(rootsfilename;allow_missing=addmetoroots))
         end
         if haskey(args, :threads)
-            threads = parse(Int, args[:threads])
+            threads = args[:threads] isa Int ? args[:threads] : parse(Int, args[:threads])
         end
         if haskey(args, :zygote)
             zygoteresult = zygote isa Function ? zygote() : zygote

@@ -13,6 +13,7 @@ const LIST_LENGTH = 4_000
 const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
 
 const SCHEDULER_TARGET_ACTORCOUNT = 855.0 # Schedulers will push away their actors if they have more than this
+const AUTO_START = false
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
 import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_migration
@@ -77,7 +78,7 @@ monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
     return Infoton(scheduler.pos, energy)
 end
 
-@inline CircoCore.check_migration(me::Union{ListItem, Coordinator}, alternatives::MigrationAlternatives, service) = begin
+@inline CircoCore.check_migration(me::Union{ListItem, LinkedList, Coordinator}, alternatives::MigrationAlternatives, service) = begin
     migrate_to_nearest(me, alternatives, service, 0.01)
 end
 
@@ -148,14 +149,19 @@ function onmessage(me::Coordinator, message::Appended, service)
     if me.itemcount < LIST_LENGTH
         appenditem(me, service)
     else
-        @info "#############################################################################################################################"
-        @info "### List items added. Start the frontend, open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
-        @info "#############################################################################################################################"
+        if AUTO_START
+            send(service, me, addr(me), Debug.Run(42))
+        else
+            @info "#############################################################################################################################"
+            @info "### List items added. Start the frontend, open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
+            @info "#############################################################################################################################"
+        end
     end
 end
 
 
 function onmessage(me::Coordinator, message::Run, service)
+    @info "Got message: Run"
     if !me.isrunning
         me.isrunning = true
         startbatch(me, service)
@@ -163,6 +169,7 @@ function onmessage(me::Coordinator, message::Run, service)
 end
 
 function onmessage(me::Coordinator, message::Stop, service)
+    @info "Got message: Stop"
     me.isrunning = false
 end
 
@@ -171,6 +178,13 @@ onmessage(me::ListItem, message::SetNext, service) = me.next = message.value
 onmessage(me::ListItem, message::SetPrev, service) = me.prev = message.value
 
 onmessage(me::LinkedList, message::Reduce, service) = send(service, me, me.head, message)
+
+function onmessage(me::Coordinator, message::RecipientMoved, service)
+    if me.list == message.oldaddress
+        me.list = message.newaddress
+    end
+    send(service, me, message.newaddress, message.originalmessage)
+end
 
 function onmessage(me::LinkedList, message::RecipientMoved, service) # TODO a default implementation like this
     if me.head == message.oldaddress
@@ -186,9 +200,9 @@ end
 function onmessage(me::ListItem, message::Reduce, service)
     newresult = message.op(message.result, me.data)
     send(service, me, me.next, Reduce(message.op, newresult))
-    if isdefined(me, :prev)
-       #send(service, me, me.prev, Ack())
-    end
+    #if isdefined(me, :prev)
+    #    send(service, me, me.prev, Ack())
+    #end
 end
 
 onmessage(me::ListItem, message::Ack, service) = nothing

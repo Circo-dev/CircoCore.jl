@@ -103,12 +103,17 @@ end
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{MigrationRequest})
     @debug "Migration request: $(message)"
     actor = body(message).actor
+    actorbox = box(addr(actor))
     fromaddress = addr(actor)
-    migration = scheduler.plugins[:migration] # TODO also handle fast back-and forth moving when the request comes earlier than the previous response
-    delete!(migration.movedactors, box(addr(body(message).actor)))
+    migration = scheduler.plugins[:migration]
+    if haskey(migration.movingactors, actorbox)
+        @error "TODO Handle fast back-and forth moving when the request comes earlier than the previous response"
+    end
+    delete!(migration.movedactors, actorbox)
     schedule!(scheduler, actor)
     onmigrate(actor, scheduler.service)
-    send(scheduler.postoffice, Msg(actor,
+    send(scheduler.postoffice,
+        Msg(actor,
         Addr(postcode(fromaddress), 0),
         MigrationResponse(fromaddress, addr(actor), true)))
 end
@@ -137,6 +142,7 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
             return false
         else
             enqueue!(movingactor.messages, message)
+            #@debug "Enqueing $(typeof(message)) for $(typeof(movingactor.actor))"
             return true
         end
     else
@@ -160,8 +166,8 @@ function localroutes(migration::MigrationService, scheduler::AbstractActorSchedu
                 recipientmoved,
                 Infoton(nullpos)
             ))
-        end    
-        return true       
+        end
+        return true
     end
 end
 

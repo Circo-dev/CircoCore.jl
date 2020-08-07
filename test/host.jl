@@ -87,9 +87,8 @@ end
         pinger = PingPonger(nothing)
         host = Host(2; options = (zygote=[pinger],))
         hosttask = @async host(Msg(addr(pinger), CreatePeer(postcode(host.schedulers[end]))))
-        @info "Sleeping to allow ping-pong to start. Time is $(Base.time_ns() / 1e9)"
+        @info "Sleeping to allow ping-pong to start."
         sleep(8.0)
-        @info "Woken up. Time is $(Base.time_ns() / 1e9)"
         @test pinger.pings_sent > 10
         @test pinger.pongs_got > 10
 
@@ -99,7 +98,6 @@ end
         sleep(1.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
-        @info "$rounds_made rounds in $wall_time_used ns"
         @test pinger.pings_sent > 1e2
         @test pinger.pongs_got > 1e2
         shutdown!(host)
@@ -117,16 +115,15 @@ end
 
         hosttask = @async host(Msg(addr(pinger), CreatePeer(nothing)); process_external = false, exit_when_done = true)
 
-        @info "Sleeping to allow ping-pong to start. Time is $(Base.time_ns() / 1e9)"
+        @info "Sleeping to allow ping-pong to start."
         sleep(8.0)
-        @info "Woken up. Time is $(Base.time_ns() / 1e9)"
         @test pinger.pings_sent > 1e4
         @test pinger.pongs_got > 1e4
 
-        @info "Measuring in-thread ping-pong performance"
+        @info "Measuring in-thread ping-pong performance (10 secs)"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
-        sleep(2.0)
+        sleep(10.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
         @test pinger.pings_sent > 1e5

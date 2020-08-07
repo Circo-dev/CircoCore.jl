@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using Base.Threads
 
-const MSG_BUFFER_SIZE = 10000
+const MSG_BUFFER_SIZE = 100_000
 
 mutable struct HostActor <: AbstractActor
     core::CoreState
