@@ -1,21 +1,25 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-using Serialization, Sockets
+using Serialization
+using Sockets
+using DataStructures
 
 const PORT_RANGE = 24721:24999
-const IN_CHANNEL_LENGTH = 10000
 
 struct PostException
     message::String
 end
 
-struct PostOffice
+mutable struct PostOffice
     outsocket::UDPSocket
+    inqueue::Deque{Any}
     postcode::PostCode
     socket::UDPSocket
     intask
-    inchannel
+    PostOffice() = begin
+        postcode, socket = allocate_postcode()    
+        return new(UDPSocket(), Deque{Any}(), postcode, socket)
+    end
 end
-PostOffice() = PostOffice(UDPSocket(), allocate_postcode()...)
 
 postcode(post::PostOffice) = post.postcode
 addr(post::PostOffice) = Addr(postcode(post), 0)
@@ -28,11 +32,17 @@ function allocate_postcode()
         bound = bind(socket, ipaddr, port)
         bound || continue
         @debug "Bound to $postcode"
-        inchannel = Channel(IN_CHANNEL_LENGTH)
-        intask = Threads.@spawn arrivals(socket, inchannel)
-        return postcode, socket, intask, inchannel
+        return postcode, socket
     end
     throw(PostException("No available port found for a Post Office"))
+end
+
+function schedule_start(post::PostOffice, scheduler) # called directly for now
+    post.intask = @async arrivals(post) # TODO errors throwed here are not logged
+end
+
+function schedule_stop(post::PostOffice, scheduler)
+    @info "TODO Stop PostOffice intask"
 end
 
 function shutdown!(post::PostOffice)
@@ -40,17 +50,17 @@ function shutdown!(post::PostOffice)
 end
 
 @inline function getmessage(post::PostOffice)
-    return isready(post.inchannel) ? take!(post.inchannel) : nothing
+    return isempty(post.inqueue) ? nothing : popfirst!(post.inqueue)
 end
 
-function arrivals(socket::UDPSocket, channel::Channel)
+function arrivals(post::PostOffice)
     try
         while true
-            rawmessage = recv(socket)
+            rawmessage = recv(post.socket)
             stream = IOBuffer(rawmessage)
             msg = deserialize(stream)
             @debug "Postoffice got message $msg"
-            put!(channel, msg)
+            push!(post.inqueue, msg)
         end
     catch e
         if !(e isa EOFError)

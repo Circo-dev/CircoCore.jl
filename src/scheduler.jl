@@ -252,8 +252,9 @@ end
 end
 
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
-    schedule_start_hook(scheduler.plugins, scheduler)
     try
+        schedule_start_hook(scheduler.plugins, scheduler)
+        schedule_start(scheduler.postoffice, scheduler)
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.messagequeue)
@@ -268,8 +269,10 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
         end
     catch e
         @error "Error while scheduling" exception = (e, catch_backtrace())
+    finally
+        schedule_stop_hook(scheduler.plugins, scheduler)
+        schedule_stop(scheduler.postoffice, scheduler)
     end
-    schedule_stop_hook(scheduler.plugins, scheduler)
 end
 
 function shutdown!(scheduler::ActorScheduler)
