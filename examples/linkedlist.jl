@@ -5,7 +5,7 @@
 # It demonstrates Infoton optimization, CircoCore's novel approach to solve the
 # data locality problem
 
-# include("utils/loggerconfig.jl")
+#include("utils/loggerconfig.jl")
 
 module LinkedListTest
 

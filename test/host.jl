@@ -73,15 +73,15 @@ function onmessage(me::PingPonger, message::RecipientMoved, service)
 end
 
 @testset "Host" begin
-    @testset "Empty host creation and run" begin
-        host = Host(3)
-        @test length(host.schedulers) == 3
-        for i in 1:3
-            @test length(host.schedulers[i].plugins[:host].peers) == 2
-        end
-        host(;exit_when_done=true)
-        shutdown!(host)
-    end
+    # @testset "Empty host creation and run" begin
+    #     host = Host(3)
+    #     @test length(host.schedulers) == 3
+    #     for i in 1:3
+    #         @test length(host.schedulers[i].plugins[:host].peers) == 2
+    #     end
+    #     host(;exit_when_done=true)
+    #     shutdown!(host)
+    # end
 
     @testset "Inter-thread Ping-Pong inside Host" begin
         pinger = PingPonger(nothing)
@@ -95,7 +95,7 @@ end
         @info "Measuring inter-thread ping-pong performance"
         startpingcount = pinger.pings_sent
         startts = Base.time_ns()
-        sleep(1.0)
+        sleep(3.0)
         rounds_made = pinger.pings_sent - startpingcount
         wall_time_used = Base.time_ns() - startts
         @test pinger.pings_sent > 1e2

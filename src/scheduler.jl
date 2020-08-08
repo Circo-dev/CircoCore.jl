@@ -17,9 +17,10 @@ schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 function hostroutes end
 function localdelivery end
 function localroutes end
+function letin_remote end
 function actor_activity_sparse end
 
-scheduler_hooks = [hostroutes, localdelivery, localroutes, actor_activity_sparse]
+scheduler_hooks = [hostroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse]
 
 function getpos(port)
     # return randpos()
@@ -218,6 +219,7 @@ end
     while true
         yield() # Allow the postoffice "arrivals" and plugin tasks to run
         incomingmessage = getmessage(scheduler.postoffice)
+        hooks(scheduler).letin_remote()
         hadtimeout = checktimeouts(scheduler)
         if !isnothing(incomingmessage)
             deliver_locally!(scheduler, incomingmessage)
@@ -227,6 +229,7 @@ end
                 scheduler.shutdown
             return nothing
         else
+            #yield()
             if time_ns() - enter_ts > 1_000_000
                 sleep(sleeplength)
                 sleeplength = min(sleeplength * 1.002, 0.03)

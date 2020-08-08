@@ -11,14 +11,15 @@ monitorprojection(::Type{HostActor}) = JS("projections.nonimportant")
 
 
 mutable struct HostService <: Plugin
-    in_msg::Channel{Msg}
+    in_msg::Deque
+    in_lock::SpinLock
     iamzygote
-    peers::Dict{PostCode,HostService}
+    peers::Dict{PostCode, HostService}
     helper::Addr
-    arrivals::Task
     postcode::PostCode
     HostService(;options=NamedTuple()) = new(
-        Channel{Msg}(get(options, :buffer_size, MSG_BUFFER_SIZE)),
+        Deque{Any}(),#get(options, :buffer_size, MSG_BUFFER_SIZE)
+        SpinLock(),
         get(options, :iamzygote, false),
         Dict()
     )
@@ -30,16 +31,6 @@ postcode(hs::HostService) = hs.postcode
 function Plugins.setup!(hs::HostService, scheduler)
     hs.postcode = postcode(scheduler)
     hs.helper = spawn(scheduler.service, HostActor())
-end
-
-function schedule_start(hs::HostService, scheduler)
-    @debug "Host arrivals scheduled on $(Threads.threadid())"
-    hs.arrivals = Task(()->arrivals(hs, scheduler))
-    schedule(hs.arrivals)
-end
-
-function schedule_stop(hs::HostService, scheduler)
-    @info "TODO: stop tasks"
 end
 
 function addpeers!(hs::HostService, peers::Array{HostService}, scheduler)
@@ -55,22 +46,36 @@ function addpeers!(hs::HostService, peers::Array{HostService}, scheduler)
     end
 end
 
-function arrivals(hs::HostService, scheduler)
-    while true
-        msg = take!(hs.in_msg)
-        #@debug "arrived at $(hs.postcode): $msg"
-        deliver!(scheduler, msg)
-        yield()
-    end
-end
-
 function hostroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
     #@debug "hostroutes in host.jl $msg"
     peer = get(hostservice.peers, postcode(target(msg)), nothing)
     if !isnothing(peer)
         #@debug "Inter-thread delivery of $(hostservice.postcode): $msg"
-        put!(peer.in_msg, msg)
+        lock(peer.in_lock)
+        try
+            push!(peer.in_msg, msg)
+        finally
+            unlock(peer.in_lock)
+        end
         return true
+    end
+    return false
+end
+
+function letin_remote(hs::HostService, scheduler::AbstractActorScheduler)::Bool
+    isempty(hs.in_msg) && return false
+    msgs = []
+    lock(hs.in_lock)
+    try
+        for i = 1:min(length(hs.in_msg), 30)
+            push!(msgs, pop!(hs.in_msg))
+            #@debug "arrived at $(hs.postcode): $msg"
+        end
+    finally
+        unlock(hs.in_lock)
+    end
+    for msg in msgs # The lock must be released before delivering (hostroutes now aquires the peer lock)
+        deliver!(scheduler, msg) 
     end
     return false
 end

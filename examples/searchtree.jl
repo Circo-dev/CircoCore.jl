@@ -16,7 +16,7 @@ const ITEM_COUNT = 1_000_000
 const ITEMS_PER_LEAF = 1000
 const SIBLINGINFO_FREQ = 2 #0..255
 const SIBLINGINFO_ENERGY = -1.0
-const FULLSPEED_PARALLELISM = 100
+const FULLSPEED_PARALLELISM = 1000
 const SCHEDULER_TARGET_ACTORCOUNT = 800.0
 
 const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
@@ -155,7 +155,7 @@ nearpos(pos::Pos=nullpos, maxdistance=10.0) = pos + Pos(rand() * maxdistance, ra
 
 function onschedule(me::Coordinator, service)
     @debug "onschedule: $me"
-    me.core.pos = nearpos(nullpos, 1000.0)
+    me.core.pos = nearpos(nullpos, 100.0)
     me.root = createnode(Array{UInt32}(undef, 0), service, nearpos(me.core.pos))
     if me.runmode !== STOP
         startround(me, service)
@@ -196,7 +196,7 @@ function onmessage(me::Coordinator, message::SearchResult, service)
     #me.core.pos = Pos(0, 0, 0)
     me.resultcount += 1
     if time_ns() > me.lastreportts + 10_000_000_000
-        @info("#avg searches/sec since last report: $(me.resultcount * 1e9 / (time_ns() - me.lastreportts))")
+        @info("Searches/sec since last report: $(round(me.resultcount * 1e9 / (time_ns() - me.lastreportts)))")
         me.resultcount = 0
         me.lastreportts = time_ns()
     end
