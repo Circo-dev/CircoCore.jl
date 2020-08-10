@@ -50,7 +50,8 @@ mutable struct ActorScheduler <: AbstractActorScheduler
         if isnothing(actors)
             actors = []
         end
-        postoffice = PostOffice()
+        stack = PluginStack(plugins, scheduler_hooks)
+        postoffice = stack[:postoffice]
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
         end
@@ -65,7 +66,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             time_ns() + TIMEOUTCHECK_INTERVAL,
             0,
             false,
-            PluginStack(plugins, scheduler_hooks))
+            stack)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         setup_plugins!(scheduler)
         scheduler.startup_actor_count = scheduler.actorcount
@@ -77,7 +78,7 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function core_plugins(;options = NamedTuple())
-    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), Space()]
+    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), PostOffice(), Space()]
 end
 
 function randpos()
@@ -230,18 +231,13 @@ end
     enter_ts = time_ns()
     while true
         yield() # Allow the postoffice "arrivals" and plugin tasks to run
-        incomingmessage = getmessage(scheduler.postoffice)
         hooks(scheduler).letin_remote()
         hadtimeout = checktimeouts(scheduler)
-        if !isnothing(incomingmessage)
-            deliver_locally!(scheduler, incomingmessage)
-            return nothing
-        elseif hadtimeout ||
-                !isempty(scheduler.messagequeue) ||# Plugins may deliver messages directly
+        if hadtimeout ||
+                !isempty(scheduler.messagequeue) ||
                 scheduler.shutdown
             return nothing
         else
-            #yield()
             if time_ns() - enter_ts > 1_000_000
                 sleep(sleeplength)
                 sleeplength = min(sleeplength * 1.002, 0.03)
@@ -266,7 +262,6 @@ end
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     try
         schedule_start_hook(scheduler.plugins, scheduler)
-        schedule_start(scheduler.postoffice, scheduler)
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.messagequeue)
@@ -283,7 +278,6 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
         @error "Error while scheduling" exception = (e, catch_backtrace())
     finally
         schedule_stop_hook(scheduler.plugins, scheduler)
-        schedule_stop(scheduler.postoffice, scheduler)
     end
 end
 

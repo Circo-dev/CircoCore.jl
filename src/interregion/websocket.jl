@@ -31,7 +31,7 @@ mutable struct WebsocketService <: Plugin
     WebsocketService(;options = NamedTuple()) = new(Dict(), TypeRegistry())
 end
 
-symbol(plugin::WebsocketService) = :websocket
+Plugins.symbol(plugin::WebsocketService) = :websocket
 
 function schedule_start(service::WebsocketService, scheduler)
     listenport = 2497 + port(postcode(scheduler)) - PORT_RANGE[1] # CIWS

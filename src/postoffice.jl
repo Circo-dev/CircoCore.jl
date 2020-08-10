@@ -9,17 +9,20 @@ struct PostException
     message::String
 end
 
-mutable struct PostOffice
+mutable struct PostOffice <: Plugin
     outsocket::UDPSocket
     inqueue::Deque{Any}
     postcode::PostCode
     socket::UDPSocket
+    stopped::Bool
     intask
     PostOffice() = begin
         postcode, socket = allocate_postcode()    
-        return new(UDPSocket(), Deque{Any}(), postcode, socket)
+        return new(UDPSocket(), Deque{Any}(), postcode, socket, false)
     end
 end
+
+Plugins.symbol(plugin::PostOffice) = :postoffice
 
 postcode(post::PostOffice) = post.postcode
 addr(post::PostOffice) = Addr(postcode(post), 0)
@@ -42,21 +45,25 @@ function schedule_start(post::PostOffice, scheduler) # called directly for now
 end
 
 function schedule_stop(post::PostOffice, scheduler)
-    @info "TODO Stop PostOffice intask"
+    post.stopped = true
+    yield()
 end
 
 function shutdown!(post::PostOffice)
     close(post.socket)
 end
 
-@inline function getmessage(post::PostOffice)
-    return isempty(post.inqueue) ? nothing : popfirst!(post.inqueue)
+function letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool
+    for i = 1:min(length(post.inqueue), 30)
+        deliver!(scheduler, popfirst!(post.inqueue)) 
+    end
+    return false
 end
 
 function arrivals(post::PostOffice)
     try
-        while true
-            rawmessage = recv(post.socket)
+        while !post.stopped 
+            rawmessage = recv(post.socket) # TODO: this blocks, so we will only exit if an extra message comes in after stopping
             stream = IOBuffer(rawmessage)
             msg = deserialize(stream)
             @debug "Postoffice got message $msg"
