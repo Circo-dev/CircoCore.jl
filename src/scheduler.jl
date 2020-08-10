@@ -14,13 +14,13 @@ schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
 schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 
 # Event hooks
-function hostroutes end
 function localdelivery end
 function localroutes end
 function letin_remote end
+function remoteroutes end
 function actor_activity_sparse end
 
-scheduler_hooks = [hostroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse]
+scheduler_hooks = [remoteroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse]
 
 function getpos(port)
     # return randpos()
@@ -96,25 +96,22 @@ function setup_plugins!(scheduler::ActorScheduler)
     end
 end
 
-@inline function deliver!(scheduler::ActorScheduler, message::AbstractMsg)
+@inline function deliver!(scheduler::ActorScheduler, msg::AbstractMsg)
     # Disabled as degrades the ping-pong performance even if debugging is not enabled:
-    # @debug "deliver! at $(postcode(scheduler)) $message"
-    target_postcode = postcode(target(message))
+    # @debug "deliver! at $(postcode(scheduler)) $msg"
+    target_postcode = postcode(target(msg))
     if postcode(scheduler) === target_postcode
-        deliver_locally!(scheduler, message)
+        deliver_locally!(scheduler, msg)
         return nothing
     end
-    if network_host(postcode(scheduler)) == network_host(target_postcode)
-        if deliver_onhost!(scheduler, message)
-            return nothing
-        end
+    if !hooks(scheduler).remoteroutes(msg)
+        @info "Unhandled remote delivery: $msg"
     end
-    send(scheduler.postoffice, message)
     return nothing
 end
 
 @inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
-    if !hooks(scheduler).hostroutes(msg)
+    if !hooks(scheduler).remoteroutes(msg)
         @debug "Unhandled host delivery: $msg"
         return false
     end
@@ -261,6 +258,7 @@ end
 
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     try
+        @info "Scheduler starting on thread $(Threads.threadid())"
         schedule_start_hook(scheduler.plugins, scheduler)
         while true
             msg_batch::UInt8 = 255
@@ -275,7 +273,7 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
             process_post_and_timeout(scheduler)
         end
     catch e
-        @error "Error while scheduling" exception = (e, catch_backtrace())
+        @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
     finally
         schedule_stop_hook(scheduler.plugins, scheduler)
     end

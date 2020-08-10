@@ -53,7 +53,7 @@ function shutdown!(post::PostOffice)
     close(post.socket)
 end
 
-function letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool
+@inline function letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool
     for i = 1:min(length(post.inqueue), 30)
         deliver!(scheduler, popfirst!(post.inqueue)) 
     end
@@ -63,8 +63,8 @@ end
 function arrivals(post::PostOffice)
     try
         while !post.stopped 
-            rawmessage = recv(post.socket) # TODO: this blocks, so we will only exit if an extra message comes in after stopping
-            stream = IOBuffer(rawmessage)
+            rawmsg = recv(post.socket) # TODO: this blocks, so we will only exit if an extra message comes in after stopping
+            stream = IOBuffer(rawmsg)
             msg = deserialize(stream)
             @debug "Postoffice got message $msg"
             push!(post.inqueue, msg)
@@ -76,12 +76,17 @@ function arrivals(post::PostOffice)
     end
 end
 
-@inline function send(post::PostOffice, message)
-    @debug "PostOffice delivery at $(postcode(post)): $message"
-    parts = split(postcode(target(message)), ":")
+function send(post::PostOffice, msg::AbstractMsg)
+    remoteroutes(post, nothing, msg)
+end
+
+@inline function remoteroutes(post::PostOffice, scheduler, msg::AbstractMsg)::Bool
+    @debug "PostOffice delivery at $(postcode(post)): $msg"
+    parts = split(postcode(target(msg)), ":")
     ip = parse(IPAddr, parts[1])
     port = parse(UInt16, parts[2])
     io = IOBuffer()
-    serialize(io, message)
+    serialize(io, msg)
     Sockets.send(post.outsocket, ip, port, take!(io))
+    return true
 end

@@ -46,9 +46,13 @@ function addpeers!(hs::HostService, peers::Array{HostService}, scheduler)
     end
 end
 
-function hostroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
-    #@debug "hostroutes in host.jl $msg"
-    peer = get(hostservice.peers, postcode(target(msg)), nothing)
+@inline function remoteroutes(hostservice::HostService, scheduler::AbstractActorScheduler, msg::AbstractMsg)::Bool
+    target_postcode =  postcode(target(msg))
+    if network_host(target_postcode) !=  network_host(hostservice.postcode)
+        return false
+    end
+    #@debug "remoteroutes in host.jl $msg"
+    peer = get(hostservice.peers, target_postcode, nothing)
     if !isnothing(peer)
         #@debug "Inter-thread delivery of $(hostservice.postcode): $msg"
         lock(peer.in_lock)
@@ -62,7 +66,7 @@ function hostroutes(hostservice::HostService, scheduler::AbstractActorScheduler,
     return false
 end
 
-function letin_remote(hs::HostService, scheduler::AbstractActorScheduler)::Bool
+@inline function letin_remote(hs::HostService, scheduler::AbstractActorScheduler)::Bool
     isempty(hs.in_msg) && return false
     msgs = []
     lock(hs.in_lock)
@@ -109,11 +113,25 @@ function addpeers(hostservices::Array{HostService}, schedulers)
     end
 end
 
+# From https://discourse.julialang.org/t/lightweight-tasks-julia-vs-elixir-otp/35082/22
+function onthread(f::F, id::Int) where {F<:Function}
+    t = Task(nothing)
+    @assert id in 1:Threads.nthreads() "thread $id not available!"
+    Threads.@threads for i in 1:Threads.nthreads()
+        if i == id
+            t = @async f()
+        end
+    end
+    return t
+end
+
 function (ts::Host)(;process_external=true, exit_when_done=false)
     tasks = []
+    current_threadid = 1
     for scheduler in ts.schedulers
         sleep(length(tasks) in (4:length(ts.schedulers) - 4)  ? 0.1 : 1.0) # TODO sleeping is a workaround for a bug in cluster.jl
-        push!(tasks, Threads.@spawn scheduler(;process_external=process_external, exit_when_done=exit_when_done))
+        push!(tasks, onthread(current_threadid) do; scheduler(;process_external=process_external, exit_when_done=exit_when_done); end)
+        current_threadid += 1
     end
     for task in tasks
         wait(task)
