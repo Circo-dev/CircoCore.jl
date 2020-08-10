@@ -15,7 +15,11 @@ mutable struct MsgStatsHelper <: AbstractActor
     MsgStatsHelper(stats) = new(stats)
 end
 
-struct ResetStats a::UInt8 end
+struct ResetStats
+    a::UInt8
+    ResetStats(a) = new(a)
+    ResetStats() = new(42)
+end
 registermsg(ResetStats, ui=true)
 
 CircoCore.monitorextra(actor::MsgStatsHelper) = (
