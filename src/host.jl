@@ -127,11 +127,11 @@ end
 
 function (ts::Host)(;process_external=true, exit_when_done=false)
     tasks = []
-    current_threadid = 1
+    current_threadid = 2
     for scheduler in ts.schedulers
         sleep(length(tasks) in (4:length(ts.schedulers) - 4)  ? 0.1 : 1.0) # TODO sleeping is a workaround for a bug in cluster.jl
         push!(tasks, onthread(current_threadid) do; scheduler(;process_external=process_external, exit_when_done=exit_when_done); end)
-        current_threadid += 1
+        current_threadid = current_threadid == Threads.nthreads() ? 1 : current_threadid + 1 
     end
     for task in tasks
         wait(task)
