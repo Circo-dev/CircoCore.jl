@@ -19,6 +19,7 @@ const SIBLINGINFO_ENERGY = -1.0
 const FULLSPEED_PARALLELISM = 1000
 const SCHEDULER_TARGET_ACTORCOUNT = 800.0
 
+# View parameters
 const RED_AFTER = ITEMS_PER_LEAF * 0.95 - 1
 const NODESCALE_FACTOR = 1 / ITEMS_PER_LEAF / 2
 
@@ -193,7 +194,7 @@ function startround(me::Coordinator, service, parallel = 1)
 end
 
 function onmessage(me::Coordinator, message::SearchResult, service)
-    #me.core.pos = Pos(0, 0, 0)
+    me.core.pos = Pos(0, 0, 0)
     me.resultcount += 1
     if time_ns() > me.lastreportts + 10_000_000_000
         @info("Searches/sec since last report: $(round(me.resultcount * 1e9 / (time_ns() - me.lastreportts)))")

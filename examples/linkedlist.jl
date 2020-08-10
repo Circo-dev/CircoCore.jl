@@ -9,10 +9,10 @@
 
 module LinkedListTest
 
-const LIST_LENGTH = 400
-const RUNS_IN_BATCH = 1000 # Parallelism. All the runs of a batch are started together
+const LIST_LENGTH = 1000
+const PARALLELISM = 100 # Number of parallel Reduce operations (firstly started together, but later smooth out)
 
-const SCHEDULER_TARGET_ACTORCOUNT = 85.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 185.0 # Schedulers will push away their actors if they have more than this
 const AUTO_START = false
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
@@ -21,21 +21,21 @@ import CircoCore: onmessage, onschedule, monitorextra, monitorprojection, check_
 # Test coordinator: Creates the list and sends the reduce operations to it to calculate the sum
 mutable struct Coordinator <: AbstractActor
     itemcount::Int
-    batchidx::Int
     runidx::Int
     isrunning::Bool
-    batchstarted::DateTime
+    avgreducetime::Float64
+    lastreducets::UInt64
     list::Addr
     core::CoreState
-    Coordinator() = new(0, 0, 0, false)
+    Coordinator() = new(0, 0, false, 0.0)
 end
 
 boxof(addr) = !isnothing(addr) ? addr.box : nothing # Helper
 
 # Implement monitorextra() to publish part of an actor's state
 monitorextra(me::Coordinator)  = (
-    itemcount = me.itemcount,
-    batchidx = me.batchidx,
+    me.itemcount,
+    me.avgreducetime,
     list = boxof(me.list)
 )
 monitorprojection(::Type{Coordinator}) = JS("{
@@ -74,7 +74,7 @@ monitorprojection(::Type{ListItem{TData}}) where TData = JS("{
 }")
 
 @inline function CircoCore.scheduler_infoton(scheduler, actor::AbstractActor)
-    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 7e-3
+    energy = (SCHEDULER_TARGET_ACTORCOUNT - scheduler.actorcount) * 4e-2
     return Infoton(scheduler.pos, energy)
 end
 
@@ -150,7 +150,7 @@ function onmessage(me::Coordinator, message::Appended, service)
         appenditem(me, service)
     else
         if AUTO_START
-            send(service, me, addr(me), Debug.Run(42))
+            send(service, me, addr(me), Debug.Run())
         else
             @info "#############################################################################################################################"
             @info "### List items added. Start the frontend, open http://localhost:8000 , search for the Coordinator and send a Run command! ###"
@@ -164,6 +164,7 @@ function onmessage(me::Coordinator, message::Run, service)
     @info "Got message: Run"
     if !me.isrunning
         me.isrunning = true
+        me.lastreducets = time_ns()
         startbatch(me, service)
     end
 end
@@ -223,35 +224,33 @@ function onmessage(me::ListItem, message::RecipientMoved, service)
 end
 
 function startbatch(me::Coordinator, service)
-    me.batchidx += 1
-    @debug "Starting batch $(me.batchidx)"
     me.runidx = 1
-    for i = 1:RUNS_IN_BATCH
+    for i = 1:PARALLELISM
         sumlist(me, service)
     end
     return nothing
 end
 
 function sumlist(me::Coordinator, service)
-    me.batchstarted = now()
     send(service, me, me.list, Sum())
 end
 
 function mullist(me::Coordinator, service)
-    me.batchstarted = now()
     send(service, me, me.list, Mul())
 end
 
+const alpha = 2e-4
 function onmessage(me::Coordinator, message::Reduce, service)
     me.core.pos = Pos(300, 100, 100)
-    reducetime = now() - me.batchstarted
-    if me.runidx == RUNS_IN_BATCH # reducetime > Millisecond(round(rand() * 1e5))
-        @info "Batch $(me.batchidx), run $(me.runidx): Got reduce result $(message.result) in $reducetime."
+    ts = time_ns()
+    reducetime = ts - me.lastreducets
+    me.lastreducets = ts
+    me.avgreducetime = me.avgreducetime < 1e-3 ? Float64(reducetime) : (1.0 - alpha) * me.avgreducetime + alpha * Float64(reducetime)
+    if rand(UInt8) == 0
+        @info "Avg reduce time of $(me.itemcount): $(me.avgreducetime / 1e6)ms"
     end
-    #sleep(0.001)
-    me.runidx += 1
-    if me.isrunning && me.runidx >= RUNS_IN_BATCH + 1
-        startbatch(me, service)
+    if me.isrunning
+        sumlist(me, service)
     end
 end
 
