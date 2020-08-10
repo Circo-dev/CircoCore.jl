@@ -4,7 +4,7 @@ using DataStructures, Dates
 const VIEW_SIZE = 1000 # TODO eliminate
 const VIEW_HEIGHT = VIEW_SIZE
 
-const TIMEOUTCHECK_INTERVAL = Second(1)
+const TIMEOUTCHECK_INTERVAL = UInt64(1_000_000_000) # ns
 
 # Lifecycle hooks
 schedule_start(::Plugin, ::Any) = false
@@ -41,7 +41,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     messagequeue::Deque{Msg}# CircularBuffer{Msg}
     registry::LocalRegistry
     tokenservice::TokenService
-    next_timeoutcheck_ts::DateTime
+    next_timeoutcheck_ts::UInt64
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
@@ -54,8 +54,18 @@ mutable struct ActorScheduler <: AbstractActorScheduler
         if isnothing(pos)# TODO scheduler positioning
             pos = getpos(port(postoffice.postcode))
         end
-        scheduler = new(pos, postoffice, 0, Dict{ActorId,AbstractActor}([]), Deque{Msg}(),#msgqueue_capacity),
-         LocalRegistry(), TokenService(), Dates.now() + TIMEOUTCHECK_INTERVAL, 0, false, PluginStack(plugins, scheduler_hooks))
+        scheduler = new(
+            pos,
+            postoffice,
+            0,
+            Dict{ActorId,AbstractActor}([]),
+            Deque{Msg}(),#msgqueue_capacity),
+            LocalRegistry(),
+            TokenService(),
+            time_ns() + TIMEOUTCHECK_INTERVAL,
+            0,
+            false,
+            PluginStack(plugins, scheduler_hooks))
         scheduler.service = ActorService{ActorScheduler}(scheduler)
         setup_plugins!(scheduler)
         scheduler.startup_actor_count = scheduler.actorcount
@@ -191,10 +201,12 @@ end
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
-    if scheduler.next_timeoutcheck_ts > Dates.now()
+    ts = time_ns()
+    if scheduler.next_timeoutcheck_ts > ts &&
+        ts > TIMEOUTCHECK_INTERVAL # Rudimentary handling of time_ns() overflow
         return false
     end
-    scheduler.next_timeoutcheck_ts = Dates.now() + TIMEOUTCHECK_INTERVAL
+    scheduler.next_timeoutcheck_ts = ts + TIMEOUTCHECK_INTERVAL
     firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
         println("Fired timeouts: $firedtimeouts")
