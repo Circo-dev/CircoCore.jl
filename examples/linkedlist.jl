@@ -10,9 +10,9 @@
 module LinkedListTest
 
 const LIST_LENGTH = 1000
-const PARALLELISM = 100 # Number of parallel Reduce operations (firstly started together, but later smooth out)
+const PARALLELISM = 50 # Number of parallel Reduce operations (firstly started in a single batch, but later they smooth out)
 
-const SCHEDULER_TARGET_ACTORCOUNT = 185.0 # Schedulers will push away their actors if they have more than this
+const SCHEDULER_TARGET_ACTORCOUNT = 180.0 # Schedulers will push away their actors if they have more than this
 const AUTO_START = false
 
 using CircoCore, CircoCore.Debug, Dates, Random, LinearAlgebra
@@ -42,7 +42,6 @@ monitorprojection(::Type{Coordinator}) = JS("{
     geometry: new THREE.SphereBufferGeometry(25, 7, 7),
     color: 0xcb3c33
 }")
-
 
 mutable struct LinkedList <: AbstractActor
     head::Addr
@@ -239,7 +238,7 @@ function mullist(me::Coordinator, service)
     send(service, me, me.list, Mul())
 end
 
-const alpha = 2e-4
+const alpha = 1e-3
 function onmessage(me::Coordinator, message::Reduce, service)
     me.core.pos = Pos(300, 100, 100)
     ts = time_ns()
@@ -255,5 +254,6 @@ function onmessage(me::Coordinator, message::Reduce, service)
 end
 
 end
+
 zygote() = LinkedListTest.Coordinator()
 plugins() = [Debug.MsgStats()]
