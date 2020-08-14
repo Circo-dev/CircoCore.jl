@@ -1,5 +1,6 @@
 using Plugins
 using CircoCore
+using LinearAlgebra
 
 mutable struct MsgStats <: Plugin
     typefrequencies::IdDict{Any, Int}
@@ -25,12 +26,18 @@ registermsg(ResetStats, ui=true)
 CircoCore.monitorextra(actor::MsgStatsHelper) = (
     (; (Symbol(k) => v for (k,v) in actor.stats.typefrequencies)...)
 )
-    
+
+CircoCore.monitorprojection(::Type{MsgStatsHelper}) = JS("{
+    geometry: new THREE.BoxBufferGeometry(10, 10, 10)
+}")
+
 CircoCore.symbol(::MsgStats) = :msgstats
 
 Plugins.setup!(stats::MsgStats, scheduler) = begin
     helper = MsgStatsHelper(stats)
     stats.helper = spawn(scheduler, helper)
+    newpos = pos(scheduler) == nullpos ? nullpos : pos(scheduler) - (pos(scheduler) * (1 / norm(pos(scheduler))) * 15.0)
+    helper.core.pos = newpos
 end
 
 @inline function CircoCore.localdelivery(stats::MsgStats, scheduler, msg::CircoCore.Msg{T}, targetactor) where T

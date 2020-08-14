@@ -42,7 +42,7 @@ function addpeers!(hs::HostService, peers::Array{HostService}, scheduler)
     cluster = get(scheduler.plugins, :cluster, nothing)
     if !isnothing(cluster) && !hs.iamzygote && length(cluster.roots) == 0
         root = peers[1].postcode
-        deliver!(scheduler, Msg(cluster.helper, ForceAddRoot(root))) # TODO avoid using the inner API
+        deliver!(scheduler, Msg(cluster.helper, ForceAddRoot(root))) # TODO avoid using the internal API
     end
 end
 
