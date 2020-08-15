@@ -45,13 +45,13 @@ monitorextra(me::Coordinator)  = (
 struct RunSlow a::UInt8 end# TODO fix MsgPack to allow empty structs
 registermsg(RunSlow; ui=true)
 
-struct RunFast a::UInt8 end# TODO Create UI to allow parametrized messages
-registermsg(RunFast; ui=true)
+struct RunMedium a::UInt8 end# TODO Create UI to allow parametrized messages
+registermsg(RunMedium; ui=true)
 
 const STOP = 0
 const STEP = 1
 const SLOW = 20
-const FAST = 98
+const MEDIUM = 98
 const FULLSPEED = 100
 
 # Binary search tree that holds a set of TValue values in the leaves (max size of a leaf is ITEMS_PER_LEAF)
@@ -219,9 +219,9 @@ function onmessage(me::Coordinator, message::Stop, service)
     me.runmode = STOP
 end
 
-function onmessage(me::Coordinator, message::RunFast, service)
+function onmessage(me::Coordinator, message::RunMedium, service)
     oldmode = me.runmode
-    me.runmode = FAST
+    me.runmode = MEDIUM
     oldmode == STOP && startround(me, service, 80)
 end
 
