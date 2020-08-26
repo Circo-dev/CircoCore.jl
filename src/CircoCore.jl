@@ -2,14 +2,14 @@
 module CircoCore
 
 export AbstractActor, CoreState, ActorId, id, ActorService,
-    ActorScheduler, deliver!, schedule!, shutdown!,
+    AbstractActorScheduler, ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
-    MonitorService, monitorextra,
+    getactorbyid, unschedule!,
 
     # Messaging
-    PostCode, postcode, PostOffice, Addr, addr, box, Msg, redirect,
-    RecipientMoved,
+    PostCode, postcode, PostOffice, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
+    redirect, body, target, sender,
 
     Token, TokenId, Tokenized, token, Request, Response, Timeout,
 
@@ -25,19 +25,10 @@ export AbstractActor, CoreState, ActorId, id, ActorService,
     # Space
     Pos, pos, nullpos, Infoton,
 
-    # Cluster management
-    ClusterActor, NodeInfo, Joined, PeerListUpdated,
-    migrate_to_nearest, MigrationAlternatives,
-
     # Multithreading
-    Host,
 
     # Monitoring
-    JS, registermsg,
-
-    Debug,
-
-    cli
+    JS, registermsg
 
 using Plugins, StaticArrays
 
@@ -341,15 +332,7 @@ include("token.jl")
 include("registry.jl")
 include("service.jl")
 include("space.jl")
-include("interregion/websocket.jl")
-include("monitor.jl")
 include("scheduler.jl")
-include("host.jl")
 include("event.jl")
-include("cluster/cluster.jl")
-include("migration.jl")
-include("debug/debug.jl")
-include("cli/circonode.jl")
-
 
 end

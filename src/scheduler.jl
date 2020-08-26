@@ -68,7 +68,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             false,
             stack)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
-        setup_plugins!(scheduler)
+        call_lifecycle_hook(scheduler, Plugins.setup!, "setup")
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -78,19 +78,19 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function core_plugins(;options = NamedTuple())
-    return [ClusterService(;options = options), MigrationService(;options = options), WebsocketService(;options = options), PostOffice(), Space()]
+    return [PostOffice(), Space()]
 end
 
 function randpos()
     return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
 end
 
-function setup_plugins!(scheduler::ActorScheduler)
-    res = Plugins.setup!(scheduler.plugins, scheduler)
+function call_lifecycle_hook(scheduler, lfhook, hookname)
+    res = lfhook(scheduler.plugins, scheduler)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception
-                @error "Error setting up plugin $(typeof(scheduler.plugins[i])):" result
+                @error "Error in calling '$hookname' lifecycle hook of plugin $(typeof(scheduler.plugins[i])):" result
             end
         end
     end
@@ -108,14 +108,6 @@ end
         @info "Unhandled remote delivery: $msg"
     end
     return nothing
-end
-
-@inline function deliver_onhost!(scheduler::ActorScheduler, msg::AbstractMsg)
-    if !hooks(scheduler).remoteroutes(msg)
-        @debug "Unhandled host delivery: $msg"
-        return false
-    end
-    return true
 end
 
 @inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
@@ -259,7 +251,7 @@ end
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     try
         @info "Scheduler starting on thread $(Threads.threadid())"
-        schedule_start_hook(scheduler.plugins, scheduler)
+        call_lifecycle_hook(scheduler, schedule_start_hook, "schedule_start")
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.messagequeue)
@@ -275,11 +267,11 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
     catch e
         @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
     finally
-        schedule_stop_hook(scheduler.plugins, scheduler)
+        call_lifecycle_hook(scheduler, schedule_stop_hook, "schedule_stop")
     end
 end
 
-function shutdown!(scheduler::ActorScheduler)
+function shutdown!(scheduler::ActorScheduler) # TODO Plugins.shutdown! and CircoCore.shutdown should have different names
     scheduler.shutdown = true
     Plugins.shutdown!(scheduler.plugins, scheduler)
     shutdown!(scheduler.postoffice)

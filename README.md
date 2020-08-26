@@ -1,10 +1,5 @@
-# CircoCore
 [![Build Status](https://travis-ci.com/Circo-dev/CircoCore.svg?branch=master)](https://travis-ci.com/Circo-dev/CircoCore)
 
-CircoCore is a decentralized actor model which is
-- fast: delivers more than 4 million messages per second on a single core
-- highly scalable: designed to grow in a sustainable way
-- extensible with plugins
+CircoCore.jl is the small inner core of the Circo decentralized actor system.
 
-
-Documentation: https://circo-dev.github.io/CircoCore/
+As a normal user you probably want to check out the main repo: https://github.com/Circo-dev/Circo
