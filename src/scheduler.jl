@@ -184,7 +184,7 @@ end
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
-    ts = Base.libc.time()
+    ts = Base.Libc.time()
     if scheduler.next_timeoutcheck_ts > ts
         return false
     end
