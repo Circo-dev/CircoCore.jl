@@ -13,3 +13,10 @@ Plugins = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[compat]
+julia = "^1"
+DataStructures = "^0.18"
+Documenter = "^0.25"
+Plugins = "^0.3"
+StaticArrays  = "^0.18"
