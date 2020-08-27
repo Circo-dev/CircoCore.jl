@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
 
-export AbstractActor, CoreState, ActorId, id, ActorService,
+export AbstractActor, CoreState, ActorId, ActorService,
     AbstractActorScheduler, ActorScheduler, deliver!, schedule!, shutdown!,
 
     #Plugins
@@ -150,13 +150,13 @@ Call this on a spawned actor to get its address. Throws `UndefRefError` if the a
 addr(a::AbstractActor) = a.core.addr::Addr
 
 """
-    id(a::AbstractActor)
+    box(a::AbstractActor)
 
-Return the id of the actor.
+Return the 'P.O. box' of the spawned actor.
 
 Call this on a spawned actor to get its id (aka box). Throws `UndefRefError` if the actor is not spawned.
 """
-id(a::AbstractActor) = addr(a).box::ActorId
+box(a::AbstractActor) = box(addr(a))::ActorId
 
 """
     pos(a::AbstractActor)::Pos

@@ -14,11 +14,11 @@ schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
 schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 
 # Event hooks
-function localdelivery end
-function localroutes end
-function letin_remote end
-function remoteroutes end
-function actor_activity_sparse end
+function localdelivery end # just before calling onmessage
+function localroutes end # Handle messages that are targeted to actors not (currently) scheduled locally (e.g. during migration).
+function letin_remote end # Let external sources push messages into the queue (using deliver!).
+function remoteroutes end # Deliver messages to external targets
+function actor_activity_sparse end # An actor just received a message, called with 0.68% probability
 
 scheduler_hooks = [remoteroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse]
 
@@ -131,12 +131,12 @@ end
 end
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid, actorpos = isdefined(actor, :core) ? (id(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
+    actorid, actorpos = isdefined(actor, :core) ? (box(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
     actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
     return nothing
 end
 
-@inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, id(actor))
+@inline isscheduled(scheduler::ActorScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, box(actor))
 
 # Provide the same API for plugins
 spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
@@ -147,7 +147,7 @@ spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, ac
         return addr(actor)
     end
     fill_corestate!(scheduler, actor)
-    scheduler.actorcache[id(actor)] = actor
+    scheduler.actorcache[box(actor)] = actor
     scheduler.actorcount += 1
     isfirstschedule && onschedule(actor, scheduler.service)
     return addr(actor)
@@ -155,16 +155,9 @@ end
 
 @inline function unschedule!(scheduler::ActorScheduler, actor::AbstractActor)
     isscheduled(scheduler, actor) || return nothing
-    delete!(scheduler.actorcache, id(actor))
+    delete!(scheduler.actorcache, box(actor))
     scheduler.actorcount -= 1
     return nothing
-end
-
-@inline function scheduler_infoton(scheduler, actor::AbstractActor)
-    diff = scheduler.pos - actor.core.pos
-    distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
-    energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6
-    return Infoton(scheduler.pos, energy)
 end
 
 # Not clear why: without this on 1.4.2 the hook is dynamically dispatched when two arguments are used.

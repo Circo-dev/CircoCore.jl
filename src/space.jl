@@ -37,3 +37,10 @@ Please check the source and the examples for more info.
     @fastmath targetactor.core.pos += diff / difflen * energy * I
     return nothing
 end
+
+@inline function scheduler_infoton(scheduler, actor::AbstractActor)
+    diff = scheduler.pos - actor.core.pos
+    distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
+    energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6
+    return Infoton(scheduler.pos, energy)
+end
