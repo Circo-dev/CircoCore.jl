@@ -15,8 +15,8 @@ Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-julia = "^1"
 DataStructures = "^0.18"
 Documenter = "^0.25"
 Plugins = "^0.3"
-StaticArrays  = "^0.18"
+StaticArrays = "^0.12"
+julia = "^1"
