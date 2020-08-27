@@ -4,7 +4,7 @@ using DataStructures
 const VIEW_SIZE = 1000 # TODO eliminate
 const VIEW_HEIGHT = VIEW_SIZE
 
-const TIMEOUTCHECK_INTERVAL = UInt64(1_000_000_000) # ns
+const TIMEOUTCHECK_INTERVAL = 1.0
 
 # Lifecycle hooks
 schedule_start(::Plugin, ::Any) = false
@@ -41,7 +41,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     messagequeue::Deque{Msg}# CircularBuffer{Msg}
     registry::LocalRegistry
     tokenservice::TokenService
-    next_timeoutcheck_ts::UInt64
+    next_timeoutcheck_ts::Float64
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
@@ -63,7 +63,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             Deque{Msg}(),#msgqueue_capacity),
             LocalRegistry(),
             TokenService(),
-            time_ns() + TIMEOUTCHECK_INTERVAL,
+            Base.Libc.time() + TIMEOUTCHECK_INTERVAL,
             0,
             false,
             stack)
@@ -184,13 +184,12 @@ end
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
-    ts = time_ns()
-    if scheduler.next_timeoutcheck_ts > ts &&
-        ts > TIMEOUTCHECK_INTERVAL # Rudimentary handling of time_ns() overflow
+    ts = Base.libc.time()
+    if scheduler.next_timeoutcheck_ts > ts
         return false
     end
     scheduler.next_timeoutcheck_ts = ts + TIMEOUTCHECK_INTERVAL
-    firedtimeouts = poptimeouts!(scheduler.tokenservice)
+    firedtimeouts = poptimeouts!(scheduler.tokenservice, ts)
     if length(firedtimeouts) > 0
         println("Fired timeouts: $firedtimeouts")
         for timeout in firedtimeouts

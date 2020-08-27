@@ -43,10 +43,9 @@ end
 cleartimeout(tokenservice::TokenService, token::Token, watcher::Addr) = cleartimeout(tokenservice, TimeoutKey(watcher, token))
 cleartimeout(tokenservice::TokenService, timeout::Timeout) = cleartimeout(tokenservice, timeout.token, timeout.watcher)
 
-@inline function poptimeouts!(tokenservice::TokenService)::Vector{Timeout}
+@inline function poptimeouts!(tokenservice::TokenService, currenttime = Base.Libc.time())::Vector{Timeout}
     retval = Vector{Timeout}()
     firedkeys= Vector{TimeoutKey}()
-    currenttime = Base.Libc.time()
     for (key, timeout) in tokenservice.timeouts
         if timeout.deadline < currenttime
             push!(retval, timeout)
