@@ -9,7 +9,7 @@ function plugin(service::ActorService, symbol::Symbol)
 end
 
 """
-    send(service, sender::AbstractActor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Second = Second(2))
+    send(service, sender::AbstractActor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Real = 2.0)
 
 Send a message from an actor to an another.
 
@@ -21,7 +21,7 @@ The exact value depends on the MTU size of the network and changing implementati
 can be considered safe. You may be able to tune your system to get higher values.
 
 If `messagebody` is a `Request`, a timeout will be set for the token of it. The `timeout` keyword argument
-can be used to control the deadline.
+can be used to control the deadline (seconds).
 
 `energy` sets the energy and sign of the Infoton attached to the message.
 
@@ -72,7 +72,7 @@ Consistency is just as important as convenience. But performance is king.
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout::Second = Second(2)) where {TBody<:Request}
+@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0) where {TBody<:Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = Msg(sender, to, messagebody, energy)
     deliver!(service.scheduler, message)

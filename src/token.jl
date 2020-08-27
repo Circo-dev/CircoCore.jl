@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-using Dates
 import Base.isless
 
 TokenId = UInt64
@@ -17,9 +16,9 @@ abstract type Response <: Tokenized end
 struct Timeout
     watcher::Addr
     token::Token
-    deadline::DateTime
+    deadline::Float64
 end
-Timeout(watcher::AbstractActor, token::Token, timeout::Second=Second(2)) = Timeout(addr(watcher), token, Dates.now() + timeout)
+Timeout(watcher::AbstractActor, token::Token, timeout_secs = 2.0) = Timeout(addr(watcher), token, Base.Libc.time() + timeout_secs)
 Base.isless(a::Timeout, b::Timeout) = isless(a.deadline, b.deadline)
 
 struct TimeoutKey
@@ -47,7 +46,7 @@ cleartimeout(tokenservice::TokenService, timeout::Timeout) = cleartimeout(tokens
 @inline function poptimeouts!(tokenservice::TokenService)::Vector{Timeout}
     retval = Vector{Timeout}()
     firedkeys= Vector{TimeoutKey}()
-    currenttime = Dates.now()
+    currenttime = Base.Libc.time()
     for (key, timeout) in tokenservice.timeouts
         if timeout.deadline < currenttime
             push!(retval, timeout)

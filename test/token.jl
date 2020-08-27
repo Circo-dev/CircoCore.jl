@@ -40,7 +40,7 @@ function onschedule(me::Requestor, service)
     registername(service, string(TResponse), me)
     me.responder = getname(service, string(TRequest))
     for i=1:MESSAGE_COUNT
-        send(service, me, me.responder, TRequest(i); timeout = Second(2))
+        send(service, me, me.responder, TRequest(i); timeout = 2.0)
     end
 end
 
