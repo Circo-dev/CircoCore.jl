@@ -10,12 +10,11 @@ end
 
 @inline function localdelivery(space::Space, scheduler, msg, targetactor)
     apply_infoton(targetactor, msg.infoton)
-    if rand(UInt8) < 30 # TODO: config and move to a hook
-        apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
-        if rand(UInt8) < 15
-            hooks(scheduler).actor_activity_sparse(targetactor)
-        end
-    end
+    return false
+end
+
+@inline function actor_activity_sparse16(space::Space, scheduler, targetactor)
+    apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
     return false
 end
 

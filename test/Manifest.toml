@@ -88,6 +88,11 @@ version = "1.3.0"
 deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
+[[Plugins]]
+git-tree-sha1 = "505a490820f7ef81f357a13ca0293fc05f841329"
+uuid = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
+version = "0.3.2"
+
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"

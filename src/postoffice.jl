@@ -17,12 +17,12 @@ mutable struct PostOffice <: Plugin
     stopped::Bool
     intask
     PostOffice() = begin
-        postcode, socket = allocate_postcode()    
+        postcode, socket = allocate_postcode()
         return new(UDPSocket(), Deque{Any}(), postcode, socket, false)
     end
 end
 
-Plugins.symbol(plugin::PostOffice) = :postoffice
+Plugins.symbol(::PostOffice) = :postoffice
 
 postcode(post::PostOffice) = post.postcode
 addr(post::PostOffice) = Addr(postcode(post), 0)
@@ -55,14 +55,14 @@ end
 
 @inline function letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool
     for i = 1:min(length(post.inqueue), 30)
-        deliver!(scheduler, popfirst!(post.inqueue)) 
+        deliver!(scheduler, popfirst!(post.inqueue))
     end
     return false
 end
 
 function arrivals(post::PostOffice)
     try
-        while !post.stopped 
+        while !post.stopped
             rawmsg = recv(post.socket) # TODO: this blocks, so we will only exit if an extra message comes in after stopping
             stream = IOBuffer(rawmsg)
             msg = deserialize(stream)

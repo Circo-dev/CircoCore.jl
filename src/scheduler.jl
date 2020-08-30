@@ -6,22 +6,6 @@ const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = 1.0
 
-# Lifecycle hooks
-schedule_start(::Plugin, ::Any) = false
-schedule_stop(::Plugin, ::Any) = false
-
-schedule_stop_hook = Plugins.create_lifecyclehook(schedule_stop)
-schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
-
-# Event hooks
-function localdelivery end # just before calling onmessage
-function localroutes end # Handle messages that are targeted to actors not (currently) scheduled locally (e.g. during migration).
-function letin_remote end # Let external sources push messages into the queue (using deliver!).
-function remoteroutes end # Deliver messages to external targets
-function actor_activity_sparse end # An actor just received a message, called with 0.68% probability
-
-scheduler_hooks = [remoteroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse]
-
 function getpos(port)
     # return randpos()
     port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
@@ -78,7 +62,7 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 
 function core_plugins(;options = NamedTuple())
-    return [PostOffice(), Space()]
+    return [PostOffice(), ActivityService(), Space()]
 end
 
 function randpos()

@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: LGPL-3.0-only
+using Test
+using CircoCore
+using Plugins
+
+struct SchedulerMock
+end
+
+struct HooksMock
+    actor_activity_sparse16
+    actor_activity_sparse256
+end
+
+mutable struct ActorMock
+    count16::Int
+    count256::Int
+end
+
+Plugins.hooks(::SchedulerMock) = HooksMock(actor -> actor.count16 += 1, actor -> actor.count256 += 1)
+
+const NUM_SAMPLES = 20000
+@testset "ActivityService" begin
+    scheduler = SchedulerMock()
+    as = ActivityService()
+    actor = ActorMock(0, 0)
+    for i = 1:NUM_SAMPLES
+        CircoCore.localdelivery(as, scheduler, nothing, actor)
+    end
+    println("sparse16: $(actor.count16 / NUM_SAMPLES) vs $(1 / 16)")
+    println("sparse256: $(actor.count256 / NUM_SAMPLES)  vs $(1 / 256)")
+    @test isapprox(actor.count16 / NUM_SAMPLES,  1 / 16; atol = 0.06)
+    @test isapprox(actor.count256 / NUM_SAMPLES, 1 / 256; atol = 0.03)
+end

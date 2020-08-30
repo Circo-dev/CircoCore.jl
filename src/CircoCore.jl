@@ -7,6 +7,8 @@ export AbstractActor, CoreState, ActorId, ActorService,
     #Plugins
     getactorbyid, unschedule!,
 
+    ActivityService,
+
     # Messaging
     PostCode, postcode, PostOffice, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
     redirect, body, target, sender,
@@ -327,10 +329,12 @@ addr(scheduler::AbstractActorScheduler) = addr(postoffice(scheduler))
 postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
+include("hooks.jl")
 include("postoffice.jl")
 include("token.jl")
 include("registry.jl")
 include("service.jl")
+include("sparse_activity.jl")
 include("space.jl")
 include("scheduler.jl")
 include("event.jl")
