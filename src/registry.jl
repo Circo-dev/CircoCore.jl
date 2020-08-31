@@ -19,19 +19,37 @@ struct NameResponse <: Response
     token::Token
 end
 
-struct LocalRegistry
-    register::Dict{String, Addr}
-    LocalRegistry() = new(Dict())
+mutable struct RegistryHelper <: AbstractActor
+    registry::Any
+    core::CoreState
+    RegistryHelper(registry) = new(registry)
 end
 
-struct RegisteredException <: Exception
+mutable struct LocalRegistry <: Plugin
+    register::Dict{String, Addr}
+    helperactor::RegistryHelper
+    LocalRegistry() = new(Dict())
+end
+Plugins.symbol(::LocalRegistry) = :registry
+
+abstract type RegistryException end
+struct RegisteredException <: RegistryException
     name::String
 end
 Base.show(io::IO, e::RegisteredException) = print(io, "name '", e.name, "' already registered")
 
-function registername(service::LocalRegistry, name::String, handler::Addr)
-    haskey(service.register, name) && throw(RegisteredException(name))
-    service.register[name] = handler
+struct NoRegistryException <: RegistryException
+    msg::String
+end
+
+function Plugins.setup!(registry::LocalRegistry, scheduler)
+    registry.helperactor = RegistryHelper(registry)
+    spawn(scheduler.service, registry.helperactor)
+end
+
+function registername(registry::LocalRegistry, name::String, handler::Addr)
+    haskey(registry.register, name) && throw(RegisteredException(name))
+    registry.register[name] = handler
     return true
 end
 
@@ -41,10 +59,19 @@ end
 
 function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
     @debug "Registry handle_special! $message"
-    send(scheduler.postoffice, Msg(
-            addr(scheduler),
-            sender(message),
-            NameResponse(body(message), getname(scheduler.registry, body(message).name), body(message).token),
-            Infoton(nullpos)
-        ))
+
+    registry = get(scheduler.plugins, :registry, nothing)
+    if isnothing(registry)
+        @info "Registry plugin not found, dropping message $message"
+        return nothing
+    end
+    registry::LocalRegistry
+    send(scheduler.service,
+        registry.helperactor,
+        sender(message),
+        NameResponse(body(message),
+            getname(registry, body(message).name),
+            body(message).token)
+        )
+    return nothing
 end

@@ -6,24 +6,24 @@ const VIEW_HEIGHT = VIEW_SIZE
 
 const TIMEOUTCHECK_INTERVAL = 1.0
 
-function getpos(port)
+function getpos(postcode)
     # return randpos()
-    port == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
-    port == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
-    port == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
-    port == 24724 && return Pos(0, 1, 0) * VIEW_SIZE
-    port == 24725 && return Pos(0, 0, -1) * VIEW_SIZE
-    port == 24726 && return Pos(0, 0, 1) * VIEW_SIZE
+    p = port(postcode)
+    p == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
+    p == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
+    p == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
+    p == 24724 && return Pos(0, 1, 0) * VIEW_SIZE
+    p == 24725 && return Pos(0, 0, -1) * VIEW_SIZE
+    p == 24726 && return Pos(0, 0, 1) * VIEW_SIZE
     return randpos()
 end
 
 mutable struct ActorScheduler <: AbstractActorScheduler
     pos::Pos
-    postoffice::PostOffice
+    postcode::PostCode
     actorcount::UInt64
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Deque{Msg}# CircularBuffer{Msg}
-    registry::LocalRegistry
     tokenservice::TokenService
     next_timeoutcheck_ts::Float64
     shutdown::Bool # shutdown in progress or done
@@ -35,17 +35,17 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             actors = []
         end
         stack = PluginStack(plugins, scheduler_hooks)
-        postoffice = stack[:postoffice]
+        postoffice = get(stack, :postoffice, nothing)
+        schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
         if isnothing(pos)# TODO scheduler positioning
-            pos = getpos(port(postoffice.postcode))
+            pos = getpos(schedulerpostcode)
         end
         scheduler = new(
             pos,
-            postoffice,
+            schedulerpostcode,
             0,
             Dict{ActorId,AbstractActor}([]),
             Deque{Msg}(),#msgqueue_capacity),
-            LocalRegistry(),
             TokenService(),
             Base.Libc.time() + TIMEOUTCHECK_INTERVAL,
             0,
@@ -60,9 +60,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
 end
 
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
+postcode(scheduler::AbstractActorScheduler) = scheduler.postcode
 
 function core_plugins(;options = NamedTuple())
-    return [PostOffice(), ActivityService(), Space()]
+    return [LocalRegistry(), PostOffice(), ActivityService(), Space()]
 end
 
 function randpos()
@@ -95,17 +96,17 @@ end
 end
 
 @inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
-    deliver_nonresponse_locally!(scheduler, message)
+    deliver_locally_kern!(scheduler, message)
     return nothing
 end
 
 @inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{<:Response})
     cleartimeout(scheduler.tokenservice, token(message.body), target(message))
-    deliver_nonresponse_locally!(scheduler, message)
+    deliver_locally_kern!(scheduler, message)
     return nothing
 end
 
-@inline function deliver_nonresponse_locally!(scheduler::ActorScheduler, message::AbstractMsg)
+@inline function deliver_locally_kern!(scheduler::ActorScheduler, message::AbstractMsg)
     if box(target(message)) == 0
         handle_special!(scheduler, message)
     else
@@ -116,7 +117,7 @@ end
 
 @inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
     actorid, actorpos = isdefined(actor, :core) ? (box(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
-    actor.core = CoreState(Addr(postcode(scheduler.postoffice), actorid), actorpos)
+    actor.core = CoreState(Addr(postcode(scheduler.plugins[:postoffice]), actorid), actorpos)
     return nothing
 end
 
@@ -249,8 +250,7 @@ end
 
 function shutdown!(scheduler::ActorScheduler) # TODO Plugins.shutdown! and CircoCore.shutdown should have different names
     scheduler.shutdown = true
-    Plugins.shutdown!(scheduler.plugins, scheduler)
-    shutdown!(scheduler.postoffice)
+    call_lifecycle_hook(scheduler, Plugins.shutdown!, "shutdown!")
     println("Scheduler at $(postcode(scheduler)) exited.")
 end
 

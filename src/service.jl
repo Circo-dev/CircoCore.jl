@@ -48,7 +48,7 @@ end
 function CircoCore.onmessage(me::MyActor, message::Start, service)
     send(service,
             me,
-            me.searcher, 
+            me.searcher,
             Search(QUERY, addr(me)))
 end
 ```
@@ -135,7 +135,9 @@ Note that there is no need to unregister the name when migrating or dying
 # TODO implement manual and auto-unregistration
 """
 @inline function registername(service, name::String, actor::AbstractActor)
-    registername(service.scheduler.registry, name, addr(actor))
+    registry = get(service.scheduler.plugins, :registry, nothing)
+    isnothing(registry) && throw(NoRegistryException("Cannot register name $name: Registry plugin not found"))
+    registername(registry, name, addr(actor))
 end
 
 """
@@ -146,7 +148,9 @@ Return the registered name from the scheduler-local registry, or nothing.
 See also: [`NameQuery`](@ref)
 """
 @inline function getname(service, name::String)::Union{Addr, Nothing}
-    return getname(service.scheduler.registry, name)
+    registry = get(service.scheduler.plugins, :registry, nothing)
+    isnothing(registry) && throw(NoRegistryException("Cannot search for name $name: Registry plugin not found"))
+    return getname(registry, name)
 end
 
 @inline pos(service::ActorService) = pos(service.scheduler)

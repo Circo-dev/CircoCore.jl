@@ -49,7 +49,7 @@ function schedule_stop(post::PostOffice, scheduler)
     yield()
 end
 
-function shutdown!(post::PostOffice)
+function Plugins.shutdown!(post::PostOffice)
     close(post.socket)
 end
 

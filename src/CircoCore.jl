@@ -84,6 +84,8 @@ A string that identifies a scheduler.
 PostCode = String # TODO (perf): destructured storage
 port(postcode::PostCode) = parse(UInt32, split(postcode, ":")[end])
 network_host(postcode::PostCode) = SubString(postcode, 1, findfirst(":", postcode)[1])
+invalidpostcode = "0.0.0.0:0"
+postcode(::Any) = invalidpostcode
 
 """
     Addr(postcode::PostCode, box::ActorId)
@@ -324,9 +326,7 @@ function onmigrate(me::AbstractActor, service) end
 
 # scheduler
 abstract type AbstractActorScheduler end
-postoffice(scheduler::AbstractActorScheduler) = scheduler.postoffice
-addr(scheduler::AbstractActorScheduler) = addr(postoffice(scheduler))
-postcode(scheduler::AbstractActorScheduler) = postcode(postoffice(scheduler))
+addr(scheduler::AbstractActorScheduler) = Addr(postcode(scheduler), 0)
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 include("hooks.jl")
