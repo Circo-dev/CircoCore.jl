@@ -4,8 +4,6 @@ using DataStructures
 const VIEW_SIZE = 1000 # TODO eliminate
 const VIEW_HEIGHT = VIEW_SIZE
 
-const TIMEOUTCHECK_INTERVAL = 1.0
-
 function getpos(postcode)
     # return randpos()
     p = port(postcode)
@@ -25,7 +23,6 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     actorcache::Dict{ActorId,AbstractActor}
     messagequeue::Deque{Msg}# CircularBuffer{Msg}
     tokenservice::TokenService
-    next_timeoutcheck_ts::Float64
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
@@ -47,7 +44,6 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             Dict{ActorId,AbstractActor}([]),
             Deque{Msg}(),#msgqueue_capacity),
             TokenService(),
-            Base.Libc.time() + TIMEOUTCHECK_INTERVAL,
             0,
             false,
             stack)
@@ -169,12 +165,8 @@ end
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
-    ts = Base.Libc.time()
-    if scheduler.next_timeoutcheck_ts > ts
-        return false
-    end
-    scheduler.next_timeoutcheck_ts = ts + TIMEOUTCHECK_INTERVAL
-    firedtimeouts = poptimeouts!(scheduler.tokenservice, ts)
+    needchecktimeouts!(scheduler.tokenservice) || return false
+    firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
         println("Fired timeouts: $firedtimeouts")
         for timeout in firedtimeouts
@@ -189,6 +181,7 @@ end
     end
     return false
 end
+
 
 @inline function process_post_and_timeout(scheduler::ActorScheduler)
     incomingmessage = nothing

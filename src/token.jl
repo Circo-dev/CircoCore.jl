@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 import Base.isless
 
+const TIMEOUTCHECK_INTERVAL = 1.0
+
 TokenId = UInt64
 struct Token
     id::TokenId
@@ -27,9 +29,10 @@ struct TimeoutKey
 end
 TimeoutKey(t::Timeout) = TimeoutKey(t.watcher, t.token)
 
-struct TokenService
+mutable struct TokenService
+    next_timeoutcheck_ts::Float64
     timeouts::Dict{TimeoutKey, Timeout}
-    TokenService() = new(Dict())
+    TokenService() = new(Base.Libc.time() + TIMEOUTCHECK_INTERVAL, Dict())
 end
 
 @inline function settimeout(tokenservice::TokenService, timeout::Timeout)
@@ -42,6 +45,15 @@ end
 end
 cleartimeout(tokenservice::TokenService, token::Token, watcher::Addr) = cleartimeout(tokenservice, TimeoutKey(watcher, token))
 cleartimeout(tokenservice::TokenService, timeout::Timeout) = cleartimeout(tokenservice, timeout.token, timeout.watcher)
+
+@inline function needchecktimeouts!(tokenservice::TokenService)
+    ts = Base.Libc.time()
+    if tokenservice.next_timeoutcheck_ts > ts
+        return false
+    end
+    tokenservice.next_timeoutcheck_ts = ts + TIMEOUTCHECK_INTERVAL
+    return true
+end
 
 @inline function poptimeouts!(tokenservice::TokenService, currenttime = Base.Libc.time())::Vector{Timeout}
     retval = Vector{Timeout}()
