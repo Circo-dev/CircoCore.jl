@@ -2,7 +2,7 @@
 
 mutable struct ActivityService <: Plugin
     counter::UInt
-    ActivityService() = new(1)
+    ActivityService(;options = nothing) = new(1)
 end
 
 Plugins.symbol(::ActivityService) = :activity

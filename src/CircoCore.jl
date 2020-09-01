@@ -336,6 +336,7 @@ include("registry.jl")
 include("service.jl")
 include("sparse_activity.jl")
 include("space.jl")
+include("profiles.jl")
 include("scheduler.jl")
 include("event.jl")
 

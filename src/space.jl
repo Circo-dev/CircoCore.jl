@@ -6,6 +6,7 @@ const I = 1.0
 const TARGET_DISTANCE = 8.0
 
 struct Space <: Plugin
+    Space(;options = nothing) = new()
 end
 
 @inline function localdelivery(space::Space, scheduler, msg, targetactor)

@@ -27,10 +27,17 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::PluginStack
     service::ActorService{ActorScheduler}
-    function ActorScheduler(actors::Union{AbstractArray,Nothing} = nothing;plugins = core_plugins(), pos = nothing, msgqueue_capacity = 100_000)
+    function ActorScheduler(
+        actors::Union{AbstractArray,Nothing} = nothing;
+        profile = Profiles.DefaultProfile(),
+        userplugins = [], # instances
+        pos = nothing,
+        msgqueue_capacity = 100_000
+    )
         if isnothing(actors)
             actors = []
         end
+        plugins = [userplugins..., Profiles.core_plugins(profile)...]
         stack = PluginStack(plugins, scheduler_hooks)
         postoffice = get(stack, :postoffice, nothing)
         schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
@@ -57,10 +64,6 @@ end
 
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 postcode(scheduler::AbstractActorScheduler) = scheduler.postcode
-
-function core_plugins(;options = NamedTuple())
-    return [LocalRegistry(), PostOffice(), ActivityService(), Space()]
-end
 
 function randpos()
     return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
