@@ -28,7 +28,7 @@ end
 mutable struct LocalRegistry <: Plugin
     register::Dict{String, Addr}
     helperactor::RegistryHelper
-    LocalRegistry(;options = nothing) = new(Dict())
+    LocalRegistry(;options...) = new(Dict())
 end
 Plugins.symbol(::LocalRegistry) = :registry
 

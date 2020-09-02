@@ -8,7 +8,7 @@ function core_plugins end
 
 struct EmptyProfile <: AbstractProfile
     options
-    EmptyProfile(options = NamedTuple()) = new(options)
+    EmptyProfile(;options...) = new(options)
 end
 
 function core_plugins(profile::EmptyProfile)
@@ -17,26 +17,28 @@ end
 
 struct MinimalProfile <: AbstractProfile
     options
-    MinimalProfile(options = NamedTuple()) = new(options)
+    MinimalProfile(;options...) = new(options)
 end
 
 function core_plugins(profile::MinimalProfile)
+    options = profile.options
     return [
-        CircoCore.LocalRegistry(;options = profile.options),
-        CircoCore.ActivityService(;options = profile.options),
-        CircoCore.Space(;options = profile.options)
+        CircoCore.LocalRegistry(;options...),
+        CircoCore.ActivityService(;options...),
+        CircoCore.Space(;options...)
     ]
 end
 
 struct DefaultProfile <: AbstractProfile
     options
-    DefaultProfile(options = NamedTuple()) = new(options)
+    DefaultProfile(;options...) = new(options)
 end
 
 function core_plugins(profile::DefaultProfile)
+    options = profile.options
     return [
-        core_plugins(MinimalProfile(profile.options))...,
-        CircoCore.PostOffice(;options = profile.options)
+        core_plugins(MinimalProfile(;options...))...,
+        CircoCore.PostOffice(;options...)
     ]
 end
 

@@ -16,7 +16,7 @@ mutable struct PostOffice <: Plugin
     socket::UDPSocket
     stopped::Bool
     intask
-    PostOffice(;options = nothing) = begin
+    PostOffice(;options...) = begin
         postcode, socket = allocate_postcode()
         return new(UDPSocket(), Deque{Any}(), postcode, socket, false)
     end
