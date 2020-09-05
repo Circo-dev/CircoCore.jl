@@ -317,7 +317,7 @@ Note: Do not forget to import it or use its qualified name to allow overloading!
 import CircoCore.onmigrate
 
 function onmigrate(me::MyActor, service)
-    println("Successfully migrated, registering a name on the new scheduler")
+    @info "Successfully migrated, registering a name on the new scheduler"
     registername(service, "MyActor", me)
 end
 ```

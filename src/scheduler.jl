@@ -171,7 +171,7 @@ end
     needchecktimeouts!(scheduler.tokenservice) || return false
     firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
-        println("Fired timeouts: $firedtimeouts")
+        @debug "Fired timeouts: $firedtimeouts"
         for timeout in firedtimeouts
             deliver_locally!(scheduler, Msg(
                 addr(scheduler),
@@ -247,7 +247,7 @@ end
 function shutdown!(scheduler::ActorScheduler) # TODO Plugins.shutdown! and CircoCore.shutdown should have different names
     scheduler.shutdown = true
     call_lifecycle_hook(scheduler, Plugins.shutdown!, "shutdown!")
-    println("Scheduler at $(postcode(scheduler)) exited.")
+    @debug "Scheduler at $(postcode(scheduler)) exited."
 end
 
 # Helpers for plugins
