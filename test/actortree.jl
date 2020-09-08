@@ -58,7 +58,7 @@ end
 @testset "Actor" begin
     @testset "Actor-Tree" begin
         creator = TreeCreator()
-        scheduler = ActorScheduler([creator]; msgqueue_capacity=2_000_000)
+        scheduler = ActorScheduler([creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
             @time scheduler(Msg{Start}(addr(creator)))
             @test creator.nodecount == 2^(i+1)-1

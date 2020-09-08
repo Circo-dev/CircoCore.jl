@@ -1,21 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
 
-const VIEW_SIZE = 1000 # TODO eliminate
-const VIEW_HEIGHT = VIEW_SIZE
-
-function getpos(postcode)
-    # return randpos()
-    p = port(postcode)
-    p == 24721 && return Pos(-1, 0, 0) * VIEW_SIZE
-    p == 24722 && return Pos(1, 0, 0) * VIEW_SIZE
-    p == 24723 && return Pos(0, -1, 0) * VIEW_SIZE
-    p == 24724 && return Pos(0, 1, 0) * VIEW_SIZE
-    p == 24725 && return Pos(0, 0, -1) * VIEW_SIZE
-    p == 24726 && return Pos(0, 0, 1) * VIEW_SIZE
-    return randpos()
-end
-
 mutable struct ActorScheduler <: AbstractActorScheduler
     pos::Pos
     postcode::PostCode
@@ -25,25 +10,19 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     tokenservice::TokenService
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
-    plugins::PluginStack
+    plugins::Plugins.PluginStack
     service::ActorService{ActorScheduler}
     function ActorScheduler(
-        actors::Union{AbstractArray,Nothing} = nothing;
+        actors::AbstractArray = [];
         profile = Profiles.DefaultProfile(),
         userplugins = [], # instances
-        pos = nothing,
-        msgqueue_capacity = 100_000
+        pos = nullpos,
+        # msgqueue_capacity = 100_000
     )
-        if isnothing(actors)
-            actors = []
-        end
         plugins = [userplugins..., Profiles.core_plugins(profile)...]
-        stack = PluginStack(plugins, scheduler_hooks)
+        stack = Plugins.PluginStack(plugins, scheduler_hooks)
         postoffice = get(stack, :postoffice, nothing)
         schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
-        if isnothing(pos)# TODO scheduler positioning
-            pos = getpos(schedulerpostcode)
-        end
         scheduler = new(
             pos,
             schedulerpostcode,
@@ -55,7 +34,7 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             false,
             stack)
         scheduler.service = ActorService{ActorScheduler}(scheduler)
-        call_lifecycle_hook(scheduler, Plugins.setup!, "setup")
+        call_lifecycle_hook(scheduler, setup!)
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
         return scheduler
@@ -65,16 +44,13 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 postcode(scheduler::AbstractActorScheduler) = scheduler.postcode
 
-function randpos()
-    return Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2)
-end
-
-function call_lifecycle_hook(scheduler, lfhook, hookname)
+function call_lifecycle_hook(scheduler, lfhook)
     res = lfhook(scheduler.plugins, scheduler)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception
-                @error "Error in calling '$hookname' lifecycle hook of plugin $(typeof(scheduler.plugins[i])):" result
+                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s
+                @error "Error in calling '$(trimhook(string(lfhook)))' lifecycle hook of plugin $(typeof(scheduler.plugins[i])):" result
             end
         end
     end
@@ -114,8 +90,18 @@ end
     return nothing
 end
 
-@inline function fill_corestate!(scheduler::ActorScheduler, actor::AbstractActor)
-    actorid, actorpos = isdefined(actor, :core) ? (box(actor), pos(actor)) : (rand(ActorId), Pos(rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_SIZE - VIEW_SIZE / 2, rand(Float32) * VIEW_HEIGHT - VIEW_HEIGHT / 2))
+@inline function fill_corestate!(scheduler, actor) # TODO split this fn
+    local actorid
+    local actorpos
+    if isdefined(actor, :core)
+        actorid = box(actor)
+        actorpos = pos(actor)
+    else
+        actorid = rand(ActorId)
+        outpos = Ref(nullpos)
+        actorpos = hooks(scheduler).spawnpos(actor, outpos)
+        actorpos = outpos[]
+    end
     actor.core = CoreState(Addr(postcode(scheduler.plugins[:postoffice]), actorid), actorpos)
     return nothing
 end
@@ -177,7 +163,7 @@ end
                 addr(scheduler),
                 timeout.watcher,
                 timeout,
-                Infoton(nullpos)# TODO scheduler pos
+                pos(scheduler)
             ))
         end
         return true
@@ -192,7 +178,7 @@ end
     sleeplength = 0.001
     enter_ts = time_ns()
     while true
-        yield() # Allow the postoffice "arrivals" and plugin tasks to run
+        yield() # Allow plugin tasks to run
         hooks(scheduler).letin_remote()
         hadtimeout = checktimeouts(scheduler)
         if hadtimeout ||
@@ -201,7 +187,16 @@ end
             return nothing
         else
             if time_ns() - enter_ts > 1_000_000
-                sleep(sleeplength)
+                try
+                    sleep(sleeplength)
+                catch e # EOFError happens
+                    if e isa InterruptException
+                        @info "hjoh"
+                        rethrow(e)
+                    else
+                        @info "Exception while sleeping: $e"
+                    end
+                end
                 sleeplength = min(sleeplength * 1.002, 0.03)
             end
         end
@@ -224,7 +219,7 @@ end
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
     try
         @info "Scheduler starting on thread $(Threads.threadid())"
-        call_lifecycle_hook(scheduler, schedule_start_hook, "schedule_start")
+        call_lifecycle_hook(scheduler, schedule_start_hook)
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.messagequeue)
@@ -238,15 +233,19 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
             process_post_and_timeout(scheduler)
         end
     catch e
-        @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
+        if e isa InterruptException
+            @info "Interrupt to scheduler on thread $(Threads.threadid())"
+        else
+            @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
+        end
     finally
-        call_lifecycle_hook(scheduler, schedule_stop_hook, "schedule_stop")
+        call_lifecycle_hook(scheduler, schedule_stop_hook)
     end
 end
 
-function shutdown!(scheduler::ActorScheduler) # TODO Plugins.shutdown! and CircoCore.shutdown should have different names
+function shutdown!(scheduler::ActorScheduler)
     scheduler.shutdown = true
-    call_lifecycle_hook(scheduler, Plugins.shutdown!, "shutdown!")
+    call_lifecycle_hook(scheduler, shutdown!)
     @debug "Scheduler at $(postcode(scheduler)) exited."
 end
 

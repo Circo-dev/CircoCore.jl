@@ -2,7 +2,10 @@
 module CircoCore
 
 export AbstractActor, CoreState, ActorId, ActorService,
-    AbstractActorScheduler, ActorScheduler, deliver!, schedule!, shutdown!,
+    AbstractActorScheduler, ActorScheduler, deliver!, schedule!, 
+
+    #Plugins reexport
+    Plugin, setup!, shutdown!, symbol,
 
     #Plugins
     getactorbyid, unschedule!,
@@ -32,10 +35,15 @@ export AbstractActor, CoreState, ActorId, ActorService,
     # Monitoring
     JS, registermsg
 
-using Plugins, StaticArrays
-
+using  StaticArrays
 import Base: show, string
-import Plugins: setup!, shutdown!, symbol
+import Plugins
+
+const Plugin = Plugins.Plugin
+const shutdown! = Plugins.shutdown!
+const setup! = Plugins.setup!
+const symbol = Plugins.symbol
+const hooks = Plugins.hooks
 
 """
     ActorId
@@ -206,14 +214,12 @@ Base.show(io::IO, ::MIME"text/plain", pos::Pos) = begin
     print(io, "Pos($(pos[1]), $(pos[2]), $(pos[3]))")
 end
 
+nullpos = Pos(0, 0, 0)
 
 mutable struct CoreState
     addr::Addr
     pos::Pos
 end
-nullpos = Pos(0, 0, 0)
-
-
 
 """
     Infoton(sourcepos::Pos, energy::Real = 1)
@@ -336,6 +342,7 @@ include("registry.jl")
 include("service.jl")
 include("sparse_activity.jl")
 include("space.jl")
+include("positioning.jl")
 include("profiles.jl")
 include("scheduler.jl")
 include("event.jl")

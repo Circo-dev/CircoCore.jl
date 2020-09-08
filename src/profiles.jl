@@ -38,7 +38,8 @@ function core_plugins(profile::DefaultProfile)
     options = profile.options
     return [
         core_plugins(MinimalProfile(;options...))...,
-        CircoCore.PostOffice(;options...)
+        CircoCore.PostOffice(;options...),
+        CircoCore.Positioning.BasicPositioner(;options...)
     ]
 end
 

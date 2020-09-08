@@ -14,5 +14,7 @@ function letin_remote end # Let external sources push messages into the queue (u
 function remoteroutes end # Deliver messages to external targets
 function actor_activity_sparse16 end # An actor just received a message, called with 1/16 probability
 function actor_activity_sparse256 end # An actor just received a message, called with 1/256 probability
+function spawnpos end # An actor's position when its spawned
 
-scheduler_hooks = [remoteroutes, localdelivery, localroutes, letin_remote, actor_activity_sparse16, actor_activity_sparse256]
+scheduler_hooks = [remoteroutes, localdelivery, localroutes, letin_remote,
+    actor_activity_sparse16, actor_activity_sparse256, spawnpos]
