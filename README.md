@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/Circo-dev/CircoCore.jl.svg?branch=masterr)](https://travis-ci.com/Circo-dev/CircoCore.jl)
+[![Build Status](https://travis-ci.com/Circo-dev/CircoCore.jl.svg?branch=master)](https://travis-ci.com/Circo-dev/CircoCore.jl)
 
 CircoCore.jl is the small inner core of the Circo decentralized actor system.
 
