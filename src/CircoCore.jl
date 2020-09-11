@@ -8,7 +8,7 @@ export AbstractActor, CoreState, ActorId, ActorService,
     Plugin, setup!, shutdown!, symbol,
 
     #Plugins
-    getactorbyid, unschedule!,
+    plugin, getactorbyid, unschedule!,
 
     ActivityService,
 
@@ -29,8 +29,6 @@ export AbstractActor, CoreState, ActorId, ActorService,
 
     # Space
     Pos, pos, nullpos, Infoton,
-
-    # Multithreading
 
     # Monitoring
     JS, registermsg

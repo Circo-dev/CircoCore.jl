@@ -5,8 +5,8 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
-    actorcache::Dict{ActorId,AbstractActor}
-    messagequeue::Deque{Msg}# CircularBuffer{Msg}
+    actorcache::Dict{ActorId, Any}
+    messagequeue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
@@ -27,13 +27,13 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             pos,
             schedulerpostcode,
             0,
-            Dict{ActorId,AbstractActor}([]),
-            Deque{Msg}(),#msgqueue_capacity),
+            Dict([]),
+            Deque{Any}(),#msgqueue_capacity),
             TokenService(),
             0,
             false,
             stack)
-        scheduler.service = ActorService{ActorScheduler}(scheduler)
+        scheduler.service = ActorService(scheduler)
         call_lifecycle_hook(scheduler, setup!)
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
@@ -82,7 +82,7 @@ end
 end
 
 @inline function deliver_locally_kern!(scheduler::ActorScheduler, message::AbstractMsg)
-    if box(target(message)) == 0
+    if box(target(message)) == 0 # TODO always push, check later only if target not found
         handle_special!(scheduler, message)
     else
         push!(scheduler.messagequeue, message)
@@ -163,7 +163,7 @@ end
                 addr(scheduler),
                 timeout.watcher,
                 timeout,
-                pos(scheduler)
+                Infoton(pos(scheduler))
             ))
         end
         return true
