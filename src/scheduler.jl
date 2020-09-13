@@ -41,6 +41,10 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     end
 end
 
+Base.show(io::IO, ::MIME"text/plain", scheduler::ActorScheduler) = begin
+    print(io, "ActorScheduler at $(postcode(scheduler)) with $(scheduler.actorcount) actors")
+end
+
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 postcode(scheduler::AbstractActorScheduler) = scheduler.postcode
 
