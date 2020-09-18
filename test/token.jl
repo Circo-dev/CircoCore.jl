@@ -14,22 +14,21 @@ struct TRequest <: Request
     TRequest(id) = new(id, Token())
 end
 
-mutable struct Requestor <: AbstractActor{TCoreState}
-    responsecount::UInt
-    timeoutcount::UInt
+mutable struct Requestor{TCore} <: AbstractActor{TCore}
+    responsecount::Int
+    timeoutcount::Int
     responder::Addr
-    core::CoreState
-    Requestor() = new(0, 0)
+    core::TCore
 end
+Requestor(core) = Requestor(0, 0, Addr(), core)
 
 struct TResponse <: Response
     requestid::UInt64
     token::Token
 end
 
-mutable struct Responder <: AbstractActor{TCoreState}
-    core::CoreState
-    Responder() = new()
+mutable struct Responder{TCore} <: AbstractActor{TCore}
+    core::TCore
 end
 
 function onschedule(me::Responder, service)
@@ -67,8 +66,8 @@ end
 
 @testset "Token" begin
     ctx = CircoContext()
-    requestor = Requestor()
-    responder = Responder()
+    requestor = Requestor(emptycore(ctx))
+    responder = Responder(emptycore(ctx))
     scheduler = ActorScheduler(ctx, [responder, requestor])
     scheduler(exit_when_done=true)
     @test requestor.responder == addr(responder)

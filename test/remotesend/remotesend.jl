@@ -4,11 +4,11 @@ import CircoCore.onmessage
 
 include("remotesend-base.jl")
 
-mutable struct Receiver <: AbstractActor{TCoreState}
+mutable struct Receiver{TCore} <: AbstractActor{TCore}
     messages::Array{TestMessage}
-    core::CoreState
-    Receiver() = new([])
+    core::TCore
 end
+Receiver(core) = Receiver(TestMessage[], core)
 
 function onmessage(me::Receiver, message::TestMessage, service)
     push!(me.messages, message)
@@ -24,7 +24,7 @@ end
 
 @testset "Remote Send" begin
     ctx = CircoContext()
-    receiver = Receiver()
+    receiver = Receiver(emptycore(ctx))
     scheduler = ActorScheduler(ctx, [receiver])
     sender = startsender(addr(receiver))
     scheduler(;exit_when_done=true)

@@ -18,10 +18,10 @@ function fire(service, me::AbstractActor, event::TEvent) where TEvent <: Event
 end
 
 mutable struct EventDispatcher{TCore} <: AbstractActor{TCore}
-    listeners::Dict{Type{<:Event},Array{Addr}}
+    listeners::IdDict #{Type{<:Event},Array{Addr}}
     core::TCore
 end
-EventDispatcher(core) = EventDispatcher(Dict([]), core)
+EventDispatcher(core) = EventDispatcher(IdDict(), core)
 
 monitorprojection(::Type{EventDispatcher}) = JS("projections.nonimportant")
 

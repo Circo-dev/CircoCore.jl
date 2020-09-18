@@ -13,18 +13,18 @@ end
 
 mutable struct EventSource{TCore} <: AbstractActor{TCore}
     eventdispatcher::Addr
-    core::Core
+    core::TCore
 end
-EventSource(core) = new(nulladdr, core)
+EventSource(core) = EventSource(Addr(), core)
 
-mutable struct EventTarget <: AbstractActor{TCoreState}
-    received_count::UInt64
-    core::CoreState
-    EventTarget() = new(0)
+mutable struct EventTarget{TCore} <: AbstractActor{TCore}
+    received_count::Int64
+    core::TCore
 end
+EventTarget(core) = EventTarget(0, core)
 
 function onschedule(me::EventSource, service)
-    me.eventdispatcher = spawn(service, EventDispatcher())
+    me.eventdispatcher = spawn(service, EventDispatcher(emptycore(service)))
     registername(service, "eventsource", me)
 end
 
@@ -45,8 +45,8 @@ end
 @testset "Actor" begin
     @testset "Actor-Tree" begin
         ctx = CircoContext()
-        source = EventSource()
-        targets = [EventTarget() for i=1:TARGET_COUNT]
+        source = EventSource(emptycore(ctx))
+        targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = ActorScheduler(ctx, [source; targets])
         @time scheduler(Msg{Start}(addr(source)))
         for target in targets

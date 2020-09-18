@@ -195,9 +195,14 @@ end
     end
 end
 
-function (scheduler::ActorScheduler)(message::AbstractMsg;process_external = false, exit_when_done = true)
-    deliver!(scheduler, message)
-    scheduler(process_external = process_external, exit_when_done = exit_when_done)
+function (scheduler::ActorScheduler)(messages;process_external = false, exit_when_done = true)
+    if messages isa AbstractMsg
+        messages = [messages]
+    end
+    for message in messages
+        deliver!(scheduler, message)
+    end
+    scheduler(;process_external = process_external, exit_when_done = exit_when_done)
 end
 
 @inline function nomorework(scheduler::ActorScheduler, process_external::Bool, exit_when_done::Bool)
