@@ -9,6 +9,14 @@ struct Space <: Plugin
     Space(;options...) = new()
 end
 
+posinit() = nullpos
+posinit(scheduler, actor, actorid) = begin
+    outpos = Ref(nullpos)
+    actorpos = hooks(scheduler).spawnpos(actor, outpos)
+    return outpos[]
+end
+Plugins.customfield(::Space, ::Type{AbstractCoreState}) = Plugins.FieldSpec("pos", Pos, posinit)
+
 @inline function localdelivery(space::Space, scheduler, msg, targetactor)
     apply_infoton(targetactor, msg.infoton)
     return false

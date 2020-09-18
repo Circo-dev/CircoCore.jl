@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
 
-mutable struct ActorScheduler <: AbstractActorScheduler
+mutable struct ActorScheduler{TCoreState} <: AbstractActorScheduler{TCoreState}
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
@@ -11,19 +11,17 @@ mutable struct ActorScheduler <: AbstractActorScheduler
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
-    service::ActorService{ActorScheduler}
+    service::ActorService{ActorScheduler{TCoreState}}
     function ActorScheduler(
+        ctx::AbstractContext,
         actors::AbstractArray = [];
-        profile = Profiles.DefaultProfile(),
-        userplugins = [], # instances
         pos = nullpos,
         # msgqueue_capacity = 100_000
     )
-        plugins = [userplugins..., Profiles.core_plugins(profile)...]
-        stack = Plugins.PluginStack(plugins, scheduler_hooks)
-        postoffice = get(stack, :postoffice, nothing)
+        plugins = instantiate_plugins(ctx)
+        postoffice = get(plugins, :postoffice, nothing)
         schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
-        scheduler = new(
+        scheduler = new{ctx.corestate_type}(
             pos,
             schedulerpostcode,
             0,
@@ -32,8 +30,8 @@ mutable struct ActorScheduler <: AbstractActorScheduler
             TokenService(),
             0,
             false,
-            stack)
-        scheduler.service = ActorService(scheduler)
+            plugins)
+        scheduler.service = ActorService(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
         scheduler.startup_actor_count = scheduler.actorcount
         for a in actors; schedule!(scheduler, a); end
@@ -94,19 +92,9 @@ end
     return nothing
 end
 
-@inline function fill_corestate!(scheduler, actor) # TODO split this fn
-    local actorid
-    local actorpos
-    if isdefined(actor, :core)
-        actorid = box(actor)
-        actorpos = pos(actor)
-    else
-        actorid = rand(ActorId)
-        outpos = Ref(nullpos)
-        actorpos = hooks(scheduler).spawnpos(actor, outpos)
-        actorpos = outpos[]
-    end
-    actor.core = CoreState(Addr(postcode(scheduler.plugins[:postoffice]), actorid), actorpos)
+@inline function fill_corestate!(scheduler::AbstractActorScheduler{TCoreState}, actor) where TCoreState
+    actorid = box(actor) == 0 ? rand(ActorId) : box(actor)
+    actor.core = TCoreState(scheduler, actor, actorid)
     return nothing
 end
 
@@ -116,7 +104,7 @@ end
 spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
-    isfirstschedule = !isdefined(actor, :core)
+    isfirstschedule = box(actor) == 0
     if !isfirstschedule && isscheduled(scheduler, actor)
         return addr(actor)
     end

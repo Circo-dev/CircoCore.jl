@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
 
-export AbstractActor, CoreState, ActorId, ActorService,
-    AbstractActorScheduler, ActorScheduler, deliver!, schedule!, 
+export CircoContext, ActorScheduler,
+
+    AbstractActor, CoreState, ActorId, ActorService, deliver!, schedule!,
+    emptycore,
 
     #Plugins reexport
     Plugin, setup!, shutdown!, symbol,
@@ -43,6 +45,8 @@ const setup! = Plugins.setup!
 const symbol = Plugins.symbol
 const hooks = Plugins.hooks
 
+abstract type AbstractContext end
+
 """
     ActorId
 
@@ -63,14 +67,13 @@ that can remain undefined after creation.
 # Examples
 
 ```julia
-mutable struct DataHolder{TValue} <: AbstractActor
+mutable struct DataHolder{TValue, TCore} <: AbstractActor{TCore}
     value::TValue
-    core::CoreState
-    DataHolder(value) = new{typeof(value)}(value)
+    core::TCore
 end
 ```
 """
-abstract type AbstractActor end
+abstract type AbstractActor{TCoreState} end
 
 abstract type AbstractAddr end
 postcode(address::AbstractAddr) = address.postcode
@@ -96,8 +99,11 @@ postcode(::Any) = invalidpostcode
 """
     Addr(postcode::PostCode, box::ActorId)
     Addr(readable_address::String)
+    Addr()
 
 The full address of an actor.
+
+When created without arguments, it will be the null address. See [`isnulladdr()`](@ref)
 
 If the referenced actor migrates to a different scheduler, messages sent to the
 old address will bounce back as [`RecipientMoved`](@ref) and the Addr
@@ -114,8 +120,8 @@ struct Addr <: AbstractAddr
     postcode::PostCode
     box::ActorId
 end
-NullAddress = Addr("", UInt64(0))
-Addr() = NullAddress
+nulladdr = Addr("", UInt64(0))
+Addr() = nulladdr
 Addr(box::ActorId) = Addr("", box)
 Addr(readable_address::String) = begin
     parts = split(readable_address, "/") # Handles only dns.or.ip:port[/actorid]
@@ -123,6 +129,14 @@ Addr(readable_address::String) = begin
     return Addr(parts[1], actorid)
 end
 string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
+
+"""
+    isnulladdr(a::Addr)
+
+Check if the given address is a null address, meaning that it points to "nowhere", messages
+sent to it will be dropped.
+"""
+isnulladdr(a::Addr) = a == nulladdr
 
 """
     box(a::Addr)::ActorId
@@ -214,10 +228,10 @@ end
 
 nullpos = Pos(0, 0, 0)
 
-mutable struct CoreState
-    addr::Addr
-    pos::Pos
-end
+# mutable struct CoreState
+#     addr::Addr
+#     pos::Pos
+# end
 
 """
     Infoton(sourcepos::Pos, energy::Real = 1)
@@ -250,8 +264,8 @@ Msg(sender::AbstractActor, target::Addr, body::T, energy) where {T} = Msg{T}(add
 Msg(sender::AbstractActor, target::Addr, body::T) where {T} = Msg{T}(addr(sender), target, body, Infoton(sender.core.pos))
 Msg(target::Addr, body::T) where {T} = Msg{T}(Addr(), target, body, Infoton(nullpos))
 Msg{Nothing}(sender, target) = Msg{Nothing}(sender, target, nothing)
-Msg{Nothing}(target) = Msg{Nothing}(NullAddress, target, nothing, Infoton(nullpos))
-Msg{Nothing}() = Msg{Nothing}(NullAddress, NullAddress, nothing, Infoton(nullpos))
+Msg{Nothing}(target) = Msg{Nothing}(nulladdr, target, nothing, Infoton(nullpos))
+Msg{Nothing}() = Msg{Nothing}(nulladdr, nulladdr, nothing, Infoton(nullpos))
 
 sender(m::AbstractMsg) = m.sender::Addr
 target(m::AbstractMsg) = m.target::Addr
@@ -329,7 +343,7 @@ end
 function onmigrate(me::AbstractActor, service) end
 
 # scheduler
-abstract type AbstractActorScheduler end
+abstract type AbstractActorScheduler{TCoreState} end
 addr(scheduler::AbstractActorScheduler) = Addr(postcode(scheduler), 0)
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
@@ -342,6 +356,7 @@ include("sparse_activity.jl")
 include("space.jl")
 include("positioning.jl")
 include("profiles.jl")
+include("context.jl")
 include("scheduler.jl")
 include("event.jl")
 

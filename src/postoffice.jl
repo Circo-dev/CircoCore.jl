@@ -24,6 +24,10 @@ end
 
 Plugins.symbol(::PostOffice) = :postoffice
 
+addrinit() = nulladdr
+addrinit(scheduler, actor, actorid) = Addr(postcode(scheduler.plugins[:postoffice]), actorid)
+Plugins.customfield(::PostOffice, ::Type{AbstractCoreState}) = Plugins.FieldSpec("addr", Addr, addrinit)
+
 postcode(post::PostOffice) = post.postcode
 addr(post::PostOffice) = Addr(postcode(post), 0)
 

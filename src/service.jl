@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-struct ActorService{TScheduler}
+struct ActorService{TScheduler <: AbstractActorScheduler, TCore}
     scheduler::TScheduler
+    emptycore::TCore
 end
+
+ActorService(ctx::AbstractContext, scheduler::AbstractActorScheduler) = ActorService{typeof(scheduler), ctx.corestate_type}(scheduler, emptycore(ctx))
+
+emptycore(s::ActorService) = s.emptycore
 
 function plugin(service::ActorService, symbol::Symbol)
     return service.scheduler.plugins[symbol]
@@ -30,9 +35,9 @@ can be used to control the deadline (seconds).
 ```julia
 const QUERY = "The Ultimate Question of Life, The Universe, and Everything."
 
-mutable struct MyActor <: AbstractActor
+mutable struct MyActor <: AbstractActor{TCoreState}
     searcher::Addr
-    core:: CoreState
+    core::CoreState
     MyActor() = new()
 end
 
@@ -65,7 +70,7 @@ On the other hand, actor API endpoints like `send` are always statically dispatc
 thus they can accept the service as their first argument, allowing the user to treat
 e.g. "`spawn(service`" as a single unit of thought and not forget to write out the meaningless `service`.
 
-Consistency is just as important as convenience. But performance is king. 
+Consistency is just as important as convenience. But performance is king.
 """
 @inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1)
     message = Msg(sender, to, messagebody, energy)
@@ -89,12 +94,14 @@ The `onschedule` callback of `actor` will run before this function returns.
 
 # Examples
 
+# TODO: update this sample
+
 ```
-mutable struct ListItem{TData} <: AbstractActor
+mutable struct ListItem{TData, TCore} <: AbstractActor{TCore}
     data::TData
-    next::Addr
-    core::CoreState
-    ListItem(data) = new{typeof(data)}(data)
+    next::Union{Nothing, Addr}
+    core::TCore
+    ListItem(data, core) = new{typeof(data), typeof(core)}(data, nothing, core)
 end
 
 struct Append{TData}

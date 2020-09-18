@@ -18,16 +18,16 @@ struct GrowResponse
     leafsgrown::Vector{Addr}
 end
 
-mutable struct TreeActor <: AbstractActor
+mutable struct TreeActor{TCore} <: AbstractActor{TCore}
     children::Vector{Addr}
-    core::CoreState
-    TreeActor() = new([])
+    core::TCore
 end
+TreeActor(core) = TreeActor(Addr[], core)
 
 function onmessage(me::TreeActor, message::GrowRequest, service)
     if length(me.children) == 0
-        push!(me.children, spawn(service, TreeActor()))
-        push!(me.children, spawn(service, TreeActor()))
+        push!(me.children, spawn(service, TreeActor(emptycore(service))))
+        push!(me.children, spawn(service, TreeActor(emptycore(service))))
         send(service, me, message.creator, GrowResponse(me.children))
     else
         for child in me.children
@@ -36,16 +36,16 @@ function onmessage(me::TreeActor, message::GrowRequest, service)
     end
 end
 
-mutable struct TreeCreator <: AbstractActor
-    nodecount::UInt64
-    root::Union{Nothing,Addr}
-    core::CoreState
-    TreeCreator() = new(0, nothing)
+mutable struct TreeCreator{TCore} <: AbstractActor{TCore}
+    nodecount::Int64
+    root::Addr
+    core::TCore
 end
+TreeCreator(core) = TreeCreator(0, Addr(), core)
 
 function onmessage(me::TreeCreator, ::Start, service)
-    if isnothing(me.root)
-        me.root = spawn(service, TreeActor())
+    if CircoCore.isnulladdr(me.root)
+        me.root = spawn(service, TreeActor(emptycore(service)))
         me.nodecount = 1
     end
     send(service, me, me.root, GrowRequest(addr(me)))
@@ -57,8 +57,9 @@ end
 
 @testset "Actor" begin
     @testset "Actor-Tree" begin
-        creator = TreeCreator()
-        scheduler = ActorScheduler([creator])#; msgqueue_capacity=2_000_000
+        ctx = CircoContext()
+        creator = TreeCreator(emptycore(ctx))
+        scheduler = ActorScheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
             @time scheduler(Msg{Start}(addr(creator)))
             @test creator.nodecount == 2^(i+1)-1

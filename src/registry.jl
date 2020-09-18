@@ -19,10 +19,9 @@ struct NameResponse <: Response
     token::Token
 end
 
-mutable struct RegistryHelper <: AbstractActor
+mutable struct RegistryHelper{TCore} <: AbstractActor{TCore}
     registry::Any
-    core::CoreState
-    RegistryHelper(registry) = new(registry)
+    core::TCore
 end
 
 mutable struct LocalRegistry <: Plugin
@@ -43,7 +42,7 @@ struct NoRegistryException <: RegistryException
 end
 
 function Plugins.setup!(registry::LocalRegistry, scheduler)
-    registry.helperactor = RegistryHelper(registry)
+    registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
     spawn(scheduler.service, registry.helperactor)
 end
 

@@ -17,6 +17,5 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 DataStructures = "^0.18"
 Documenter = "^0.25"
-Plugins = "^0.3"
 StaticArrays = "^0.12"
 julia = "^1"

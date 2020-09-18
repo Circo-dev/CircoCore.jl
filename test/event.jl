@@ -11,13 +11,13 @@ struct TestEvent <: Event
     value::String
 end
 
-mutable struct EventSource <: AbstractActor
+mutable struct EventSource{TCore} <: AbstractActor{TCore}
     eventdispatcher::Addr
-    core::CoreState
-    EventSource() = new()
+    core::Core
 end
+EventSource(core) = new(nulladdr, core)
 
-mutable struct EventTarget <: AbstractActor
+mutable struct EventTarget <: AbstractActor{TCoreState}
     received_count::UInt64
     core::CoreState
     EventTarget() = new(0)
@@ -44,9 +44,10 @@ end
 
 @testset "Actor" begin
     @testset "Actor-Tree" begin
+        ctx = CircoContext()
         source = EventSource()
         targets = [EventTarget() for i=1:TARGET_COUNT]
-        scheduler = ActorScheduler([source; targets])
+        scheduler = ActorScheduler(ctx, [source; targets])
         @time scheduler(Msg{Start}(addr(source)))
         for target in targets
             @test target.received_count == EVENT_COUNT

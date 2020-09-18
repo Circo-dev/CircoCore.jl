@@ -14,7 +14,7 @@ struct TRequest <: Request
     TRequest(id) = new(id, Token())
 end
 
-mutable struct Requestor <: AbstractActor
+mutable struct Requestor <: AbstractActor{TCoreState}
     responsecount::UInt
     timeoutcount::UInt
     responder::Addr
@@ -27,7 +27,7 @@ struct TResponse <: Response
     token::Token
 end
 
-mutable struct Responder <: AbstractActor
+mutable struct Responder <: AbstractActor{TCoreState}
     core::CoreState
     Responder() = new()
 end
@@ -66,9 +66,10 @@ function onmessage(me::Requestor, timeout::Timeout, service)
 end
 
 @testset "Token" begin
+    ctx = CircoContext()
     requestor = Requestor()
     responder = Responder()
-    scheduler = ActorScheduler([responder, requestor])
+    scheduler = ActorScheduler(ctx, [responder, requestor])
     scheduler(exit_when_done=true)
     @test requestor.responder == addr(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2

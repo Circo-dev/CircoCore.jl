@@ -17,11 +17,12 @@ function fire(service, me::AbstractActor, event::TEvent) where TEvent <: Event
     send(service, me, me.eventdispatcher, event)
 end
 
-mutable struct EventDispatcher <: AbstractActor
+mutable struct EventDispatcher{TCore} <: AbstractActor{TCore}
     listeners::Dict{Type{<:Event},Array{Addr}}
-    core::CoreState
-    EventDispatcher() = new(Dict([]))
+    core::TCore
 end
+EventDispatcher(core) = EventDispatcher(Dict([]), core)
+
 monitorprojection(::Type{EventDispatcher}) = JS("projections.nonimportant")
 
 function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent<:Event}
