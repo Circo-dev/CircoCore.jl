@@ -134,7 +134,13 @@ end
 
 @inline function step!(scheduler::ActorScheduler)
     message = popfirst!(scheduler.messagequeue)
+    # Tried to insert a second kern here, but it degraded perf on 1.5.1
     targetactor = get(scheduler.actorcache, target(message).box, nothing)
+    step_kern!(scheduler, message, targetactor)
+    return nothing
+end
+
+@inline function step_kern!(scheduler::ActorScheduler, message, targetactor)
     if isnothing(targetactor)
         if !hooks(scheduler).localroutes(message)
             @debug "Cannot deliver on host: $message"
@@ -142,7 +148,6 @@ end
     else
         handle_message_locally!(targetactor, message, scheduler)
     end
-    return nothing
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)
@@ -209,7 +214,7 @@ end
     return isempty(scheduler.messagequeue) &&
         (
             !process_external ||
-            exit_when_done && scheduler.actorcount == scheduler.startup_actor_count
+            exit_when_done && scheduler.actorcount <= scheduler.startup_actor_count
         )
 end
 
