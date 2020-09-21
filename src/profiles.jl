@@ -23,6 +23,7 @@ end
 function core_plugins(profile::MinimalProfile)
     options = profile.options
     return [
+        CircoCore.OnMessage(;options...),
         CircoCore.LocalRegistry(;options...),
         CircoCore.ActivityService(;options...),
         CircoCore.Space(;options...)

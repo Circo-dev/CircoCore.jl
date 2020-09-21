@@ -348,6 +348,7 @@ addr(scheduler::AbstractActorScheduler) = Addr(postcode(scheduler), 0)
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
 include("hooks.jl")
+include("onmessage.jl")
 include("postoffice.jl")
 include("token.jl")
 include("registry.jl")

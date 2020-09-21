@@ -8,7 +8,7 @@ struct SchedulerMock
     SchedulerMock() = new((
         actor_activity_sparse16 = (scheduler, actor) -> actor.count16 += 1,
         actor_activity_sparse256 = (scheduler, actor) -> actor.count256 += 1
-        ))
+    ))
 end
 
 struct HooksMock

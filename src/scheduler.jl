@@ -12,7 +12,7 @@ mutable struct ActorScheduler{THooks, TCoreState} <: AbstractActorScheduler{TCor
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
     hooks::THooks
-    service::ActorService{ActorScheduler{THooks, TCoreState}}
+    service::ActorService{ActorScheduler{THooks, TCoreState}, TCoreState}
     function ActorScheduler(
         ctx::AbstractContext,
         actors::AbstractArray = [];
@@ -125,20 +125,11 @@ end
     return nothing
 end
 
-# Not clear why: without this on 1.4.2 the hook is dynamically dispatched when two arguments are used.
-# (With one argument it works correctly, just like in Plugins.jl 06e10515 tests)
-call_3args(op, scheduler, msg, targetactor) = op(scheduler, msg, targetactor)
-
-@inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
-    onmessage(targetactor, body(message), scheduler.service)
-    call_3args(scheduler.hooks.localdelivery, scheduler, message, targetactor)
-    return nothing
-end
-
 @inline function step!(scheduler::ActorScheduler)
     message = popfirst!(scheduler.messagequeue)
     # Tried to insert a second kern here, but it degraded perf on 1.5.1
-    targetactor = get(scheduler.actorcache, target(message).box, nothing)
+    targetbox = target(message).box
+    targetactor = get(scheduler.actorcache, targetbox, nothing)
     step_kern!(scheduler, message, targetactor)
     return nothing
 end
@@ -149,7 +140,7 @@ end
             @debug "Cannot deliver on host: $message"
         end
     else
-        handle_message_locally!(targetactor, message, scheduler)
+        scheduler.hooks.localdelivery(scheduler, message, targetactor)
     end
 end
 
