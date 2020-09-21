@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
 
-mutable struct ActorScheduler{TCoreState} <: AbstractActorScheduler{TCoreState}
+mutable struct ActorScheduler{THooks, TCoreState} <: AbstractActorScheduler{TCoreState}
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
@@ -11,7 +11,8 @@ mutable struct ActorScheduler{TCoreState} <: AbstractActorScheduler{TCoreState}
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
-    service::ActorService{ActorScheduler{TCoreState}}
+    hooks::THooks
+    service::ActorService{ActorScheduler{THooks, TCoreState}}
     function ActorScheduler(
         ctx::AbstractContext,
         actors::AbstractArray = [];
@@ -19,9 +20,10 @@ mutable struct ActorScheduler{TCoreState} <: AbstractActorScheduler{TCoreState}
         # msgqueue_capacity = 100_000
     )
         plugins = instantiate_plugins(ctx)
+        _hooks = hooks(plugins)
         postoffice = get(plugins, :postoffice, nothing)
         schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
-        scheduler = new{ctx.corestate_type}(
+        scheduler = new{typeof(_hooks), ctx.corestate_type}(
             pos,
             schedulerpostcode,
             0,
@@ -30,7 +32,8 @@ mutable struct ActorScheduler{TCoreState} <: AbstractActorScheduler{TCoreState}
             TokenService(),
             0,
             false,
-            plugins)
+            plugins,
+            _hooks)
         scheduler.service = ActorService(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
         scheduler.startup_actor_count = scheduler.actorcount
@@ -66,7 +69,7 @@ end
         deliver_locally!(scheduler, msg)
         return nothing
     end
-    if !hooks(scheduler).remoteroutes(msg)
+    if !scheduler.hooks.remoteroutes(scheduler, msg)
         @info "Unhandled remote delivery: $msg"
     end
     return nothing
@@ -124,11 +127,11 @@ end
 
 # Not clear why: without this on 1.4.2 the hook is dynamically dispatched when two arguments are used.
 # (With one argument it works correctly, just like in Plugins.jl 06e10515 tests)
-call_twoargs(op, msg, targetactor) = op(msg, targetactor)
+call_3args(op, scheduler, msg, targetactor) = op(scheduler, msg, targetactor)
 
 @inline function handle_message_locally!(targetactor::AbstractActor, message::Msg, scheduler::ActorScheduler)
     onmessage(targetactor, body(message), scheduler.service)
-    call_twoargs(hooks(scheduler).localdelivery, message, targetactor)
+    call_3args(scheduler.hooks.localdelivery, scheduler, message, targetactor)
     return nothing
 end
 
@@ -142,7 +145,7 @@ end
 
 @inline function step_kern!(scheduler::ActorScheduler, message, targetactor)
     if isnothing(targetactor)
-        if !hooks(scheduler).localroutes(message)
+        if !scheduler.hooks.localroutes(scheduler, message)
             @debug "Cannot deliver on host: $message"
         end
     else
@@ -176,7 +179,7 @@ end
     enter_ts = time_ns()
     while true
         yield() # Allow plugin tasks to run
-        hooks(scheduler).letin_remote()
+        scheduler.hooks.letin_remote(scheduler)
         hadtimeout = checktimeouts(scheduler)
         if hadtimeout ||
                 !isempty(scheduler.messagequeue) ||

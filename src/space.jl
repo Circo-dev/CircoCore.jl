@@ -12,7 +12,7 @@ end
 posinit() = nullpos
 posinit(scheduler, actor, actorid) = begin
     outpos = Ref(nullpos)
-    actorpos = hooks(scheduler).spawnpos(actor, outpos)
+    actorpos = scheduler.hooks.spawnpos(scheduler, actor, outpos)
     return outpos[]
 end
 Plugins.customfield(::Space, ::Type{AbstractCoreState}) = Plugins.FieldSpec("pos", Pos, posinit)

@@ -4,6 +4,11 @@ using CircoCore
 using Plugins
 
 struct SchedulerMock
+    hooks
+    SchedulerMock() = new((
+        actor_activity_sparse16 = (scheduler, actor) -> actor.count16 += 1,
+        actor_activity_sparse256 = (scheduler, actor) -> actor.count256 += 1
+        ))
 end
 
 struct HooksMock
@@ -15,8 +20,6 @@ mutable struct ActorMock
     count16::Int
     count256::Int
 end
-
-Plugins.hooks(::SchedulerMock) = HooksMock(actor -> actor.count16 += 1, actor -> actor.count256 += 1)
 
 const NUM_SAMPLES = 20000
 @testset "ActivityService" begin
