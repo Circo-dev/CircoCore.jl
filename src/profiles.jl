@@ -11,19 +11,24 @@ struct EmptyProfile <: AbstractProfile
     EmptyProfile(;options...) = new(options)
 end
 
-function core_plugins(profile::EmptyProfile)
-    return []
-end
+core_plugins(::EmptyProfile) = []
 
 struct MinimalProfile <: AbstractProfile
     options
     MinimalProfile(;options...) = new(options)
 end
 
-function core_plugins(profile::MinimalProfile)
+core_plugins(profile::MinimalProfile) = [CircoCore.OnMessage(;profile.options...)]
+
+struct TinyProfile <: AbstractProfile
+    options
+    TinyProfile(;options...) = new(options)
+end
+
+function core_plugins(profile::TinyProfile)
     options = profile.options
     return [
-        CircoCore.OnMessage(;options...),
+        core_plugins(MinimalProfile(;options...))...,
         CircoCore.LocalRegistry(;options...),
         CircoCore.ActivityService(;options...),
         CircoCore.Space(;options...)
@@ -38,7 +43,7 @@ end
 function core_plugins(profile::DefaultProfile)
     options = profile.options
     return [
-        core_plugins(MinimalProfile(;options...))...,
+        core_plugins(TinyProfile(;options...))...,
         CircoCore.PostOffice(;options...),
         CircoCore.Positioning.BasicPositioner(;options...)
     ]

@@ -134,7 +134,7 @@ end
     return nothing
 end
 
-@inline function step_kern!(scheduler::ActorScheduler, message, targetactor)
+@inline function step_kern!(scheduler, message, targetactor)
     if isnothing(targetactor)
         if !scheduler.hooks.localroutes(scheduler, message)
             @debug "Cannot deliver on host: $message"
@@ -142,6 +142,7 @@ end
     else
         scheduler.hooks.localdelivery(scheduler, message, targetactor)
     end
+    return nothing
 end
 
 @inline function checktimeouts(scheduler::ActorScheduler)

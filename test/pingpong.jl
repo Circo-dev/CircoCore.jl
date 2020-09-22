@@ -14,12 +14,12 @@ struct Ping end
 struct Pong end
 struct CreatePeer end
 
-function sendping(service, me::PingPonger)
+@inline function sendping(service, me::PingPonger)
     send(service, me, me.peer, Ping())
     me.pings_sent += 1
 end
 
-function sendpong(service, me::PingPonger)
+@inline function sendpong(service, me::PingPonger)
     send(service, me, me.peer, Pong())
 end
 
@@ -39,7 +39,7 @@ function CircoCore.onmessage(me::PingPonger, ::Pong, service)
 end
 
 @testset "PingPong" begin
-    ctx = CircoContext()
+    ctx = CircoContext(;profile=CircoCore.Profiles.DefaultProfile())
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = ActorScheduler(ctx, pingers)
     msgs = [Msg(addr(pinger), CreatePeer()) for pinger in pingers]

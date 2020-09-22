@@ -6,8 +6,8 @@ struct CircoContext <: AbstractContext
 end
 
 function CircoContext(;options...)
-    profile = haskey(options, :profile) ? options.profile : Profiles.DefaultProfile(;options...)
-    userpluginsfn = haskey(options, :userpluginsfn) ? options.userpluginsfn : () -> []
+    profile = get(() -> Profiles.DefaultProfile(;options...), options, :profile)
+    userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)
     types = generate_types(plugins)
     return CircoContext(userpluginsfn, profile, options, types.corestate_type)
