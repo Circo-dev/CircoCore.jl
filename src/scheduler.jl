@@ -42,6 +42,7 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
     end
 end
 
+Base.show(io::IO, ::Type{<:ActorScheduler}) = print(io, "ActorScheduler")
 Base.show(io::IO, ::MIME"text/plain", scheduler::ActorScheduler) = begin
     print(io, "ActorScheduler at $(postcode(scheduler)) with $(scheduler.actorcount) actors")
 end

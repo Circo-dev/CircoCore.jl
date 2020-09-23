@@ -57,11 +57,11 @@ A cluster-unique id that is randomly generated when the actor is spawned (first 
 ActorId = UInt64
 
 """
-    abstract type AbstractActor
+    abstract type AbstractActor{TCoreState}
 
 Supertype of all actors.
 
-Subtypes must be mutable and must provide a field `core::CoreState`
+Subtypes must be mutable and must provide a field `core::TCoreState`
 that can remain undefined after creation.
 
 # Examples

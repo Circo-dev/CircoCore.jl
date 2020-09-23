@@ -5,6 +5,8 @@ struct ActorService{TScheduler <: AbstractActorScheduler, TMsg, TCore}
     emptycore::TCore
 end
 
+Base.show(io::IO, ::Type{<:ActorService}) = print(io, "ActorService")
+
 ActorService(ctx::AbstractContext, scheduler::AbstractActorScheduler) =
     ActorService{typeof(scheduler), ctx.msg_type, ctx.corestate_type}(scheduler, emptycore(ctx))
 
