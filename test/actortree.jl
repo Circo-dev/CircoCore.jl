@@ -8,31 +8,31 @@ using Test
 using CircoCore
 import CircoCore.onmessage
 
-Start = Nothing
+struct Start end
 
 struct GrowRequest
     creator::Addr
 end
 
 struct GrowResponse
-    leafsgrown::Vector{Addr}
+    leafsgrown::Int
 end
 
 mutable struct TreeActor{TCore} <: AbstractActor{TCore}
-    children::Vector{Addr}
+    left::Addr
+    right::Addr
     core::TCore
 end
-TreeActor(core) = TreeActor(Addr[], core)
+TreeActor(core) = TreeActor(Addr(), Addr(), core)
 
 function onmessage(me::TreeActor, message::GrowRequest, service)
-    if length(me.children) == 0
-        push!(me.children, spawn(service, TreeActor(emptycore(service))))
-        push!(me.children, spawn(service, TreeActor(emptycore(service))))
-        send(service, me, message.creator, GrowResponse(me.children))
+    if CircoCore.isnulladdr(me.left)
+        me.left = spawn(service, TreeActor(emptycore(service)))
+        me.right = spawn(service, TreeActor(emptycore(service)))
+        send(service, me, message.creator, GrowResponse(2))
     else
-        for child in me.children
-            send(service, me, child, message)
-        end
+        send(service, me, me.left, message)
+        send(service, me, me.right, message)
     end
 end
 
@@ -52,7 +52,7 @@ function onmessage(me::TreeCreator, ::Start, service)
 end
 
 function onmessage(me::TreeCreator, message::GrowResponse, service)
-    me.nodecount += length(message.leafsgrown)
+    me.nodecount += message.leafsgrown
 end
 
 @testset "Actor" begin
@@ -61,7 +61,8 @@ end
         creator = TreeCreator(emptycore(ctx))
         scheduler = ActorScheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
-            @time scheduler(Msg{Start}(addr(creator)))
+            deliver!(scheduler, addr(creator), Start())
+            @time scheduler(;process_external = false, exit_when_done = true)
             @test creator.nodecount == 2^(i+1)-1
         end
         shutdown!(scheduler)

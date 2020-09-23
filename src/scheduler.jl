@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
 
-mutable struct ActorScheduler{THooks, TCoreState} <: AbstractActorScheduler{TCoreState}
+mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorScheduler{TCoreState}
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
@@ -12,7 +12,7 @@ mutable struct ActorScheduler{THooks, TCoreState} <: AbstractActorScheduler{TCor
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
     hooks::THooks
-    service::ActorService{ActorScheduler{THooks, TCoreState}, TCoreState}
+    service::ActorService{ActorScheduler{THooks, TMsg, TCoreState}, TMsg, TCoreState}
     function ActorScheduler(
         ctx::AbstractContext,
         actors::AbstractArray = [];
@@ -23,7 +23,7 @@ mutable struct ActorScheduler{THooks, TCoreState} <: AbstractActorScheduler{TCor
         _hooks = hooks(plugins)
         postoffice = get(plugins, :postoffice, nothing)
         schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
-        scheduler = new{typeof(_hooks), ctx.corestate_type}(
+        scheduler = new{typeof(_hooks), ctx.msg_type, ctx.corestate_type}(
             pos,
             schedulerpostcode,
             0,
@@ -61,6 +61,12 @@ function call_lifecycle_hook(scheduler, lfhook)
     end
 end
 
+# For external calls
+function deliver!(scheduler::ActorScheduler{THooks, TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {THooks, TMsg, TCoreState}
+    msg = TMsg(Addr(), to, msgbody, scheduler; kwargs...)
+    deliver!(scheduler, msg)
+end
+
 @inline function deliver!(scheduler::ActorScheduler, msg::AbstractMsg)
     # Disabled as degrades the ping-pong performance even if debugging is not enabled:
     # @debug "deliver! at $(postcode(scheduler)) $msg"
@@ -80,7 +86,7 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::Msg{<:Response})
+@inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg{<:Response})
     cleartimeout(scheduler.tokenservice, token(message.body), target(message))
     deliver_locally_kern!(scheduler, message)
     return nothing
@@ -145,18 +151,18 @@ end
     return nothing
 end
 
-@inline function checktimeouts(scheduler::ActorScheduler)
+@inline function checktimeouts(scheduler::ActorScheduler{THooks, TMsg, TCoreState}) where {THooks, TMsg, TCoreState}
     needchecktimeouts!(scheduler.tokenservice) || return false
     firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
         @debug "Fired timeouts: $firedtimeouts"
         for timeout in firedtimeouts
-            deliver_locally!(scheduler, Msg(
+            deliver_locally!(scheduler, TMsg(
                 addr(scheduler),
                 timeout.watcher,
                 timeout,
-                Infoton(pos(scheduler))
-            ))
+                scheduler)
+            )
         end
         return true
     end

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-struct ActorService{TScheduler <: AbstractActorScheduler, TCore}
+struct ActorService{TScheduler <: AbstractActorScheduler, TMsg, TCore}
     scheduler::TScheduler
     emptycore::TCore
 end
 
-ActorService(ctx::AbstractContext, scheduler::AbstractActorScheduler) = ActorService{typeof(scheduler), ctx.corestate_type}(scheduler, emptycore(ctx))
+ActorService(ctx::AbstractContext, scheduler::AbstractActorScheduler) =
+    ActorService{typeof(scheduler), ctx.msg_type, ctx.corestate_type}(scheduler, emptycore(ctx))
 
 emptycore(s::ActorService) = s.emptycore
 
@@ -72,14 +73,14 @@ e.g. "`spawn(service`" as a single unit of thought and not forget to write out t
 
 Consistency is just as important as convenience. But performance is king.
 """
-@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1)
-    message = Msg(sender, to, messagebody, energy)
+@inline function send(service::ActorService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
+    message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::ActorService, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0) where {TBody<:Request}
+@inline function send(service::ActorService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
-    message = Msg(sender, to, messagebody, energy)
+    message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
@@ -115,12 +116,6 @@ end
 """
 @inline function spawn(service::ActorService, actor::AbstractActor)::Addr
     return schedule!(service.scheduler, actor)
-end
-
-@inline function spawn(service::ActorService, actor::AbstractActor, pos::Pos)::Addr
-    addr = schedule!(service.scheduler, actor)
-    actor.core.pos = pos
-    return addr
 end
 
 """

@@ -56,7 +56,7 @@ function getname(registry::LocalRegistry, name::String)::Union{Addr, Nothing}
     get(registry.register, name, nothing)
 end
 
-function handle_special!(scheduler::AbstractActorScheduler, message::Msg{NameQuery})
+function handle_special!(scheduler::AbstractActorScheduler, message::AbstractMsg{NameQuery})
     @debug "Registry handle_special! $message"
 
     registry = get(scheduler.plugins, :registry, nothing)

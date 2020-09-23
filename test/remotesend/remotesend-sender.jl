@@ -2,14 +2,17 @@ using CircoCore
 
 include("remotesend-base.jl")
 
+ctx = CircoContext()
+
 function sendtoremote(receiveraddress)
-    po = PostOffice()
+    scheduler = ActorScheduler(ctx)
     println("Sending out $MESSAGE_COUNT messages")
-    @time for i in 1:MESSAGE_COUNT
-        message = Msg(Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
-        send(po, message)
-        sleep(0.001)
+    @time begin
+        for i in 1:MESSAGE_COUNT
+            deliver!(scheduler, Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
+        end
+        scheduler(;exit_when_done = true)
     end
     println("Messages sent.")
-    shutdown!(po)
+    shutdown!(scheduler)
 end

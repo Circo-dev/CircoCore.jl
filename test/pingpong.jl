@@ -42,11 +42,13 @@ end
     ctx = CircoContext(;profile=CircoCore.Profiles.DefaultProfile())
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = ActorScheduler(ctx, pingers)
-    msgs = [Msg(addr(pinger), CreatePeer()) for pinger in pingers]
-    schedulertask = @async scheduler(msgs; process_external = false, exit_when_done = true)
+    for pinger in pingers
+        deliver!(scheduler, addr(pinger), CreatePeer())
+    end
+    schedulertask = @async scheduler(; process_external = false, exit_when_done = true)
 
     @info "Sleeping to allow ping-pong to start."
-    sleep(8.0)
+    sleep(3.0)
     for pinger in pingers
         @test pinger.pings_sent > 1e3
         @test pinger.pongs_got > 1e3
@@ -55,7 +57,7 @@ end
     @info "Measuring ping-pong performance (10 secs)"
     startpingcounts = [pinger.pings_sent for pinger in pingers]
     startts = Base.time_ns()
-    sleep(10.0)
+    sleep(4.0)
     rounds_made = sum([pingers[i].pings_sent - startpingcounts[i] for i=1:length(pingers)])
     wall_time_used = Base.time_ns() - startts
     for pinger in pingers

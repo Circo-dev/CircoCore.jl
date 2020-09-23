@@ -18,7 +18,8 @@ function onmessage(me::Receiver, message::TestMessage, service)
 end
 
 function startsender(receiveraddress)
-    source = "include(\"remotesend/remotesend-sender.jl\");sendtoremote(\"$receiveraddress\")"
+    prefix = endswith(pwd(), "test") ? "" : "test/"
+    source = "include(\"$(prefix)remotesend/remotesend-sender.jl\");sendtoremote(\"$receiveraddress\")"
     run(pipeline(Cmd(["julia", "--project", "-e", source]);stdout=stdout,stderr=stderr);wait=false)
 end
 

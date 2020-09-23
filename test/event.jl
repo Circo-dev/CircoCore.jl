@@ -5,7 +5,7 @@ import CircoCore: onmessage, onschedule
 
 const TARGET_COUNT = 13
 const EVENT_COUNT = 133
-Start = Nothing
+struct Start end
 
 struct TestEvent <: Event
     value::String
@@ -48,7 +48,8 @@ end
         source = EventSource(emptycore(ctx))
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = ActorScheduler(ctx, [source; targets])
-        @time scheduler(Msg{Start}(addr(source)))
+        deliver!(scheduler, addr(source), Start())
+        @time scheduler(;process_external = false, exit_when_done = true)
         for target in targets
             @test target.received_count == EVENT_COUNT
         end

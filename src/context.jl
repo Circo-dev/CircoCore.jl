@@ -2,7 +2,8 @@ struct CircoContext <: AbstractContext
     userpluginsfn::Union{Nothing, Function}
     profile::Profiles.AbstractProfile
     options
-    corestate_type::DataType
+    corestate_type::Type
+    msg_type::Type
 end
 
 function CircoContext(;options...)
@@ -10,7 +11,7 @@ function CircoContext(;options...)
     userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)
     types = generate_types(plugins)
-    return CircoContext(userpluginsfn, profile, options, types.corestate_type)
+    return CircoContext(userpluginsfn, profile, options, types...)
 end
 
 function instantiate_plugins(profile, userpluginsfn)
@@ -22,7 +23,10 @@ function instantiate_plugins(ctx::AbstractContext)
 end
 
 function generate_types(pluginstack::Plugins.PluginStack)
-    return (corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState),)
+    return (
+        corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState),
+        msg_type = Plugins.customtype(pluginstack, :Msg, AbstractMsg, [:TBody]),
+    )
 end
 
 emptycore(ctx::AbstractContext) = ctx.corestate_type()
