@@ -6,7 +6,7 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
     postcode::PostCode
     actorcount::UInt64
     actorcache::Dict{ActorId, Any}
-    messagequeue::Deque{Any}# CircularBuffer{Msg}
+    msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     shutdown::Bool # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
@@ -82,28 +82,30 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg)
-    deliver_locally_kern!(scheduler, message)
+@inline function deliver_locally!(scheduler::ActorScheduler, msg::AbstractMsg)
+    deliver_locally_kern!(scheduler, msg)
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::ActorScheduler, message::AbstractMsg{<:Response})
-    cleartimeout(scheduler.tokenservice, token(message.body), target(message))
-    deliver_locally_kern!(scheduler, message)
+@inline function deliver_locally!(scheduler::ActorScheduler, msg::AbstractMsg{<:Response})
+    cleartimeout(scheduler.tokenservice, token(msg.body), target(msg))
+    deliver_locally_kern!(scheduler, msg)
     return nothing
 end
 
-@inline function deliver_locally_kern!(scheduler::ActorScheduler, message::AbstractMsg)
-    if box(target(message)) == 0 # TODO always push, check later only if target not found
-        handle_special!(scheduler, message)
+@inline function deliver_locally_kern!(scheduler::ActorScheduler, msg::AbstractMsg)
+    if box(target(msg)) == 0 # TODO always push, check later only if target not found
+        if !scheduler.hooks.specialmsg(scheduler, msg)
+            @debug("Unhandled special message: $msg")
+        end
     else
-        push!(scheduler.messagequeue, message)
+        push!(scheduler.msgqueue, msg)
     end
     return nothing
 end
 
 @inline function fill_corestate!(scheduler::AbstractActorScheduler{TCoreState}, actor) where TCoreState
-    actorid = box(actor) == 0 ? rand(ActorId) : box(actor)
+    actorid = !isdefined(actor, :core) || box(actor) == 0 ? rand(ActorId) : box(actor)
     actor.core = TCoreState(scheduler, actor, actorid)
     return nothing
 end
@@ -114,7 +116,7 @@ end
 spawn(scheduler::ActorScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
 
 @inline function schedule!(scheduler::ActorScheduler, actor::AbstractActor)::Addr
-    isfirstschedule = box(actor) == 0
+    isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && isscheduled(scheduler, actor)
         return addr(actor)
     end
@@ -133,21 +135,21 @@ end
 end
 
 @inline function step!(scheduler::ActorScheduler)
-    message = popfirst!(scheduler.messagequeue)
+    msg = popfirst!(scheduler.msgqueue)
     # Tried to insert a second kern here, but it degraded perf on 1.5.1
-    targetbox = target(message).box
+    targetbox = target(msg).box
     targetactor = get(scheduler.actorcache, targetbox, nothing)
-    step_kern!(scheduler, message, targetactor)
+    step_kern!(scheduler, msg, targetactor)
     return nothing
 end
 
-@inline function step_kern!(scheduler, message, targetactor)
+@inline function step_kern!(scheduler, msg, targetactor)
     if isnothing(targetactor)
-        if !scheduler.hooks.localroutes(scheduler, message)
-            @debug "Cannot deliver on host: $message"
+        if !scheduler.hooks.localroutes(scheduler, msg)
+            @debug "Cannot deliver on host: $msg"
         end
     else
-        scheduler.hooks.localdelivery(scheduler, message, targetactor)
+        scheduler.hooks.localdelivery(scheduler, msg, targetactor)
     end
     return nothing
 end
@@ -172,7 +174,7 @@ end
 
 
 @inline function process_post_and_timeout(scheduler::ActorScheduler)
-    incomingmessage = nothing
+    incomingmsg = nothing
     hadtimeout = false
     sleeplength = 0.001
     enter_ts = time_ns()
@@ -181,7 +183,7 @@ end
         scheduler.hooks.letin_remote(scheduler)
         hadtimeout = checktimeouts(scheduler)
         if hadtimeout ||
-                !isempty(scheduler.messagequeue) ||
+                !isempty(scheduler.msgqueue) ||
                 scheduler.shutdown
             return nothing
         else
@@ -202,22 +204,22 @@ end
     end
 end
 
-function (scheduler::ActorScheduler)(messages;process_external = false, exit_when_done = true)
-    if messages isa AbstractMsg
-        messages = [messages]
-    end
-    for message in messages
-        deliver!(scheduler, message)
-    end
-    scheduler(;process_external = process_external, exit_when_done = exit_when_done)
-end
-
 @inline function nomorework(scheduler::ActorScheduler, process_external::Bool, exit_when_done::Bool)
-    return isempty(scheduler.messagequeue) &&
+    return isempty(scheduler.msgqueue) &&
         (
             !process_external ||
             exit_when_done && scheduler.actorcount <= scheduler.startup_actor_count
         )
+end
+
+function (scheduler::ActorScheduler)(msgs;process_external = false, exit_when_done = true)
+    if msgs isa AbstractMsg
+        msgs = [msgs]
+    end
+    for msg in msgs
+        deliver!(scheduler, msg)
+    end
+    scheduler(;process_external = process_external, exit_when_done = exit_when_done)
 end
 
 function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
@@ -226,7 +228,7 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
         call_lifecycle_hook(scheduler, schedule_start_hook)
         while true
             msg_batch::UInt8 = 255
-            while msg_batch != 0 && !isempty(scheduler.messagequeue)
+            while msg_batch != 0 && !isempty(scheduler.msgqueue)
                 msg_batch -= 1
                 step!(scheduler)
             end
