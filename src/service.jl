@@ -67,7 +67,7 @@ Please note that `service` is always the last argument of lifecycle callbacks
 like `onmessage`.
 It's because `onmessage` is dynamically dispatched, and `service` provides no
 information about where to dispatch. (Only one service instance exists
-as of `v"0.2.0"`)
+as of `v"0.2.0"`) Listing it at the end improves the performance.
 
 On the other hand, actor API endpoints like `send` are always statically dispatched,
 thus they can accept the service as their first argument, allowing the user to treat

@@ -45,6 +45,8 @@ const setup! = Plugins.setup!
 const symbol = Plugins.symbol
 const hooks = Plugins.hooks
 
+include("hooks.jl")
+
 abstract type AbstractContext end
 
 """
@@ -182,30 +184,6 @@ Call this on a spawned actor to get its id (aka box). Throws `UndefRefError` if 
 """
 box(a::AbstractActor) = box(addr(a))::ActorId
 
-abstract type AbstractMsg{TBody} end
-
-struct MsgTemplate <: Plugins.TemplateStyle end
-Plugins.TemplateStyle(::Type{AbstractMsg}) = MsgTemplate()
-
-msgfieldcalls(spec) = map(field -> :($(field.constructor)(sender, target, body, args...; kwargs...)), spec.fields)
-
-Plugins.typedef(::MsgTemplate, spec) = quote
-    struct $(spec.name){TBody} <: AbstractMsg{TBody}
-        sender::Addr
-        target::Addr
-        body::TBody
-        $(Plugins.structfields(spec))
-    end;
-    $(spec.name)(sender::Addr, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(sender, target, body, $(msgfieldcalls(spec)...))
-    $(spec.name)(sender::AbstractActor, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(addr(sender), target, body, $(msgfieldcalls(spec)...))
-    $(spec.name)
-end
-
-sender(m::AbstractMsg) = m.sender::Addr
-target(m::AbstractMsg) = m.target::Addr
-body(m::AbstractMsg) = m.body
-redirect(m::AbstractMsg, to::Addr) = (typeof(m))(target(m), to, body(m))
-
 # Actor lifecycle callbacks
 
 """
@@ -281,7 +259,7 @@ abstract type AbstractActorScheduler{TCoreState} end
 addr(scheduler::AbstractActorScheduler) = Addr(postcode(scheduler), 0)
 function handle_special!(scheduler::AbstractActorScheduler, message) end
 
-include("hooks.jl")
+include("msg.js")
 include("onmessage.jl")
 include("postoffice.jl")
 include("token.jl")
