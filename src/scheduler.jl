@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using DataStructures
 
+@enum SchedulerState::Int8 created=0 running=10 paused=20 stopped=30
+
 mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorScheduler{TCoreState}
     pos::Pos
     postcode::PostCode
@@ -8,7 +10,7 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
     actorcache::Dict{ActorId, Any}
     msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
-    shutdown::Bool # shutdown in progress or done
+    state::SchedulerState # shutdown in progress or done
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
     hooks::THooks
@@ -16,27 +18,26 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
     function ActorScheduler(
         ctx::AbstractContext,
         actors::AbstractArray = [];
-        pos = nullpos,
+        pos = nullpos, # TODO: eliminate
         # msgqueue_capacity = 100_000
     )
         plugins = instantiate_plugins(ctx)
         _hooks = hooks(plugins)
-        postoffice = get(plugins, :postoffice, nothing)
-        schedulerpostcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
         scheduler = new{typeof(_hooks), ctx.msg_type, ctx.corestate_type}(
             pos,
-            schedulerpostcode,
+            invalidpostcode,
             0,
             Dict([]),
             Deque{Any}(),#msgqueue_capacity),
             TokenService(),
+            created,
             0,
-            false,
             plugins,
             _hooks)
         scheduler.service = ActorService(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
-        scheduler.startup_actor_count = scheduler.actorcount
+        postoffice = get(plugins, :postoffice, nothing)
+        scheduler.postcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice)
         for a in actors; schedule!(scheduler, a); end
         return scheduler
     end
@@ -50,17 +51,43 @@ end
 pos(scheduler::AbstractActorScheduler) = scheduler.pos
 postcode(scheduler::AbstractActorScheduler) = scheduler.postcode
 
-function call_lifecycle_hook(scheduler, lfhook)
-    res = lfhook(scheduler.plugins, scheduler)
-    if !res.allok
-        for (i, result) in enumerate(res.results)
-            if result isa Tuple && result[1] isa Exception
-                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s
-                @error "Error in calling '$(trimhook(string(lfhook)))' lifecycle hook of plugin $(typeof(scheduler.plugins[i])):" result
-            end
+function setstate!(scheduler::AbstractActorScheduler, newstate::SchedulerState)
+    callcount = 0
+    callhook(hook) = begin
+        call_lifecycle_hook(scheduler, hook)
+        callcount += 1
+    end
+    curstate = scheduler.state
+    curstate == newstate && return newstate
+
+    if newstate == running
+        if curstate == created || curstate == stopped
+            actorcount = scheduler.actorcount
+            callhook(schedule_start_hook)
+            callhook(schedule_continue_hook)
+            scheduler.startup_actor_count = scheduler.actorcount - actorcount# TODO not just count and not here
+        elseif curstate == paused
+            callhook(schedule_continue_hook)
+        end
+    elseif newstate == paused
+        if curstate == running
+            callhook(schedule_pause_hook)
+        end
+    elseif newstate == stopped
+        if curstate == running
+            callhook(schedule_pause_hook)
+            callhook(schedule_stop_hook)
+        elseif curstate == paused || curstate == created
+            callhook(schedule_stop_hook)
         end
     end
+
+    @assert callcount > 0
+    scheduler.state = newstate
+    return newstate
 end
+
+isrunning(scheduler) = scheduler.state == running
 
 # For external calls
 function deliver!(scheduler::ActorScheduler{THooks, TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {THooks, TMsg, TCoreState}
@@ -184,7 +211,7 @@ end
         hadtimeout = checktimeouts(scheduler)
         if hadtimeout ||
                 !isempty(scheduler.msgqueue) ||
-                scheduler.shutdown
+                !isrunning(scheduler)
             return nothing
         else
             if time_ns() - enter_ts > 1_000_000
@@ -204,35 +231,35 @@ end
     end
 end
 
-@inline function nomorework(scheduler::ActorScheduler, process_external::Bool, exit_when_done::Bool)
+@inline function nomorework(scheduler::ActorScheduler, remote::Bool, exit::Bool)
     return isempty(scheduler.msgqueue) &&
         (
-            !process_external ||
-            exit_when_done && scheduler.actorcount <= scheduler.startup_actor_count
+            !remote ||
+            exit && scheduler.actorcount <= scheduler.startup_actor_count
         )
 end
 
-function (scheduler::ActorScheduler)(msgs;process_external = false, exit_when_done = true)
+function (scheduler::ActorScheduler)(msgs;remote = false, exit = true)
     if msgs isa AbstractMsg
         msgs = [msgs]
     end
     for msg in msgs
         deliver!(scheduler, msg)
     end
-    scheduler(;process_external = process_external, exit_when_done = exit_when_done)
+    scheduler(;remote = remote, exit = exit)
 end
 
-function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = false)
+function (scheduler::ActorScheduler)(;remote = true, exit = false)
     try
         @info "Scheduler starting on thread $(Threads.threadid())"
-        call_lifecycle_hook(scheduler, schedule_start_hook)
+        setstate!(scheduler, running)
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.msgqueue)
                 msg_batch -= 1
                 step!(scheduler)
             end
-            if scheduler.shutdown || nomorework(scheduler, process_external, exit_when_done)
+            if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
                 @debug "Scheduler loop $(postcode(scheduler)) exiting."
                 return
             end
@@ -245,12 +272,12 @@ function (scheduler::ActorScheduler)(;process_external = true, exit_when_done = 
             @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
         end
     finally
-        call_lifecycle_hook(scheduler, schedule_stop_hook)
+        setstate!(scheduler, paused)
     end
 end
 
 function shutdown!(scheduler::ActorScheduler)
-    scheduler.shutdown = true
+    setstate!(scheduler, stopped)
     call_lifecycle_hook(scheduler, shutdown!)
     @debug "Scheduler at $(postcode(scheduler)) exited."
 end

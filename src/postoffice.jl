@@ -12,13 +12,12 @@ end
 mutable struct PostOffice <: Plugin
     outsocket::UDPSocket
     inqueue::Deque{Any}
+    stopped::Bool
     postcode::PostCode
     socket::UDPSocket
-    stopped::Bool
     intask
     PostOffice(;options...) = begin
-        postcode, socket = allocate_postcode()
-        return new(UDPSocket(), Deque{Any}(), postcode, socket, false)
+        return new(UDPSocket(), Deque{Any}(), false)
     end
 end
 
@@ -35,6 +34,7 @@ function allocate_postcode()
     socket = UDPSocket()
     ipaddr = Sockets.getipaddr()
     for port in PORT_RANGE
+        println(port)
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue
@@ -44,20 +44,24 @@ function allocate_postcode()
     throw(PostException("No available port found for a Post Office"))
 end
 
-function schedule_start(post::PostOffice, scheduler) # called directly for now
+Plugins.setup!(post::PostOffice, scheduler) = begin
+    postcode, socket = allocate_postcode()
+    post.postcode = postcode
+    post.socket = socket
+end
+
+schedule_start(post::PostOffice, scheduler) = begin
     post.intask = @async arrivals(post) # TODO errors throwed here are not logged
 end
 
-function schedule_stop(post::PostOffice, scheduler)
+schedule_stop(post::PostOffice, scheduler) = begin
     post.stopped = true
     yield()
 end
 
-function Plugins.shutdown!(post::PostOffice)
-    close(post.socket)
-end
+Plugins.shutdown!(post::PostOffice) = close(post.socket)
 
-@inline function letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool
+@inline letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool = begin
     for i = 1:min(length(post.inqueue), 30)
         deliver!(scheduler, popfirst!(post.inqueue))
     end

@@ -49,7 +49,7 @@ end
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = ActorScheduler(ctx, [source; targets])
         deliver!(scheduler, addr(source), Start())
-        @time scheduler(;process_external = false, exit_when_done = true)
+        @time scheduler(;remote = false, exit = true)
         for target in targets
             @test target.received_count == EVENT_COUNT
         end

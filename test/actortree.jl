@@ -62,7 +62,7 @@ end
         scheduler = ActorScheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
             deliver!(scheduler, addr(creator), Start())
-            @time scheduler(;process_external = false, exit_when_done = true)
+            @time scheduler(;remote = false, exit = true)
             @test creator.nodecount == 2^(i+1)-1
         end
         shutdown!(scheduler)

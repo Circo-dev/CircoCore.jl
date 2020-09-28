@@ -69,7 +69,7 @@ end
     requestor = Requestor(emptycore(ctx))
     responder = Responder(emptycore(ctx))
     scheduler = ActorScheduler(ctx, [responder, requestor])
-    scheduler(exit_when_done=true)
+    scheduler(exit=true)
     @test requestor.responder == addr(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2
     @test length(scheduler.tokenservice.timeouts) == 0

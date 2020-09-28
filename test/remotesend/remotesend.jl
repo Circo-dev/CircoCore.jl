@@ -28,7 +28,7 @@ end
     receiver = Receiver(emptycore(ctx))
     scheduler = ActorScheduler(ctx, [receiver])
     sender = startsender(addr(receiver))
-    scheduler(;exit_when_done=true)
+    scheduler(;exit=true)
     wait(sender) # Do not print test results before sender exit logs
     @test length(receiver.messages) == MESSAGE_COUNT
     @test receiver.messages[end].data == REMOTE_TEST_PAYLOAD

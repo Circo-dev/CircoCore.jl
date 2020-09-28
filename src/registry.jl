@@ -41,7 +41,7 @@ struct NoRegistryException <: RegistryException
     msg::String
 end
 
-function Plugins.setup!(registry::LocalRegistry, scheduler)
+schedule_start(registry::LocalRegistry, scheduler) = begin
     registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
     spawn(scheduler.service, registry.helperactor)
 end

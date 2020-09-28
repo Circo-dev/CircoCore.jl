@@ -1,6 +1,12 @@
+"""
+    CircoContext(;options...) <: AbstractContext
+
+Store configuration and manage staging (code generation) for Circo.
+"""
 struct CircoContext <: AbstractContext
     userpluginsfn::Union{Nothing, Function}
     profile::Profiles.AbstractProfile
+    plugins::Plugins.PluginStack
     options
     corestate_type::Type
     msg_type::Type
@@ -11,7 +17,9 @@ function CircoContext(;options...)
     userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)
     types = generate_types(plugins)
-    return CircoContext(userpluginsfn, profile, options, types...)
+    ctx = CircoContext(userpluginsfn, profile, plugins, options, types...)
+    call_lifecycle_hook(ctx, stage_hook)
+    return ctx
 end
 
 function instantiate_plugins(profile, userpluginsfn)

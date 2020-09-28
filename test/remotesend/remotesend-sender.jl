@@ -11,7 +11,7 @@ function sendtoremote(receiveraddress)
         for i in 1:MESSAGE_COUNT
             deliver!(scheduler, Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
         end
-        scheduler(;exit_when_done = true)
+        scheduler(;exit = true)
     end
     println("Messages sent.")
     shutdown!(scheduler)

@@ -45,7 +45,7 @@ end
     for pinger in pingers
         deliver!(scheduler, addr(pinger), CreatePeer())
     end
-    schedulertask = @async scheduler(; process_external = false, exit_when_done = true)
+    schedulertask = @async scheduler(; remote = false, exit = true)
 
     @info "Sleeping to allow ping-pong to start."
     sleep(3.0)

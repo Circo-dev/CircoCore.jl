@@ -3,6 +3,7 @@ module CircoCore
 
 export CircoContext, ActorScheduler,
 
+Ping,Pong,
     AbstractActor, CoreState, ActorId, ActorService, deliver!, schedule!,
     emptycore,
 
