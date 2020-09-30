@@ -18,7 +18,7 @@ function CircoContext(;options...)
     plugins = instantiate_plugins(profile, userpluginsfn)
     types = generate_types(plugins)
     ctx = CircoContext(userpluginsfn, profile, plugins, options, types...)
-    call_lifecycle_hook(ctx, stage_hook)
+    call_lifecycle_hook(ctx, prepare_hook)
     return ctx
 end
 

@@ -54,7 +54,7 @@ schedule_start(post::PostOffice, scheduler) = begin
     post.intask = @async arrivals(post) # TODO errors throwed here are not logged
 end
 
-schedule_stop(post::PostOffice, scheduler) = begin
+schedule_pause(post::PostOffice, scheduler) = begin
     post.stopped = true
     yield()
 end
@@ -90,11 +90,16 @@ end
 
 @inline function remoteroutes(post::PostOffice, scheduler, msg::AbstractMsg)::Bool
     @debug "PostOffice delivery at $(postcode(post)): $msg"
-    parts = split(postcode(target(msg)), ":")
-    ip = parse(IPAddr, parts[1])
-    port = parse(UInt16, parts[2])
-    io = IOBuffer()
-    serialize(io, msg)
-    Sockets.send(post.outsocket, ip, port, take!(io))
+    try
+        parts = split(postcode(target(msg)), ":")
+        ip = parse(IPAddr, parts[1])
+        port = parse(UInt16, parts[2])
+        io = IOBuffer()
+        serialize(io, msg)
+        Sockets.send(post.outsocket, ip, port, take!(io))
+    catch e
+        @error "Unable to send $msg" exception = (e, catch_backtrace())
+        return false
+    end
     return true
 end

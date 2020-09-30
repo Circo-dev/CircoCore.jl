@@ -1,10 +1,10 @@
 # Plugin Lifecycle
 
-Plugins.customfield(plugin, parent_type)
+customfield(plugin, parent_type)
 
 prepare(plugin, ctx) # Initial stage
 
-Plugins.setup!(plugin, scheduler) # Allocate resources
+setup!(plugin, scheduler) # Allocate resources
 
     schedule_start(plugin, scheduler)
 
@@ -22,8 +22,8 @@ Plugins.setup!(plugin, scheduler) # Allocate resources
 
         schedule_pause(plugin, scheduler)
 
-        stage(plugin, scheduler) # Next stage
+        stage(plugin, scheduler, stagenum) # Next stage TODO
 
     schedule_stop(plugin, scheduler)
 
-Plugins.shutdown!(plugin, scheduler) # Release resources
+shutdown!(plugin, scheduler) # Release resources
