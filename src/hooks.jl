@@ -33,8 +33,8 @@ scheduler_hooks = [remoteroutes, localdelivery, localroutes, specialmsg, letin_r
 abstract type AbstractCoreState end
 abstract type AbstractMsg{TBody} end
 
-function call_lifecycle_hook(target, lfhook)
-    res = lfhook(target.plugins, target)
+function call_lifecycle_hook(target, lfhook, args...)
+    res = lfhook(target.plugins, target, args...)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception

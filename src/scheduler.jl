@@ -81,7 +81,6 @@ function setstate!(scheduler::AbstractActorScheduler, newstate::SchedulerState)
             callhook(schedule_stop_hook)
         end
     end
-
     @assert callcount > 0
     scheduler.state = newstate
     return newstate
@@ -272,7 +271,7 @@ function (scheduler::ActorScheduler)(;remote = true, exit = false)
             @error "Error while scheduling on thread $(Threads.threadid())" exception = (e, catch_backtrace())
         end
     finally
-        setstate!(scheduler, paused)
+        isrunning(scheduler) && setstate!(scheduler, paused)
     end
 end
 

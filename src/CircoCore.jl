@@ -11,7 +11,7 @@ Ping,Pong,
     Plugin, setup!, shutdown!, symbol,
 
     #Plugins
-    plugin, getactorbyid, unschedule!,
+    plugin, getactorbyid, unschedule!, call_lifecycle_hook,
 
     ActivityService,
 

@@ -34,7 +34,6 @@ function allocate_postcode()
     socket = UDPSocket()
     ipaddr = Sockets.getipaddr()
     for port in PORT_RANGE
-        println(port)
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue
