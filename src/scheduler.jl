@@ -218,7 +218,6 @@ end
                     sleep(sleeplength)
                 catch e # EOFError happens
                     if e isa InterruptException
-                        @info "hjoh"
                         rethrow(e)
                     else
                         @info "Exception while sleeping: $e"
