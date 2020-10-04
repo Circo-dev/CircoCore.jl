@@ -157,4 +157,11 @@ See also: [`NameQuery`](@ref)
     return getname(registry, name)
 end
 
+@inline function settimeout(service::ActorService, actor::AbstractActor, timeout_secs::Real = 1.0)
+    token = Token()
+    timeout = Timeout(actor, token, timeout_secs)
+    settimeout(service.scheduler.tokenservice, timeout)
+    return token
+end
+
 @inline pos(service::ActorService) = pos(service.scheduler)

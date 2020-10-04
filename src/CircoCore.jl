@@ -3,7 +3,6 @@ module CircoCore
 
 export CircoContext, ActorScheduler,
 
-Ping,Pong,
     AbstractActor, CoreState, ActorId, ActorService, deliver!, schedule!,
     emptycore,
 
@@ -19,7 +18,7 @@ Ping,Pong,
     PostCode, postcode, PostOffice, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
     redirect, body, target, sender,
 
-    Token, TokenId, Tokenized, token, Request, Response, Timeout,
+    Token, TokenId, Tokenized, token, Request, Response, Timeout, settimeout,
 
     # Actor API
     send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
