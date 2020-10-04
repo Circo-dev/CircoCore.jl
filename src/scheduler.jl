@@ -160,13 +160,16 @@ end
     return nothing
 end
 
-@inline function step!(scheduler::ActorScheduler)
+@inline function step!(scheduler::ActorScheduler{THooks, TMsg, TCoreState}) where {THooks, TMsg, TCoreState}
     msg = popfirst!(scheduler.msgqueue)
-    # Tried to insert a second kern here, but it degraded perf on 1.5.1
+    step_kern1!(msg, scheduler) # This outer kern degrades perf on 1.5, but not on 1.4
+    return nothing
+end
+
+@inline function step_kern1!(msg, scheduler)
     targetbox = target(msg).box
     targetactor = get(scheduler.actorcache, targetbox, nothing)
     step_kern!(scheduler, msg, targetactor)
-    return nothing
 end
 
 @inline function step_kern!(scheduler, msg, targetactor)
