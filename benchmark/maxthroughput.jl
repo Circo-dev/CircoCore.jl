@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 using CircoCore
 
-const MSG_COUNT = 50_000_000
+# ANCHOR Ping-Pong
 
 mutable struct PingPonger{TCore} <: AbstractActor{TCore}
     peer::Union{Addr, Nothing}
@@ -18,9 +18,6 @@ struct CreatePeer end
 function sendping(service, me::PingPonger)
     send(service, me, me.peer, Ping())
     me.pings_sent += 1
-    if me.pings_sent == MSG_COUNT
-        die(service, me)
-    end
 end
 
 function sendpong(service, me::PingPonger)
@@ -40,12 +37,80 @@ end
 
 function CircoCore.onmessage(me::PingPonger, ::Pong, service)
     me.pongs_got += 1
-    if me.pongs_got == MSG_COUNT
-        die(service, me)
-    else
-        sendping(service, me)
-    end
+    sendping(service, me)
     return nothing
+end
+
+# ANCHOR Monitoring
+
+struct ReadAndClearPerf # Request for monitoring info and clearing counters
+    requestor::Addr
+end
+
+struct PerfRead
+    reporter::ActorId
+    pings_sent::Int
+    pongs_got::Int
+    timestamp::Float64
+end
+PerfRead() = PerfRead(0, 0, 0, Libc.time())
+
+mutable struct Coordinator{TCore} <: AbstractActor{TCore}
+    pingers::Vector{PingPonger}
+    results::Dict{ActorId, Vector{PerfRead}}
+    gotreads::Int
+    core::TCore
+    Coordinator(pingers, core) = begin
+        results = Dict{ActorId, Vector{PerfRead}}(box(a) => [PerfRead()] for a in pingers)
+        return new{typeof(core)}(pingers, results, 0, core)
+    end
+end
+
+CircoCore.onschedule(me::Coordinator, service) = begin
+    @info "Monitoring $(length(me.pingers)) pingers."
+    sendreqs(me, service)
+end
+
+function sendreqs(me::Coordinator, service)
+    me.gotreads = 0
+    for p in pingers
+        send(service, me, addr(p), ReadAndClearPerf(addr(me)))
+    end
+end
+
+CircoCore.onmessage(me::PingPonger, req::ReadAndClearPerf, service) = begin
+    send(service, me, req.requestor, PerfRead(box(me), me.pings_sent, me.pongs_got, Libc.time()))
+    me.pings_sent = 0
+    me.pongs_got = 0
+end
+
+CircoCore.onmessage(me::Coordinator, r::PerfRead, service) = begin
+    push!(me.results[r.reporter], r)
+    me.gotreads += 1
+    if me.gotreads == length(me.pingers)
+        printlastresults(me)
+        settimeout(service, me, 1.0)
+    end
+end
+
+CircoCore.onmessage(me::Coordinator, t::Timeout, service) = begin
+    sendreqs(me, service)
+end
+
+function printlastresults(c::Coordinator)
+    println()
+    total = 0
+    totaltime = 0.0
+    for perfs in values(c.results)
+        curperf = perfs[end]
+        lastperf = perfs[end - 1]
+        msgcount = curperf.pings_sent + curperf.pongs_got
+        cputime = curperf.timestamp - lastperf.timestamp
+        total += msgcount
+        totaltime += cputime
+        print("$(msgcount / cputime), ")
+    end
+    println("\nTotal: $(total / totaltime * length(c.pingers))")
 end
 
 const ctx = CircoContext(;
@@ -64,6 +129,9 @@ for i = 1:Threads.nthreads()
     end
     push!(pingers, ps...)
 end
+
+coordinator = Coordinator(pingers, emptycore(ctx))
+spawn(schedulers[1], coordinator)
 
 startts = time_ns()
 Threads.@threads for i = 1:length(schedulers)
