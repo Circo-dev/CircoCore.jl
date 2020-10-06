@@ -3,7 +3,7 @@
 abstract type Event end
 abstract type OneShotEvent <: Event end
 abstract type RecurringEvent <: Event end
-RecurrentEvent = RecurringEvent
+const RecurrentEvent = RecurringEvent
 
 struct Subscribe{TEvent <: Event} # TODO: <: Request + handle forwarding
     subscriber::Addr

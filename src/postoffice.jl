@@ -53,7 +53,7 @@ schedule_start(post::PostOffice, scheduler) = begin
     post.intask = @async arrivals(post) # TODO errors throwed here are not logged
 end
 
-schedule_pause(post::PostOffice, scheduler) = begin
+schedule_stop(post::PostOffice, scheduler) = begin
     post.stopped = true
     yield()
 end

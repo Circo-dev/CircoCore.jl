@@ -7,7 +7,7 @@ const HOST_VIEW_SIZE = 1000 # TODO eliminate
 
 mutable struct BasicPositioner <: Plugin
     isroot::Bool
-    hostid::UInt64
+    hostid::UInt64 # TODO: eliminate non-core notions
     center::Pos
     BasicPositioner(;options...) = new(
         length(get(options, :roots, [])) == 0 # TODO eliminate dirtiness

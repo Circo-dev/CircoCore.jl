@@ -4,7 +4,7 @@ mutable struct Coordinator{TCore} <: AbstractActor{TCore}
     gotreads::Int
     core::TCore
     Coordinator(pingeraddrs, core) = begin
-        results = Dict{ActorId, Vector{PerfReading}}(box(a) => [PerfReading()] for a in pingeraddrs)
+        results = Dict{ActorId, Vector{PerfReading}}(box(a) => PerfReading[] for a in pingeraddrs)
         return new{typeof(core)}(pingeraddrs, results, 0, core)
     end
 end
@@ -39,6 +39,7 @@ function printlastresults(c::Coordinator)
     total = 0
     totaltime = 0.0
     for perfs in values(c.results)
+        length(perfs) <= 1 && continue
         curperf = perfs[end]
         lastperf = perfs[end - 1]
         msgcount = curperf.pings_sent + curperf.pongs_got - lastperf.pings_sent - lastperf.pongs_got
@@ -47,5 +48,7 @@ function printlastresults(c::Coordinator)
         totaltime += cputime
         print("$(msgcount / cputime), ")
     end
-    println("\nTotal: $(total / totaltime * length(c.pingeraddrs))")
+    if totaltime > 0
+        println("\nTotal: $(total / totaltime * length(c.pingeraddrs))")
+    end
 end
