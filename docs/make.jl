@@ -7,11 +7,7 @@ makedocs(;
     ),
     pages=[
         "index.md",
-        "install.md",
-        "tutorial.md",
-        "infotons.md",
         "reference.md",
-        "troubleshooting.md",
     ],
     repo="https://github.com/Circo-dev/CircoCore/blob/{commit}{path}#L{line}",
     sitename="CircoCore",

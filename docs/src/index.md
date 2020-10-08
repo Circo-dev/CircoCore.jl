@@ -1,13 +1,12 @@
-# Introducing CircoCore
+# Introducing CircoCore.jl
 
-CircoCore is a decentralized actor system that is fast, scalable and extensible. 
-It features *Infoton Optimization*, a physics-inspired solution to the data-locality problem. [^1]
+CircoCore.jl is the small inner core of the [Circo](https://github.com/Circo-dev/Circo) actor system.
 
-CircoCore is implemented in [Julia](https://julialang.org) - an incredibly fast, dynamic yet compiled language -, and it has a JavaScript sister: [CircoCore.js](https://github.com/Circo-dev/CircoCore.js), which can run in the browser and transparently integrate into the CircoCore cluster. These two components form a high performance, distributed application platform.
+You may want to use the full-featured system directly.
 
-There is a monitoring tool named "Camera Diserta" which can help to tune CircoCore applications and to research
-Infoton Optimization.
+CircoCore.jl provides a single-threaded actor scheduler with a powerful plugin architecture, plus a few plugins to serve
+minimalistic use cases.
 
-Please note that CircoCore is in alpha stage, it is more like a research tool at the time than a mature platform. The documentation is also far from complete. Contributions are welcome!
+Circo extends this system with plugins that provide multithreading, clustering, debugging, interoperability and more.
 
-[^1]: Go to [Infoton Optimization](./infotons/) for a description of this novel algorithm.
+The main goal of separating these packages is to allow alternative implementations of the high level functionality. (like kernel and distros)
