@@ -1,3 +1,5 @@
+include("pingpongbase.jl")
+
 mutable struct Coordinator{TCore} <: AbstractActor{TCore}
     pingeraddrs::Vector{Addr}
     results::Dict{ActorId, Vector{PerfReading}}
@@ -30,7 +32,7 @@ CircoCore.onmessage(me::Coordinator, r::PerfReading, service) = begin
     end
 end
 
-CircoCore.onmessage(me::Coordinator, t::Timeout, service) = begin
+CircoCore.onmessage(me::Coordinator, ::Timeout, service) = begin
     sendreqs(me, service)
 end
 
@@ -52,3 +54,10 @@ function printlastresults(c::Coordinator)
         println("\nTotal: $(total / totaltime * length(c.pingeraddrs))")
     end
 end
+
+schedulers = []
+pingers = []
+ctx = CircoContext(;
+    profile=CircoCore.Profiles.MinimalProfile(),
+    userpluginsfn=() -> [CircoCore.PostOffice()]
+)
