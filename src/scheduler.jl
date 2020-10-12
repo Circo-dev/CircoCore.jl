@@ -89,7 +89,10 @@ end
 isrunning(scheduler) = scheduler.state == running
 
 # For external calls
-function deliver!(scheduler::ActorScheduler{THooks, TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {THooks, TMsg, TCoreState}
+function send(scheduler::ActorScheduler, to::AbstractActor, msgbody; kwargs...)
+    send(scheduler, addr(to), msgbody; kwargs...)
+end
+function send(scheduler::ActorScheduler{THooks, TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {THooks, TMsg, TCoreState}
     msg = TMsg(Addr(), to, msgbody, scheduler; kwargs...)
     deliver!(scheduler, msg)
 end

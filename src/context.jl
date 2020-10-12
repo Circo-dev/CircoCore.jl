@@ -3,7 +3,7 @@
 """
     CircoContext(;options...) <: AbstractContext
 
-Store configuration and manage staging (code generation) for Circo.
+Store configuration, manage staging and run-time code optimizations for Circo.
 """
 struct CircoContext <: AbstractContext
     userpluginsfn::Union{Nothing, Function}

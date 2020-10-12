@@ -11,7 +11,7 @@ function sendtoremote(receiveraddress)
         sentout = 0
         while sentout < MESSAGE_COUNT
             for i in 1:min(100, MESSAGE_COUNT - sentout)
-                deliver!(scheduler, Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
+                send(scheduler, Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
                 sentout += 1
             end
             scheduler(;exit = true)

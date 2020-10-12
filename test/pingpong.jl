@@ -43,7 +43,7 @@ end
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = ActorScheduler(ctx, pingers)
     for pinger in pingers
-        deliver!(scheduler, addr(pinger), CreatePeer())
+        send(scheduler, addr(pinger), CreatePeer())
     end
     schedulertask = @async scheduler(; remote = false, exit = true)
 

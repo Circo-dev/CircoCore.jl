@@ -48,7 +48,7 @@ end
         source = EventSource(emptycore(ctx))
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = ActorScheduler(ctx, [source; targets])
-        deliver!(scheduler, addr(source), Start())
+        send(scheduler, addr(source), Start())
         @time scheduler(;remote = false, exit = true)
         for target in targets
             @test target.received_count == EVENT_COUNT

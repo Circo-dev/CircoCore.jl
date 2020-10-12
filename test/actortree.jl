@@ -61,7 +61,7 @@ end
         creator = TreeCreator(emptycore(ctx))
         scheduler = ActorScheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
-            deliver!(scheduler, addr(creator), Start())
+            send(scheduler, addr(creator), Start())
             @time scheduler(;remote = false, exit = true)
             @test creator.nodecount == 2^(i+1)-1
         end
