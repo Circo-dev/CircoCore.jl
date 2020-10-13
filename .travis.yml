@@ -7,7 +7,7 @@ julia:
   - 1.5
   - 1.4
 script:
-  - julia --project --check-bounds=yes -e 'import Pkg; Pkg.activate("."); Pkg.build(); Pkg.test("CircoCore"; coverage=false)'
+  - julia --project --check-bounds=yes -e 'import Pkg; Pkg.activate("."); Pkg.build(); Pkg.test("CircoCore"; coverage=true)'
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
 jobs:
