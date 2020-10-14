@@ -1,7 +1,7 @@
 name = "CircoCore"
 uuid = "b491a1cf-f6eb-411b-8d19-79c73dc191e5"
 authors = ["Krisztián Schäffer"]
-version = "0.2.2"
+version = "0.2.3"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
