@@ -2,6 +2,10 @@
 using DataStructures
 
 @enum SchedulerState::Int8 created=0 running=10 paused=20 stopped=30
+struct StateChangeError <: Exception
+    from::SchedulerState
+    to::SchedulerState
+end
 
 mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorScheduler{TCoreState}
     pos::Pos
@@ -11,6 +15,8 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
     msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     state::SchedulerState # shutdown in progress or done
+    runopts::NamedTuple
+    pausecond::Condition
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
     hooks::THooks
@@ -31,6 +37,8 @@ mutable struct ActorScheduler{THooks, TMsg, TCoreState} <: AbstractActorSchedule
             Deque{Any}(),#msgqueue_capacity),
             TokenService(),
             created,
+            NamedTuple(),
+            Condition(),
             0,
             plugins,
             _hooks)
@@ -81,9 +89,23 @@ function setstate!(scheduler::AbstractActorScheduler, newstate::SchedulerState)
             callhook(schedule_stop_hook)
         end
     end
-    @assert callcount > 0
+    callcount == 0 && throw(StateChangeError(scheduler.state, newstate))
     scheduler.state = newstate
     return newstate
+end
+
+function pause!(scheduler)
+    setstate!(scheduler, paused)
+    wait(scheduler.pausecond)
+    return nothing
+end
+
+logstart(scheduler::ActorScheduler) = scheduler.state == created && @info "Scheduler starting on thread $(Threads.threadid())"
+
+function run!(scheduler; kwargs...)
+    isrunning(scheduler) && throw(StateChangeError(scheduler.state, running))
+    logstart(scheduler)
+    return @async eventloop(scheduler; kwargs...)
 end
 
 isrunning(scheduler) = scheduler.state == running
@@ -253,9 +275,8 @@ function (scheduler::ActorScheduler)(msgs;remote = false, exit = true)
     scheduler(;remote = remote, exit = exit)
 end
 
-function (scheduler::ActorScheduler)(;remote = true, exit = false)
+function eventloop(scheduler::ActorScheduler; remote = true, exit = false)
     try
-        @info "Scheduler starting on thread $(Threads.threadid())"
         setstate!(scheduler, running)
         while true
             msg_batch::UInt8 = 255
@@ -277,7 +298,13 @@ function (scheduler::ActorScheduler)(;remote = true, exit = false)
         end
     finally
         isrunning(scheduler) && setstate!(scheduler, paused)
+        notify(scheduler.pausecond)
     end
+end
+
+function (scheduler::ActorScheduler)(;remote = true, exit = false)
+    logstart(scheduler)
+    eventloop(scheduler; remote = remote, exit = exit)
 end
 
 function shutdown!(scheduler::ActorScheduler)

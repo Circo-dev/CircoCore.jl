@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
 
-export CircoContext, ActorScheduler,
+export CircoContext, ActorScheduler, run!, pause!, 
 
     AbstractActor, CoreState, ActorId, ActorService, deliver!, schedule!,
     emptycore,
