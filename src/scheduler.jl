@@ -296,7 +296,6 @@ end
 function eventloop(scheduler::Scheduler; remote = true, exit = false)
     try
         setstate!(scheduler, running)
-        lock(scheduler.startcond)
         _lockop(notify, scheduler, :startcond)
         while true
             msg_batch::UInt8 = 255
