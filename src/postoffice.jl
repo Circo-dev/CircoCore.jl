@@ -60,7 +60,7 @@ end
 
 Plugins.shutdown!(post::PostOffice) = close(post.socket)
 
-@inline letin_remote(post::PostOffice, scheduler::AbstractActorScheduler)::Bool = begin
+@inline letin_remote(post::PostOffice, scheduler::AbstractScheduler)::Bool = begin
     for i = 1:min(length(post.inqueue), 30)
         deliver!(scheduler, popfirst!(post.inqueue))
     end

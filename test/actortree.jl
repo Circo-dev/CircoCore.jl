@@ -59,7 +59,7 @@ end
     @testset "Actor-Tree" begin
         ctx = CircoContext()
         creator = TreeCreator(emptycore(ctx))
-        scheduler = ActorScheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
+        scheduler = Scheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
             send(scheduler, addr(creator), Start())
             @time scheduler(;remote = false, exit = true)

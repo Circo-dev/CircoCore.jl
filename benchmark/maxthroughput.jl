@@ -8,7 +8,7 @@ using Distributed
     global schedulers
     global pingers
     ps = [Pinger(nothing, emptycore(ctx)) for i=1:1]
-    scheduler = ActorScheduler(ctx, ps) # A single scheduler per process
+    scheduler = Scheduler(ctx, ps) # A single scheduler per process
     for pinger in ps
         deliver!(scheduler, addr(pinger), CreatePeer())
         push!(pingers, addr(pinger))
@@ -35,7 +35,7 @@ sleep(8)
 
 # Create and run the coordinator on the master process
 coordinator = Coordinator(all_pingers, emptycore(ctx))
-scheduler = ActorScheduler(ctx, [coordinator])
+scheduler = Scheduler(ctx, [coordinator])
 spawn(scheduler, coordinator)
 scheduler(; remote = true, exit = true)
 

@@ -47,7 +47,7 @@ end
         ctx = CircoContext()
         source = EventSource(emptycore(ctx))
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
-        scheduler = ActorScheduler(ctx, [source; targets])
+        scheduler = Scheduler(ctx, [source; targets])
         send(scheduler, addr(source), Start())
         @time scheduler(;remote = false, exit = true)
         for target in targets

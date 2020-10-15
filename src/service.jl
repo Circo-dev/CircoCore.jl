@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-struct ActorService{TScheduler <: AbstractActorScheduler, TMsg, TCore}
+struct Service{TScheduler <: AbstractScheduler, TMsg, TCore}
     scheduler::TScheduler
     emptycore::TCore
 end
 
-Base.show(io::IO, ::Type{<:ActorService}) = print(io, "ActorService")
+Base.show(io::IO, ::Type{<:Service}) = print(io, "Service")
 
-ActorService(ctx::AbstractContext, scheduler::AbstractActorScheduler) =
-    ActorService{typeof(scheduler), ctx.msg_type, ctx.corestate_type}(scheduler, emptycore(ctx))
+Service(ctx::AbstractContext, scheduler::AbstractScheduler) =
+    Service{typeof(scheduler), ctx.msg_type, ctx.corestate_type}(scheduler, emptycore(ctx))
 
-emptycore(s::ActorService) = s.emptycore
+emptycore(s::Service) = s.emptycore
 
-function plugin(service::ActorService, symbol::Symbol)
+function plugin(service::Service, symbol::Symbol)
     return service.scheduler.plugins[symbol]
 end
 
@@ -75,12 +75,12 @@ e.g. "`spawn(service`" as a single unit of thought and not forget to write out t
 
 Consistency is just as important as convenience. But performance is king.
 """
-@inline function send(service::ActorService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
+@inline function send(service::Service{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::ActorService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::Service{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
@@ -116,7 +116,7 @@ function CircoCore.onmessage(me::ListItem, message::Append, service)
 end
 ```
 """
-@inline function spawn(service::ActorService, actor::AbstractActor)::Addr
+@inline function spawn(service::Service, actor::AbstractActor)::Addr
     return schedule!(service.scheduler, actor)
 end
 
@@ -125,7 +125,7 @@ end
 
 Unschedule the actor from its current scheduler.
 """
-@inline function die(service::ActorService, me::AbstractActor)
+@inline function die(service::Service, me::AbstractActor)
     unschedule!(service.scheduler, me)
 end
 
@@ -157,11 +157,11 @@ See also: [`NameQuery`](@ref)
     return getname(registry, name)
 end
 
-@inline function settimeout(service::ActorService, actor::AbstractActor, timeout_secs::Real = 1.0)
+@inline function settimeout(service::Service, actor::AbstractActor, timeout_secs::Real = 1.0)
     token = Token()
     timeout = Timeout(actor, token, timeout_secs)
     settimeout(service.scheduler.tokenservice, timeout)
     return token
 end
 
-@inline pos(service::ActorService) = pos(service.scheduler)
+@inline pos(service::Service) = pos(service.scheduler)

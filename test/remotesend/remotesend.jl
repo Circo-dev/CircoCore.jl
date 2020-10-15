@@ -26,7 +26,7 @@ end
 @testset "Remote Send" begin
     ctx = CircoContext()
     receiver = Receiver(emptycore(ctx))
-    scheduler = ActorScheduler(ctx, [receiver])
+    scheduler = Scheduler(ctx, [receiver])
     sender = startsender(addr(receiver))
     scheduler(;exit=true)
     wait(sender) # Do not print test results before sender exit logs

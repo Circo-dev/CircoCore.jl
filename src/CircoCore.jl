@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 module CircoCore
 
-export CircoContext, ActorScheduler, run!, pause!, 
+export CircoContext, Scheduler, run!, pause!,
 
-    AbstractActor, CoreState, ActorId, ActorService, deliver!, schedule!,
+    AbstractActor, CoreState, ActorId, Service, deliver!, schedule!,
     emptycore,
 
     #Plugins reexport
@@ -255,8 +255,8 @@ end
 function onmigrate(me::AbstractActor, service) end
 
 # scheduler
-abstract type AbstractActorScheduler{TCoreState} end
-addr(scheduler::AbstractActorScheduler) = Addr(postcode(scheduler), 0)
+abstract type AbstractScheduler{TCoreState} end
+addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 
 include("msg.jl")
 include("onmessage.jl")

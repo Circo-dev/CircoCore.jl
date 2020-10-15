@@ -31,7 +31,7 @@ for i=1:1000
     typename = Symbol("XX$i")
     eval(quote
         struct $typename end
-        CircoCore.onmessage(me::PingPonger, message::$typename, service::ActorService) = $i
+        CircoCore.onmessage(me::PingPonger, message::$typename, service::Service) = $i
     end)
 end
 
@@ -59,7 +59,7 @@ end
 
 function createbench(ctx)
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
-    scheduler = ActorScheduler(ctx, pingers)
+    scheduler = Scheduler(ctx, pingers)
     for pinger in pingers
         deliver!(scheduler, addr(pinger), CreatePeer())
     end
@@ -83,7 +83,7 @@ using AbstractTrees
 AbstractTrees.children(d::Dict{Symbol,Any}) = d[:children] # To make the json dict iterable
 
 pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
-scheduler = ActorScheduler(ctx, pingers)
+scheduler = Scheduler(ctx, pingers)
 for pinger in pingers
     deliver!(scheduler, addr(pinger), CreatePeer())
 end

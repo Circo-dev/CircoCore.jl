@@ -41,7 +41,7 @@ end
 @testset "PingPong" begin
     ctx = CircoContext(;profile=CircoCore.Profiles.DefaultProfile())
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
-    scheduler = ActorScheduler(ctx, pingers)
+    scheduler = Scheduler(ctx, pingers)
     for pinger in pingers
         send(scheduler, addr(pinger), CreatePeer())
     end

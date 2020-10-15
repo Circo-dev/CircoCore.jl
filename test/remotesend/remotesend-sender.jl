@@ -5,7 +5,7 @@ include("remotesend-base.jl")
 ctx = CircoContext()
 
 function sendtoremote(receiveraddress)
-    scheduler = ActorScheduler(ctx)
+    scheduler = Scheduler(ctx)
     println("Sending out $MESSAGE_COUNT messages")
     @time begin
         sentout = 0

@@ -68,7 +68,7 @@ end
     ctx = CircoContext()
     requestor = Requestor(emptycore(ctx))
     responder = Responder(emptycore(ctx))
-    scheduler = ActorScheduler(ctx, [responder, requestor])
+    scheduler = Scheduler(ctx, [responder, requestor])
     scheduler(exit=true)
     @test requestor.responder == addr(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2
