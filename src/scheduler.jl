@@ -16,8 +16,9 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TCoreSta
     tokenservice::TokenService
     state::SchedulerState # shutdown in progress or done
     runopts::NamedTuple
-    startcond::Condition
-    pausecond::Condition
+    lock::ReentrantLock
+    startcond::Threads.Condition
+    pausecond::Threads.Condition
     startup_actor_count::UInt16 # Number of actors created by plugins
     plugins::Plugins.PluginStack
     hooks::THooks
@@ -30,6 +31,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TCoreSta
     )
         plugins = instantiate_plugins(ctx)
         _hooks = hooks(plugins)
+        _lock = ReentrantLock()
         scheduler = new{typeof(_hooks), ctx.msg_type, ctx.corestate_type}(
             pos,
             invalidpostcode,
@@ -39,8 +41,9 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TCoreSta
             TokenService(),
             created,
             NamedTuple(),
-            Condition(),
-            Condition(),
+            _lock,
+            Threads.Condition(_lock),
+            Threads.Condition(_lock),
             0,
             plugins,
             _hooks)
@@ -96,9 +99,19 @@ function setstate!(scheduler::AbstractScheduler, newstate::SchedulerState)
     return newstate
 end
 
+function _lockop(op::Function, scheduler, cond_sym::Symbol)
+    cond = getfield(scheduler, cond_sym)
+    lock(cond)
+    try
+        op(cond)
+    finally
+        unlock(cond)
+    end
+end
+
 function pause!(scheduler)
     setstate!(scheduler, paused)
-    wait(scheduler.pausecond)
+    _lockop(wait, scheduler, :pausecond)
     return nothing
 end
 
@@ -109,7 +122,7 @@ function run!(scheduler; nowait = false, kwargs...)
     logstart(scheduler)
     task = @async eventloop(scheduler; kwargs...)
     nowait && return task
-    wait(scheduler.startcond)
+    _lockop(wait, scheduler, :startcond)
     return task
 end
 
@@ -283,7 +296,8 @@ end
 function eventloop(scheduler::Scheduler; remote = true, exit = false)
     try
         setstate!(scheduler, running)
-        notify(scheduler.startcond)
+        lock(scheduler.startcond)
+        _lockop(notify, scheduler, :startcond)
         while true
             msg_batch::UInt8 = 255
             while msg_batch != 0 && !isempty(scheduler.msgqueue)
@@ -304,7 +318,7 @@ function eventloop(scheduler::Scheduler; remote = true, exit = false)
         end
     finally
         isrunning(scheduler) && setstate!(scheduler, paused)
-        notify(scheduler.pausecond)
+        _lockop(notify, scheduler, :pausecond)
     end
 end
 
