@@ -3,14 +3,15 @@ module CircoCore
 
 export CircoContext, Scheduler, run!, pause!,
 
-    AbstractActor, CoreState, ActorId, Service, deliver!, schedule!,
+    AbstractActor, ActorId, schedule!,
+
     emptycore,
 
     #Plugins reexport
     Plugin, setup!, shutdown!, symbol,
 
     #Plugins
-    plugin, getactorbyid, unschedule!, call_lifecycle_hook,
+    plugin, getactorbyid, unschedule!,
 
     ActivityService,
 
@@ -22,9 +23,6 @@ export CircoContext, Scheduler, run!, pause!,
 
     # Actor API
     send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
-
-    # Actor lifecycle callbacks
-    onschedule, onmessage, onmigrate,
 
     # Events
     Event, EventDispatcher, Subscribe, fire,
