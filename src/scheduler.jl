@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-3.0-only
+# SPDX-License-Identifier: MPL-2.0
 using DataStructures
 
 @enum SchedulerState::Int8 created=0 running=10 paused=20 stopped=30

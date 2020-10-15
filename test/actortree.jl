@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-3.0-only
+# SPDX-License-Identifier: MPL-2.0
 # This test builds a binary tree of TreeActors, growing a new level for every
 # Start message received by the TreeCreator.
 # The growth of every leaf is reported back by its parent to the
