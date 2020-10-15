@@ -28,11 +28,7 @@ export CircoContext, Scheduler, run!, pause!,
     Event, EventDispatcher, Subscribe, fire,
 
     # Space
-    Pos, pos, nullpos, Infoton,
-
-    # Monitoring
-    JS, registermsg
-
+    Pos, pos, nullpos, Infoton
 using  StaticArrays
 import Base: show, string
 import Plugins
