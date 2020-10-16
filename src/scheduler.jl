@@ -192,7 +192,7 @@ spawn(scheduler::Scheduler, actor::AbstractActor) = schedule!(scheduler, actor)
     fill_corestate!(scheduler, actor)
     scheduler.actorcache[box(actor)] = actor
     scheduler.actorcount += 1
-    isfirstschedule && onschedule(actor, scheduler.service)
+    isfirstschedule && onspawn(actor, scheduler.service)
     return addr(actor)
 end
 

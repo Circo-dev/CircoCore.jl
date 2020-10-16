@@ -4,7 +4,7 @@ module TokenTest
 using Test
 using Dates
 using CircoCore
-import CircoCore: onschedule, onmessage
+import CircoCore: onspawn, onmessage
 
 MESSAGE_COUNT = 100
 
@@ -31,11 +31,11 @@ mutable struct Responder{TCore} <: AbstractActor{TCore}
     core::TCore
 end
 
-function onschedule(me::Responder, service)
+function onspawn(me::Responder, service)
     registername(service, string(TRequest), me)
 end
 
-function onschedule(me::Requestor, service)
+function onspawn(me::Requestor, service)
     registername(service, string(TResponse), me)
     me.responder = getname(service, string(TRequest))
     for i=1:MESSAGE_COUNT

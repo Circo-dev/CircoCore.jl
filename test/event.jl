@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 using Test
 using CircoCore
-import CircoCore: onmessage, onschedule
+import CircoCore: onmessage, onspawn
 
 const TARGET_COUNT = 13
 const EVENT_COUNT = 133
@@ -23,12 +23,12 @@ mutable struct EventTarget{TCore} <: AbstractActor{TCore}
 end
 EventTarget(core) = EventTarget(0, core)
 
-function onschedule(me::EventSource, service)
+function onspawn(me::EventSource, service)
     me.eventdispatcher = spawn(service, EventDispatcher(emptycore(service)))
     registername(service, "eventsource", me)
 end
 
-function onschedule(me::EventTarget, service)
+function onspawn(me::EventTarget, service)
     send(service, me, getname(service, "eventsource"), Subscribe{TestEvent}(addr(me)))
 end
 

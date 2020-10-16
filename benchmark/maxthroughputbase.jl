@@ -11,7 +11,7 @@ mutable struct Coordinator{TCore} <: AbstractActor{TCore}
     end
 end
 
-CircoCore.onschedule(me::Coordinator, service) = begin
+CircoCore.onspawn(me::Coordinator, service) = begin
     @info "Monitoring $(length(me.pingeraddrs)) pingers."
     sendreqs(me, service)
 end

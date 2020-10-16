@@ -181,7 +181,7 @@ box(a::AbstractActor) = box(addr(a))::ActorId
 # Actor lifecycle callbacks
 
 """
-    CircoCore.onschedule(me::AbstractActor, service)
+    CircoCore.onspawn(me::AbstractActor, service)
 
 Lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
 
@@ -190,14 +190,14 @@ Note: Do not forget to import it or use its qualified name to allow overloading!
 # Examples
 
 ```julia
-import CircoCore.onschedule
+import CircoCore.onspawn
 
-funtion onschedule(me::MyActor, service)
+funtion onspawn(me::MyActor, service)
     registername(service, "MyActor", me) # Register this actor in the local name service
 end
 ```
 """
-function onschedule(me::AbstractActor, service) end
+function onspawn(me::AbstractActor, service) end
 
 """
     onmessage(me::AbstractActor, message, service)

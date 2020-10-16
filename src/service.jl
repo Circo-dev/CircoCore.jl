@@ -95,7 +95,7 @@ Spawn the given actor on the scheduler represented by `service`, return the addr
 
 Part of the actor API, can be called from a lifecycle callback, providing the `service` you got.
 
-The `onschedule` callback of `actor` will run before this function returns.
+The `onspawn` callback of `actor` will run before this function returns.
 
 # Examples
 
