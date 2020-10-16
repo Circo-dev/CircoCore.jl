@@ -17,7 +17,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
 
     # Messaging
     PostCode, postcode, PostOffice, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
-    redirect, body, target, sender,
+    redirect, body, target, sender, nulladdr,
 
     Token, TokenId, Tokenized, token, Request, Response, Timeout, settimeout,
 
