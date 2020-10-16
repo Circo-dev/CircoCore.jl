@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 module CircoCore
 
-export CircoContext, Scheduler, run!, pause!,
+export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
 
     AbstractActor, ActorId, schedule!,
 
