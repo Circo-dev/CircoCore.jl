@@ -22,14 +22,16 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     Token, TokenId, Tokenized, token, Request, Response, Timeout, settimeout,
 
     # Actor API
-    send, bulksend, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
+    send, bulksend,
+    spawn, become, die,
+    migrate,
+    getname, registername, NameQuery, NameResponse,
 
     # Events
     Event, EventDispatcher, Subscribe, fire,
 
     # Space
     Pos, pos, nullpos, Infoton
-using  StaticArrays
 import Base: show, string
 import Plugins
 
@@ -249,7 +251,7 @@ end
 function onmigrate(me::AbstractActor, service) end
 
 # scheduler
-abstract type AbstractScheduler{TCoreState} end
+abstract type AbstractScheduler{TMsg, TCoreState} end
 addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 
 include("msg.jl")

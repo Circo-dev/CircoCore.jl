@@ -129,6 +129,20 @@ end
 end
 
 """
+    become(service, old::AbstractActor, reincarnated::AbstractActor)
+
+Reincarnates the `old` actor into `new`, meaning that `old` will die, and `reincarnated`
+will be spawned reusing the address of `old`.
+
+Note: As the name suggests, `become` is the Circonian way of behavior change.
+"""
+function become(service::AbstractService, old::AbstractActor, reincarnated::AbstractActor)
+    reincarnated.core = old.core
+    die(service, old)
+    return spawn(service, reincarnated)
+end
+
+"""
     die(service, me::AbstractActor)
 
 Unschedule the actor from its current scheduler.

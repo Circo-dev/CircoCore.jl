@@ -1,4 +1,4 @@
-using Distributed
+# You need to add the Distributed package as a dependency in order for this to run
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
 @everywhere include("benchmark/maxthroughputbase.jl")
@@ -10,7 +10,7 @@ using Distributed
     ps = [Pinger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = Scheduler(ctx, ps) # A single scheduler per process
     for pinger in ps
-        deliver!(scheduler, addr(pinger), CreatePeer())
+        send(scheduler, addr(pinger), CreatePeer())
         push!(pingers, addr(pinger))
     end
     push!(schedulers, scheduler)
