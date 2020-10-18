@@ -29,7 +29,6 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
 
     # Space
     Pos, pos, nullpos, Infoton
-using  StaticArrays
 import Base: show, string
 import Plugins
 
