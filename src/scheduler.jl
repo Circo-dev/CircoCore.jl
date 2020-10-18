@@ -7,7 +7,7 @@ struct StateChangeError <: Exception
     to::SchedulerState
 end
 
-mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TCoreState}
+mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TCoreState}
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
@@ -57,7 +57,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TCoreSta
 end
 
 Base.show(io::IO, ::Type{<:Scheduler}) = print(io, "Scheduler")
-Base.show(io::IO, ::MIME"text/plain", scheduler::Scheduler) = begin
+Base.show(io::IO, ::MIME"text/plain", scheduler::AbstractScheduler) = begin
     print(io, "Scheduler at $(postcode(scheduler)) with $(scheduler.actorcount) actors")
 end
 
@@ -115,7 +115,7 @@ function pause!(scheduler)
     return nothing
 end
 
-logstart(scheduler::Scheduler) = scheduler.state == created && @info "Scheduler starting on thread $(Threads.threadid())"
+logstart(scheduler::AbstractScheduler) = scheduler.state == created && @info "Scheduler starting on thread $(Threads.threadid())"
 
 function run!(scheduler; nowait = false, kwargs...)
     isrunning(scheduler) && throw(StateChangeError(scheduler.state, running))
@@ -129,15 +129,15 @@ end
 isrunning(scheduler) = scheduler.state == running
 
 # For external calls
-function send(scheduler::Scheduler, to::AbstractActor, msgbody; kwargs...)
+function send(scheduler::AbstractScheduler, to::AbstractActor, msgbody; kwargs...)
     send(scheduler, addr(to), msgbody; kwargs...)
 end
-function send(scheduler::Scheduler{THooks, TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {THooks, TMsg, TCoreState}
+function send(scheduler::AbstractScheduler{TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {TMsg, TCoreState}
     msg = TMsg(Addr(), to, msgbody, scheduler; kwargs...)
     deliver!(scheduler, msg)
 end
 
-@inline function deliver!(scheduler::Scheduler, msg::AbstractMsg)
+@inline function deliver!(scheduler::AbstractScheduler, msg::AbstractMsg)
     # Disabled as degrades the ping-pong performance even if debugging is not enabled:
     # @debug "deliver! at $(postcode(scheduler)) $msg"
     target_postcode = postcode(target(msg))
@@ -151,18 +151,18 @@ end
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::Scheduler, msg::AbstractMsg)
+@inline function deliver_locally!(scheduler::AbstractScheduler, msg::AbstractMsg)
     deliver_locally_kern!(scheduler, msg)
     return nothing
 end
 
-@inline function deliver_locally!(scheduler::Scheduler, msg::AbstractMsg{<:Response})
+@inline function deliver_locally!(scheduler::AbstractScheduler, msg::AbstractMsg{<:Response})
     cleartimeout(scheduler.tokenservice, token(msg.body), target(msg))
     deliver_locally_kern!(scheduler, msg)
     return nothing
 end
 
-@inline function deliver_locally_kern!(scheduler::Scheduler, msg::AbstractMsg)
+@inline function deliver_locally_kern!(scheduler::AbstractScheduler, msg::AbstractMsg)
     if box(target(msg)) == 0 # TODO always push, check later only if target not found
         if !scheduler.hooks.specialmsg(scheduler, msg)
             @debug("Unhandled special message: $msg")
@@ -173,18 +173,18 @@ end
     return nothing
 end
 
-@inline function fill_corestate!(scheduler::AbstractScheduler{TCoreState}, actor) where TCoreState
+@inline function fill_corestate!(scheduler::AbstractScheduler{TMsg, TCoreState}, actor) where {TMsg, TCoreState}
     actorid = !isdefined(actor, :core) || box(actor) == 0 ? rand(ActorId) : box(actor)
     actor.core = TCoreState(scheduler, actor, actorid)
     return nothing
 end
 
-@inline isscheduled(scheduler::Scheduler, actor::AbstractActor) = haskey(scheduler.actorcache, box(actor))
+@inline isscheduled(scheduler::AbstractScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, box(actor))
 
 # Provide the same API for plugins
-spawn(scheduler::Scheduler, actor::AbstractActor) = schedule!(scheduler, actor)
+spawn(scheduler::AbstractScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
 
-@inline function schedule!(scheduler::Scheduler, actor::AbstractActor)::Addr
+@inline function schedule!(scheduler::AbstractScheduler, actor::AbstractActor)::Addr
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && isscheduled(scheduler, actor)
         return addr(actor)
@@ -196,14 +196,14 @@ spawn(scheduler::Scheduler, actor::AbstractActor) = schedule!(scheduler, actor)
     return addr(actor)
 end
 
-@inline function unschedule!(scheduler::Scheduler, actor::AbstractActor)
+@inline function unschedule!(scheduler::AbstractScheduler, actor::AbstractActor)
     isscheduled(scheduler, actor) || return nothing
     delete!(scheduler.actorcache, box(actor))
     scheduler.actorcount -= 1
     return nothing
 end
 
-@inline function step!(scheduler::Scheduler{THooks, TMsg, TCoreState}) where {THooks, TMsg, TCoreState}
+@inline function step!(scheduler::AbstractScheduler)
     msg = popfirst!(scheduler.msgqueue)
     step_kern1!(msg, scheduler) # This outer kern degrades perf on 1.5, but not on 1.4
     return nothing
@@ -226,7 +226,7 @@ end
     return nothing
 end
 
-@inline function checktimeouts(scheduler::Scheduler{THooks, TMsg, TCoreState}) where {THooks, TMsg, TCoreState}
+@inline function checktimeouts(scheduler::AbstractScheduler{TMsg, TCoreState}) where {TMsg, TCoreState}
     needchecktimeouts!(scheduler.tokenservice) || return false
     firedtimeouts = poptimeouts!(scheduler.tokenservice)
     if length(firedtimeouts) > 0
@@ -245,7 +245,7 @@ end
 end
 
 
-@inline function process_post_and_timeout(scheduler::Scheduler)
+@inline function process_post_and_timeout(scheduler::AbstractScheduler)
     incomingmsg = nothing
     hadtimeout = false
     sleeplength = 0.001
@@ -275,7 +275,7 @@ end
     end
 end
 
-@inline function nomorework(scheduler::Scheduler, remote::Bool, exit::Bool)
+@inline function nomorework(scheduler::AbstractScheduler, remote::Bool, exit::Bool)
     return isempty(scheduler.msgqueue) &&
         (
             !remote ||
@@ -283,7 +283,7 @@ end
         )
 end
 
-function (scheduler::Scheduler)(msgs;remote = false, exit = true)
+function (scheduler::AbstractScheduler)(msgs;remote = false, exit = true)
     if msgs isa AbstractMsg
         msgs = [msgs]
     end
@@ -293,7 +293,7 @@ function (scheduler::Scheduler)(msgs;remote = false, exit = true)
     scheduler(;remote = remote, exit = exit)
 end
 
-function eventloop(scheduler::Scheduler; remote = true, exit = false)
+function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     try
         setstate!(scheduler, running)
         _lockop(notify, scheduler, :startcond)
@@ -321,12 +321,12 @@ function eventloop(scheduler::Scheduler; remote = true, exit = false)
     end
 end
 
-function (scheduler::Scheduler)(;remote = true, exit = false)
+function (scheduler::AbstractScheduler)(;remote = true, exit = false)
     logstart(scheduler)
     eventloop(scheduler; remote = remote, exit = exit)
 end
 
-function shutdown!(scheduler::Scheduler)
+function shutdown!(scheduler::AbstractScheduler)
     setstate!(scheduler, stopped)
     call_lifecycle_hook(scheduler, shutdown!)
     @debug "Scheduler at $(postcode(scheduler)) exited."

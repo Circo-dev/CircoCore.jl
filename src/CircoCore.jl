@@ -249,7 +249,7 @@ end
 function onmigrate(me::AbstractActor, service) end
 
 # scheduler
-abstract type AbstractScheduler{TCoreState} end
+abstract type AbstractScheduler{TMsg, TCoreState} end
 addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 
 include("msg.jl")
