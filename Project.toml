@@ -5,8 +5,6 @@ version = "0.2.5"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
-Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Plugins = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
@@ -16,6 +14,5 @@ Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 
 [compat]
 DataStructures = "^0.18"
-Documenter = "^0.25"
 Plugins = "^0.4"
 julia = "^1"
