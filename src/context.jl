@@ -26,6 +26,10 @@ function CircoContext(;options...)
     return ctx
 end
 
+Base.show(io::IO, ::MIME"text/plain", ctx::CircoContext) = begin
+    print(io, "CircoContext with $(length(ctx.plugins)) plugins")
+end
+
 function instantiate_plugins(profile, userpluginsfn)
     return Plugins.PluginStack([userpluginsfn()..., Profiles.core_plugins(profile)...], scheduler_hooks)
 end

@@ -22,7 +22,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     Token, TokenId, Tokenized, token, Request, Response, Timeout, settimeout,
 
     # Actor API
-    send, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
+    send, bulksend, spawn, die, migrate, getname, registername, NameQuery, NameResponse,
 
     # Events
     Event, EventDispatcher, Subscribe, fire,

@@ -82,10 +82,16 @@ Consistency is just as important as convenience. But performance is king.
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1;timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
+end
+
+@inline function bulksend(service::AbstractService, sender::AbstractActor, targets, messagebody; energy = 1.0, kwargs...)
+    for target in targets
+        send(service, sender, target, messagebody, energy; kwargs...)
+    end
 end
 
 """
