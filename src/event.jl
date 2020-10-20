@@ -10,14 +10,14 @@ struct Subscribe{TEvent <: Event} # TODO: <: Request + handle forwarding
 end
 
 # TODO: Create a Trait for that + auto-creating the dispatcher
-function onmessage(me::AbstractActor, message::Subscribe{TEvent}, service) where TEvent <: Event
+function onmessage(me::Actor, message::Subscribe{TEvent}, service) where TEvent <: Event
     send(service, me, me.eventdispatcher, message)
 end
-function fire(service, me::AbstractActor, event::TEvent) where TEvent <: Event
+function fire(service, me::Actor, event::TEvent) where TEvent <: Event
     send(service, me, me.eventdispatcher, event)
 end
 
-mutable struct EventDispatcher{TCore} <: AbstractActor{TCore}
+mutable struct EventDispatcher{TCore} <: Actor{TCore}
     listeners::IdDict #{Type{<:Event},Array{Addr}}
     core::TCore
 end

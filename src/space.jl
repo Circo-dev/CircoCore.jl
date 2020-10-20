@@ -7,13 +7,13 @@ const I = 1.0
 const TARGET_DISTANCE = 8.0
 
 """
-    pos(a::AbstractActor)::Pos
+    pos(a::Actor)::Pos
 
 return the current position of the actor.
 
 Call this on a spawned actor to get its position. Throws `UndefRefError` if the actor is not spawned.
 """
-pos(a::AbstractActor) = a.core.pos
+pos(a::Actor) = a.core.pos
 
 """
     Pos(x::Real, y::Real, z::Real)
@@ -87,7 +87,7 @@ end
 Plugins.customfield(::Space, ::Type{AbstractCoreState}) = Plugins.FieldSpec("pos", Pos, posinit)
 
 infotoninit() = Infoton()
-infotoninit(sender::AbstractActor, target, body, scheduler; energy = 1.0f0) = begin
+infotoninit(sender::Actor, target, body, scheduler; energy = 1.0f0) = begin
     return Infoton(pos(sender), energy)
 end
 infotoninit(sender::Addr, target, body, scheduler; energy = 1.0f0) = Infoton() # Sourcepos not known, better to use zero energy
@@ -105,13 +105,13 @@ end
 end
 
 """
-    apply_infoton(targetactor::AbstractActor, infoton::Infoton)
+    apply_infoton(targetactor::Actor, infoton::Infoton)
 
 An infoton acting on an actor.
 
 Please check the source and the examples for more info.
 """
-@inline @fastmath function apply_infoton(targetactor::AbstractActor, infoton::Infoton)
+@inline @fastmath function apply_infoton(targetactor::Actor, infoton::Infoton)
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = infoton.energy
@@ -123,7 +123,7 @@ Please check the source and the examples for more info.
     return nothing
 end
 
-@inline @fastmath function scheduler_infoton(scheduler, actor::AbstractActor)
+@inline @fastmath function scheduler_infoton(scheduler, actor::Actor)
     diff = scheduler.pos - actor.core.pos
     distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
     energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6

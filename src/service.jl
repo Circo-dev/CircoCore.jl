@@ -19,7 +19,7 @@ function plugin(service::AbstractService, symbol::Symbol)
 end
 
 """
-    send(service, sender::AbstractActor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Real = 2.0)
+    send(service, sender::Actor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Real = 2.0)
 
 Send a message from an actor to an another.
 
@@ -40,7 +40,7 @@ can be used to control the deadline (seconds).
 ```julia
 const QUERY = "The Ultimate Question of Life, The Universe, and Everything."
 
-mutable struct MyActor <: AbstractActor{TCoreState}
+mutable struct MyActor <: Actor{TCoreState}
     searcher::Addr
     core::CoreState
     MyActor() = new()
@@ -77,25 +77,25 @@ e.g. "`spawn(service`" as a single unit of thought and not forget to write out t
 
 Consistency is just as important as convenience. But performance is king.
 """
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::Actor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::AbstractActor, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::Actor, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function bulksend(service::AbstractService, sender::AbstractActor, targets, messagebody; energy = 1.0, kwargs...)
+@inline function bulksend(service::AbstractService, sender::Actor, targets, messagebody; energy = 1.0, kwargs...)
     for target in targets
         send(service, sender, target, messagebody, energy; kwargs...)
     end
 end
 
 """
-    spawn(service, actor::AbstractActor, [pos::Pos])::Addr
+    spawn(service, actor::Actor, [pos::Pos])::Addr
 
 Spawn the given actor on the scheduler represented by `service`, return the address of it.
 
@@ -108,7 +108,7 @@ The `onspawn` callback of `actor` will run before this function returns.
 # TODO: update this sample
 
 ```
-mutable struct ListItem{TData, TCore} <: AbstractActor{TCore}
+mutable struct ListItem{TData, TCore} <: Actor{TCore}
     data::TData
     next::Union{Nothing, Addr}
     core::TCore
@@ -124,35 +124,35 @@ function CircoCore.onmessage(me::ListItem, message::Append, service)
 end
 ```
 """
-@inline function spawn(service::AbstractService, actor::AbstractActor)::Addr
+@inline function spawn(service::AbstractService, actor::Actor)::Addr
     return schedule!(service.scheduler, actor)
 end
 
 """
-    become(service, old::AbstractActor, reincarnated::AbstractActor)
+    become(service, old::Actor, reincarnated::Actor)
 
 Reincarnates the `old` actor into `new`, meaning that `old` will die, and `reincarnated`
 will be spawned reusing the address of `old`.
 
 Note: As the name suggests, `become` is the Circonian way of behavior change.
 """
-function become(service::AbstractService, old::AbstractActor, reincarnated::AbstractActor)
+function become(service::AbstractService, old::Actor, reincarnated::Actor)
     reincarnated.core = old.core
     die(service, old)
     return spawn(service, reincarnated)
 end
 
 """
-    die(service, me::AbstractActor)
+    die(service, me::Actor)
 
 Unschedule the actor from its current scheduler.
 """
-@inline function die(service::AbstractService, me::AbstractActor)
+@inline function die(service::AbstractService, me::Actor)
     unschedule!(service.scheduler, me)
 end
 
 """
-    registername(service, name::String, actor::AbstractActor)
+    registername(service, name::String, actor::Actor)
 
 Register the given actor under the given name in the scheduler-local name registry.
 
@@ -160,7 +160,7 @@ Note that there is no need to unregister the name when migrating or dying
 
 # TODO implement manual and auto-unregistration
 """
-@inline function registername(service, name::String, actor::AbstractActor)
+@inline function registername(service, name::String, actor::Actor)
     registry = get(service.scheduler.plugins, :registry, nothing)
     isnothing(registry) && throw(NoRegistryException("Cannot register name $name: Registry plugin not found"))
     registername(registry, name, addr(actor))
@@ -179,7 +179,7 @@ See also: [`NameQuery`](@ref)
     return getname(registry, name)
 end
 
-@inline function settimeout(service::AbstractService, actor::AbstractActor, timeout_secs::Real = 1.0)
+@inline function settimeout(service::AbstractService, actor::Actor, timeout_secs::Real = 1.0)
     token = Token()
     timeout = Timeout(actor, token, timeout_secs)
     settimeout(service.scheduler.tokenservice, timeout)

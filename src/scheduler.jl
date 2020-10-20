@@ -129,7 +129,7 @@ end
 isrunning(scheduler) = scheduler.state == running
 
 # For external calls
-function send(scheduler::AbstractScheduler, to::AbstractActor, msgbody; kwargs...)
+function send(scheduler::AbstractScheduler, to::Actor, msgbody; kwargs...)
     send(scheduler, addr(to), msgbody; kwargs...)
 end
 function send(scheduler::AbstractScheduler{TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {TMsg, TCoreState}
@@ -179,12 +179,12 @@ end
     return nothing
 end
 
-@inline isscheduled(scheduler::AbstractScheduler, actor::AbstractActor) = haskey(scheduler.actorcache, box(actor))
+@inline isscheduled(scheduler::AbstractScheduler, actor::Actor) = haskey(scheduler.actorcache, box(actor))
 
 # Provide the same API for plugins
-spawn(scheduler::AbstractScheduler, actor::AbstractActor) = schedule!(scheduler, actor)
+spawn(scheduler::AbstractScheduler, actor::Actor) = schedule!(scheduler, actor)
 
-@inline function schedule!(scheduler::AbstractScheduler, actor::AbstractActor)::Addr
+@inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && isscheduled(scheduler, actor)
         return addr(actor)
@@ -196,7 +196,7 @@ spawn(scheduler::AbstractScheduler, actor::AbstractActor) = schedule!(scheduler,
     return addr(actor)
 end
 
-@inline function unschedule!(scheduler::AbstractScheduler, actor::AbstractActor)
+@inline function unschedule!(scheduler::AbstractScheduler, actor::Actor)
     isscheduled(scheduler, actor) || return nothing
     delete!(scheduler.actorcache, box(actor))
     scheduler.actorcount -= 1

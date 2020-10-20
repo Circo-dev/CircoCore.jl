@@ -3,7 +3,7 @@ module CircoCore
 
 export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
 
-    AbstractActor, ActorId, schedule!,
+    Actor, ActorId, schedule!,
 
     emptycore,
 
@@ -55,7 +55,7 @@ A cluster-unique id that is randomly generated when the actor is spawned (first 
 ActorId = UInt64
 
 """
-    abstract type AbstractActor{TCoreState}
+    abstract type Actor{TCoreState}
 
 Supertype of all actors.
 
@@ -65,17 +65,17 @@ that can remain undefined after creation.
 # Examples
 
 ```julia
-mutable struct DataHolder{TValue, TCore} <: AbstractActor{TCore}
+mutable struct DataHolder{TValue, TCore} <: Actor{TCore}
     value::TValue
     core::TCore
 end
 ```
 """
-abstract type AbstractActor{TCoreState} end
+abstract type Actor{TCoreState} end
 
 abstract type AbstractAddr end
 postcode(address::AbstractAddr) = address.postcode
-postcode(actor::AbstractActor) = postcode(addr(actor))
+postcode(actor::Actor) = postcode(addr(actor))
 box(address::AbstractAddr) = address.box
 
 """
@@ -163,27 +163,27 @@ Create a new Addr by replacing the postcode of the given one.
 redirect(addr::Addr, topostcode::PostCode) = Addr(topostcode, box(addr))
 
 """
-    addr(a::AbstractActor)
+    addr(a::Actor)
 
 Return the address of the actor.
 
 Call this on a spawned actor to get its address. Throws `UndefRefError` if the actor is not spawned.
 """
-addr(a::AbstractActor) = a.core.addr::Addr
+addr(a::Actor) = a.core.addr::Addr
 
 """
-    box(a::AbstractActor)
+    box(a::Actor)
 
 Return the 'P.O. box' of the spawned actor.
 
 Call this on a spawned actor to get its id (aka box). Throws `UndefRefError` if the actor is not spawned.
 """
-box(a::AbstractActor) = box(addr(a))::ActorId
+box(a::Actor) = box(addr(a))::ActorId
 
 # Actor lifecycle callbacks
 
 """
-    CircoCore.onspawn(me::AbstractActor, service)
+    CircoCore.onspawn(me::Actor, service)
 
 Lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
 
@@ -199,10 +199,10 @@ funtion onspawn(me::MyActor, service)
 end
 ```
 """
-function onspawn(me::AbstractActor, service) end
+function onspawn(me::Actor, service) end
 
 """
-    onmessage(me::AbstractActor, message, service)
+    onmessage(me::Actor, message, service)
 
 Handle a message arriving at an actor.
 
@@ -227,10 +227,10 @@ function onmessage(me::MyActor, message::TestRequest, service)
 end
 ```
 """
-function onmessage(me::AbstractActor, message, service) end
+function onmessage(me::Actor, message, service) end
 
 """
-    onmigrate(me::AbstractActor, service)
+    onmigrate(me::Actor, service)
 
 Lifecycle callback that marks a successful migration.
 
@@ -248,7 +248,7 @@ function onmigrate(me::MyActor, service)
 end
 ```
 """
-function onmigrate(me::AbstractActor, service) end
+function onmigrate(me::Actor, service) end
 
 # scheduler
 abstract type AbstractScheduler{TMsg, TCoreState} end

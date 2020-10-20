@@ -4,7 +4,7 @@ import CircoCore.onmessage
 
 include("remotesend-base.jl")
 
-mutable struct Receiver{TCore} <: AbstractActor{TCore}
+mutable struct Receiver{TCore} <: Actor{TCore}
     messages::Array{TestMessage}
     core::TCore
 end

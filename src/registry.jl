@@ -19,7 +19,7 @@ struct NameResponse <: Response
     token::Token
 end
 
-mutable struct RegistryHelper{TCore} <: AbstractActor{TCore}
+mutable struct RegistryHelper{TCore} <: Actor{TCore}
     registry::Any
     core::TCore
 end

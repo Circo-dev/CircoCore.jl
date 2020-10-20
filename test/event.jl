@@ -11,13 +11,13 @@ struct TestEvent <: Event
     value::String
 end
 
-mutable struct EventSource{TCore} <: AbstractActor{TCore}
+mutable struct EventSource{TCore} <: Actor{TCore}
     eventdispatcher::Addr
     core::TCore
 end
 EventSource(core) = EventSource(Addr(), core)
 
-mutable struct EventTarget{TCore} <: AbstractActor{TCore}
+mutable struct EventTarget{TCore} <: Actor{TCore}
     received_count::Int64
     core::TCore
 end

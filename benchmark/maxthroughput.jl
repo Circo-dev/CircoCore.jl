@@ -7,7 +7,7 @@
 @sync @distributed for i = 1:nworkers()
     global schedulers
     global pingers
-    ps = [Pinger(nothing, emptycore(ctx)) for i=1:1]
+    ps = [Pinger(nothing) for i=1:1]
     scheduler = Scheduler(ctx, ps) # A single scheduler per process
     for pinger in ps
         send(scheduler, addr(pinger), CreatePeer())
@@ -34,7 +34,7 @@ end
 sleep(8)
 
 # Create and run the coordinator on the master process
-coordinator = Coordinator(all_pingers, emptycore(ctx))
+coordinator = Coordinator(all_pingers)
 scheduler = Scheduler(ctx, [coordinator])
 spawn(scheduler, coordinator)
 scheduler(; remote = true, exit = true)

@@ -18,7 +18,7 @@ struct GrowResponse
     leafsgrown::Int
 end
 
-mutable struct TreeActor{TCore} <: AbstractActor{TCore}
+mutable struct TreeActor{TCore} <: Actor{TCore}
     left::Addr
     right::Addr
     core::TCore
@@ -36,7 +36,7 @@ function onmessage(me::TreeActor, message::GrowRequest, service)
     end
 end
 
-mutable struct TreeCreator{TCore} <: AbstractActor{TCore}
+mutable struct TreeCreator{TCore} <: Actor{TCore}
     nodecount::Int64
     root::Addr
     core::TCore

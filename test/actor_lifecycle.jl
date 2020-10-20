@@ -7,13 +7,13 @@ using CircoCore
 
 const DEPTH = 10
 
-mutable struct Zygote <: AbstractActor{Any}
+mutable struct Zygote <: Actor{Any}
     incarnation_count::Int
     core::Any
     Zygote() = new(0)
 end
 
-mutable struct Cell{T} <: AbstractActor{Any}
+mutable struct Cell{T} <: Actor{Any}
     zygote::Addr
     core::Any
     Cell{T}(zygote) where T = new{T}(zygote)

@@ -1,13 +1,13 @@
 include("pingpongbase.jl")
 
-mutable struct Coordinator{TCore} <: AbstractActor{TCore}
+mutable struct Coordinator <: Actor{Any}
     pingeraddrs::Vector{Addr}
     results::Dict{ActorId, Vector{PerfReading}}
     gotreads::Int
-    core::TCore
-    Coordinator(pingeraddrs, core) = begin
+    core
+    Coordinator(pingeraddrs) = begin
         results = Dict{ActorId, Vector{PerfReading}}(box(a) => PerfReading[] for a in pingeraddrs)
-        return new{typeof(core)}(pingeraddrs, results, 0, core)
+        return new(pingeraddrs, results, 0)
     end
 end
 

@@ -14,7 +14,7 @@ struct TRequest <: Request
     TRequest(id) = new(id, Token())
 end
 
-mutable struct Requestor{TCore} <: AbstractActor{TCore}
+mutable struct Requestor{TCore} <: Actor{TCore}
     responsecount::Int
     timeoutcount::Int
     responder::Addr
@@ -27,7 +27,7 @@ struct TResponse <: Response
     token::Token
 end
 
-mutable struct Responder{TCore} <: AbstractActor{TCore}
+mutable struct Responder{TCore} <: Actor{TCore}
     core::TCore
 end
 

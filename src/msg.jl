@@ -11,7 +11,7 @@ Plugins.typedef(::MsgTemplate, spec) = quote
         $(Plugins.structfields(spec))
     end;
     $(spec.name)(sender::Addr, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(sender, target, body, $(msgfieldcalls(spec)...))
-    $(spec.name)(sender::AbstractActor, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(addr(sender), target, body, $(msgfieldcalls(spec)...))
+    $(spec.name)(sender::Actor, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(addr(sender), target, body, $(msgfieldcalls(spec)...))
     $(spec.name)
 end
 

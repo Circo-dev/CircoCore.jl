@@ -3,7 +3,7 @@ using CircoCore
 
 const MSG_COUNT = 50_000_000
 
-mutable struct PingPonger{TCore} <: AbstractActor{TCore}
+mutable struct PingPonger{TCore} <: Actor{TCore}
     peer::Union{Addr, Nothing}
     pings_sent::Int64
     pongs_got::Int64

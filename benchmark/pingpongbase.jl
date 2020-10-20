@@ -3,19 +3,20 @@ using CircoCore
 
 # ANCHOR Ping-Pong
 
-mutable struct Pinger{TCore} <: AbstractActor{TCore}
+mutable struct Pinger <: Actor{Any}
     peer::Union{Addr, Nothing}
     pings_sent::Int64
     pongs_got::Int64
-    core::TCore
+    core
+    Pinger(peer) = new(peer, 0, 0)
 end
-Pinger(peer, core) = Pinger(peer, 0, 0, core)
 
-mutable struct Ponger{TCore} <: AbstractActor{TCore}
+
+mutable struct Ponger <: Actor{Any}
     peer::Addr
-    core::TCore
+    core
+    Ponger(peer) = new(peer)
 end
-Ponger(peer, core) = Ponger(peer, core)
 
 struct Ping end
 struct Pong end
@@ -31,7 +32,7 @@ function sendpong(service, me::Ponger)
 end
 
 CircoCore.onmessage(me::Pinger, ::CreatePeer, service) = begin
-    peer = Ponger(addr(me), emptycore(service))
+    peer = Ponger(addr(me))
     me.peer =  spawn(service, peer)
     sendping(service, me)
 end
