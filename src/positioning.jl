@@ -38,7 +38,7 @@ function hostpos(positioner, postcode)
     if positioner.isroot
         return Pos(0, 0, 0)
     else
-        rng = MersenneTwister(@show positioner.hostid)
+        rng = MersenneTwister(positioner.hostid)
         return randpos(rng) * 5.0
     end
 end
