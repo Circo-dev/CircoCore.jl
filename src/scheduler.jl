@@ -11,7 +11,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     pos::Pos
     postcode::PostCode
     actorcount::UInt64
-    actorcache::Dict{ActorId, Any}
+    actorcache::ActorStore
     msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     state::SchedulerState # shutdown in progress or done
@@ -36,7 +36,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
             pos,
             invalidpostcode,
             0,
-            Dict([]),
+            ActorStore(),
             Deque{Any}(),#msgqueue_capacity),
             TokenService(),
             created,

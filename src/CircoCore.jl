@@ -254,6 +254,7 @@ function onmigrate(me::Actor, service) end
 abstract type AbstractScheduler{TMsg, TCoreState} end
 addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 
+include("actorstore.jl")
 include("msg.jl")
 include("onmessage.jl")
 include("postoffice.jl")
