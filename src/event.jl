@@ -23,8 +23,6 @@ mutable struct EventDispatcher{TCore} <: Actor{TCore}
 end
 EventDispatcher(core) = EventDispatcher(IdDict(), core)
 
-monitorprojection(::Type{EventDispatcher}) = JS("projections.nonimportant")
-
 function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) where {TEvent<:Event}
     if !haskey(me.listeners, TEvent)
         me.listeners[TEvent] = Array{Addr}(undef, 0)
