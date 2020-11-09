@@ -96,11 +96,11 @@ Plugins.customfield(::Space, ::Type{AbstractMsg}) = Plugins.FieldSpec("infoton",
 
 @inline localdelivery(space::Space, scheduler, msg, targetactor) = begin
     apply_infoton(targetactor, msg.infoton)
+    apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
     return false
 end
 
 @inline actor_activity_sparse16(space::Space, scheduler, targetactor) = begin
-    apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
     return false
 end
 
