@@ -7,7 +7,7 @@
 @sync @distributed for i = 1:nworkers()
     global schedulers
     global pingers
-    ps = [Pinger(nothing) for i=1:1]
+    ps = [Pinger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = Scheduler(ctx, ps) # A single scheduler per process
     for pinger in ps
         send(scheduler, addr(pinger), CreatePeer())
