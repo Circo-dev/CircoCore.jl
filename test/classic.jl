@@ -1,4 +1,7 @@
+module ClassicTest
 using ActorInterfaces.Classic
+
+export Pop, Push, StackNode, TestCoordinator
 
 struct Pop
     customer::Addr
@@ -33,9 +36,6 @@ end
     send(msg.customer, me.content)
 end
 
-import CircoCore
-using Test
-
 struct TestCoordinator
     received::Vector{Any}
 end
@@ -43,6 +43,12 @@ end
 @ctx function Classic.onmessage(me::TestCoordinator, msg)
     push!(me.received, msg)
 end
+
+end # module
+
+import CircoCore
+using Test
+using .ClassicTest
 
 @testset "Stack" begin
     ctx = CircoCore.CircoContext()
