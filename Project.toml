@@ -4,6 +4,7 @@ authors = ["Krisztián Schäffer"]
 version = "0.2.7"
 
 [deps]
+ActorInterfaces = "7e194583-e687-41a0-9133-1c22a29c80af"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

@@ -1,5 +1,10 @@
 # This file is machine-generated - editing it directly is not advised
 
+[[ActorInterfaces]]
+git-tree-sha1 = "6efdd5bec34cbbcd0ecdd25391504280d9d27d2a"
+uuid = "7e194583-e687-41a0-9133-1c22a29c80af"
+version = "0.1.0"
+
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
