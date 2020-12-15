@@ -52,11 +52,23 @@ CircoCore.onmessage(me::Zygote, msg::Reincarnated, service) = begin
     end
 end
 
+struct LifecyclePlugin <: Plugin
+    actor_spawning_calls::Dict{ActorId, Int}
+    LifecyclePlugin(;options...) = new(Dict())
+end
+
+function CircoCore.actor_spawning(p::LifecyclePlugin, scheduler, actor)
+    count = get(p.actor_spawning_calls, box(actor), 0)
+    p.actor_spawning_calls[box(actor)] = count + 1
+end
+
 @testset "Actor Lifecycle" begin
-    ctx = CircoContext()
+    plugin = LifecyclePlugin()
+    ctx = CircoContext(;userpluginsfn = (;options...) -> [plugin])
     zygote = Zygote()
     scheduler = Scheduler(ctx, [zygote])
     wait(run!(scheduler; remote = false, exit = true))
     @test zygote.incarnation_count == DEPTH
+    @test plugin.actor_spawning_calls[box(zygote)] == 1
     shutdown!(scheduler)
 end

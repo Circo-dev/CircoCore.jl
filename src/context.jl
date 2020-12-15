@@ -31,7 +31,11 @@ Base.show(io::IO, ::MIME"text/plain", ctx::CircoContext) = begin
 end
 
 function instantiate_plugins(profile, userpluginsfn)
-    return Plugins.PluginStack([userpluginsfn()..., Profiles.core_plugins(profile)...], scheduler_hooks)
+    userplugins = userpluginsfn()
+    if !(userplugins isa AbstractArray) && !(userplugins isa Tuple)
+        error("The userpluginsfn option of CircoContext should return a tuple or an array.")
+    end
+    return Plugins.PluginStack([userplugins..., Profiles.core_plugins(profile)...], scheduler_hooks)
 end
 
 function instantiate_plugins(ctx::AbstractContext)

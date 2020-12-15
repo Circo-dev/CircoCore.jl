@@ -20,12 +20,13 @@ function actor_activity_sparse16 end # An actor just received a message, called 
 function actor_activity_sparse256 end # An actor just received a message, called with 1/256 probability
 function letin_remote end # Let external sources push messages into the queue (using deliver!).
 function localdelivery end # deliver a message to an actor (e.g. call onmessage)
+function actor_spawning end # called when the actor is already spawned, but before onspawn.
 function localroutes end # Handle messages that are targeted to actors not (currently) scheduled locally (e.g. during migration).
 function remoteroutes end # Deliver messages to external targets
 function spawnpos end # Provide initial position of an actor when it is spawned
 function specialmsg end # Handle messages that are targeted to the scheduler (to the box 0)
 
-scheduler_hooks = [remoteroutes, localdelivery, localroutes, specialmsg, letin_remote,
+scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, localroutes, specialmsg, letin_remote,
     actor_activity_sparse16, actor_activity_sparse256, spawnpos]
 
 # Plugin-Generated types

@@ -190,7 +190,10 @@ spawn(scheduler::AbstractScheduler, actor::Actor) = schedule!(scheduler, actor)
     fill_corestate!(scheduler, actor)
     scheduler.actorcache[box(actor)] = actor
     scheduler.actorcount += 1
-    isfirstschedule && onspawn(actor, scheduler.service) # TODO create a hook
+    if isfirstschedule
+        scheduler.hooks.actor_spawning(scheduler, actor)
+        onspawn(actor, scheduler.service)
+    end
     return addr(actor)
 end
 
