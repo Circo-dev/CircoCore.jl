@@ -28,8 +28,8 @@ end
 function core_plugins(profile::TinyProfile)
     options = profile.options
     return [
-        CircoCore.Registry.LocalRegistry,
-        CircoCore.ActivityService,
+        CircoCore.LocalRegistry,
+        CircoCore.SparseActivity,
         CircoCore.Space,
         core_plugins(MinimalProfile(;options...))...,
     ]
@@ -43,8 +43,8 @@ end
 function core_plugins(profile::DefaultProfile)
     options = profile.options
     return [
-        CircoCore.Positioning.Positioner,
-        CircoCore.RemoteMessaging.PostOffice,
+        CircoCore.Positioner,
+        CircoCore.PostOffice,
         core_plugins(TinyProfile(;options...))...,
     ]
 end

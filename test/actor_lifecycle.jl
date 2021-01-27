@@ -4,6 +4,7 @@
 
 using Test
 using CircoCore
+using Plugins
 
 const DEPTH = 10
 
@@ -57,18 +58,20 @@ struct LifecyclePlugin <: Plugin
     LifecyclePlugin(;options...) = new(Dict())
 end
 
+Plugins.symbol(::LifecyclePlugin) = :lifecycle
+Plugins.register(LifecyclePlugin)
+
 function CircoCore.actor_spawning(p::LifecyclePlugin, scheduler, actor)
     count = get(p.actor_spawning_calls, box(actor), 0)
     p.actor_spawning_calls[box(actor)] = count + 1
 end
 
 @testset "Actor Lifecycle" begin
-    plugin = LifecyclePlugin()
-    ctx = CircoContext(;userpluginsfn = (;options...) -> [plugin])
+    ctx = CircoContext(;userpluginsfn = (;options...) -> [LifecyclePlugin])
     zygote = Zygote()
     scheduler = Scheduler(ctx, [zygote])
     wait(run!(scheduler; remote = false, exit = true))
     @test zygote.incarnation_count == DEPTH
-    @test plugin.actor_spawning_calls[box(zygote)] == 1
+    @test scheduler.plugins[:lifecycle].actor_spawning_calls[box(zygote)] == 1
     shutdown!(scheduler)
 end

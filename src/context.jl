@@ -35,7 +35,7 @@ function instantiate_plugins(profile, userpluginsfn)
     if !(userplugins isa AbstractArray) && !(userplugins isa Tuple)
         error("The userpluginsfn option of CircoContext should return a tuple or an array.")
     end
-    @show allplugins = [userplugins..., Profiles.core_plugins(profile)...]
+    allplugins = [userplugins..., Profiles.core_plugins(profile)...]
     return Plugins.PluginStack(allplugins, scheduler_hooks)
 end
 

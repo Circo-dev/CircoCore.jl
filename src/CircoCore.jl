@@ -254,6 +254,30 @@ function onmigrate(me::Actor, service) end
 abstract type AbstractScheduler{TMsg, TCoreState} end
 addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 
+abstract type Delivery <: Plugin end
+Plugins.symbol(::Delivery) = :delivery
+
+abstract type PostOffice <: Plugin end
+Plugins.symbol(::PostOffice) = :postoffice
+postcode(post::PostOffice) = post.postcode
+addr(post::PostOffice) = Addr(postcode(post), 0)
+
+abstract type LocalRegistry <: Plugin end
+Plugins.symbol(::LocalRegistry) = :registry
+
+abstract type SparseActivity <: Plugin end
+Plugins.symbol(::SparseActivity) = :sparseactivity
+
+abstract type Space <: Plugin end
+abstract type EuclideanSpace <: Space end
+Plugins.symbol(::Space) = :space
+
+abstract type Positioner <: Plugin end
+Plugins.symbol(::Positioner) = :positioner
+
+function registername end
+function getname end
+
 include("actorstore.jl")
 include("msg.jl")
 include("onmessage.jl")
@@ -270,4 +294,9 @@ include("scheduler.jl")
 include("event.jl")
 include("classic.jl")
 
+function __init__()
+    Plugins.register(EuclideanSpaceImpl)
+    Plugins.register(OnMessageImpl)
 end
+
+end # module

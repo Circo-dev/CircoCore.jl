@@ -71,8 +71,8 @@ struct Infoton
 end
 Infoton() = Infoton(nullpos, 0.0f0)
 
-struct Space <: Plugin
-    Space(;options...) = new()
+struct EuclideanSpaceImpl <: EuclideanSpace # registered at CircoCore.__init__
+    EuclideanSpaceImpl(;options...) = new()
 end
 
 posinit() = nullpos

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MPL-2.0
-module RemoteMessaging
+module UDPPostOffice_
 
 using Plugins
 using ..CircoCore
@@ -15,9 +15,7 @@ struct PostException
     message::String
 end
 
-abstract type PostOffice <: Plugin end
-
-mutable struct UDPPostOffice <: PostOffice
+mutable struct UDPPostOffice <: CircoCore.PostOffice
     outsocket::UDPSocket
     inqueue::Deque{Any}
     stopped::Bool
@@ -29,18 +27,11 @@ mutable struct UDPPostOffice <: PostOffice
     end
 end
 
-Plugins.symbol(::PostOffice) = :postoffice
-
-function __init__()
-    Plugins.register(UDPPostOffice)
-end
+__init__() = Plugins.register(UDPPostOffice)
 
 addrinit() = nulladdr
 addrinit(scheduler, actor, actorid) = Addr(postcode(scheduler.plugins[:postoffice]), actorid)
 Plugins.customfield(::PostOffice, ::Type{AbstractCoreState}) = Plugins.FieldSpec("addr", Addr, addrinit)
-
-postcode(post::PostOffice) = post.postcode
-addr(post::PostOffice) = Addr(postcode(post), 0)
 
 function allocate_postcode()
     socket = UDPSocket()
@@ -61,20 +52,20 @@ Plugins.setup!(post::UDPPostOffice, scheduler) = begin
     post.socket = socket
 end
 
-schedule_start(post::UDPPostOffice, scheduler) = begin
+CircoCore.schedule_start(post::UDPPostOffice, scheduler) = begin
     post.intask = @async arrivals(post) # TODO errors throwed here are not logged
 end
 
-schedule_stop(post::UDPPostOffice, scheduler) = begin
+CircoCore.schedule_stop(post::UDPPostOffice, scheduler) = begin
     post.stopped = true
     yield()
 end
 
 Plugins.shutdown!(post::UDPPostOffice) = close(post.socket)
 
-@inline letin_remote(post::UDPPostOffice, scheduler::AbstractScheduler)::Bool = begin
+@inline CircoCore.letin_remote(post::UDPPostOffice, scheduler::AbstractScheduler)::Bool = begin
     for i = 1:min(length(post.inqueue), 30)
-        deliver!(scheduler, popfirst!(post.inqueue))
+        CircoCore.deliver!(scheduler, popfirst!(post.inqueue))
     end
     return false
 end
@@ -99,7 +90,7 @@ function send(post::UDPPostOffice, msg::AbstractMsg)
     remoteroutes(post, nothing, msg)
 end
 
-@inline function remoteroutes(post::UDPPostOffice, scheduler, msg::AbstractMsg)::Bool
+@inline function CircoCore.remoteroutes(post::UDPPostOffice, scheduler, msg::AbstractMsg)::Bool
     @debug "PostOffice delivery at $(postcode(post)): $msg"
     try
         parts = split(postcode(target(msg)), ":")

@@ -5,9 +5,7 @@ using ..CircoCore
 
 const HOST_VIEW_SIZE = 1000 # TODO eliminate
 
-abstract type Positioner <: Plugin end
-
-mutable struct SimplePositioner <: Positioner
+mutable struct SimplePositioner <: CircoCore.Positioner
     isroot::Bool
     hostid::UInt64 # TODO: eliminate non-core notions
     center::Pos
@@ -16,9 +14,7 @@ mutable struct SimplePositioner <: Positioner
     )
 end
 
-function __init__()
-    Plugins.register(SimplePositioner)
-end
+__init__() = Plugins.register(SimplePositioner)
 
 function randpos(rng = Random.GLOBAL_RNG)
     return Pos(

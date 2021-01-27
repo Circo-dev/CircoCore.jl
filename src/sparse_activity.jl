@@ -1,13 +1,17 @@
 # SPDX-License-Identifier: MPL-2.0
 
-mutable struct ActivityService <: Plugin
+module Activity
+
+using Plugins
+using ..CircoCore
+
+mutable struct SparseActivityImpl <: CircoCore.SparseActivity
     counter::UInt
-    ActivityService(;options...) = new(1)
+    SparseActivityImpl(;options...) = new(1)
 end
+__init__() = Plugins.register(SparseActivityImpl)
 
-Plugins.symbol(::ActivityService) = :activity
-
-@inline function CircoCore.localdelivery(as::ActivityService, scheduler, msg, targetactor)
+@inline function CircoCore.localdelivery(as::SparseActivityImpl, scheduler, msg, targetactor)
     if as.counter == 0
         scheduler.hooks.actor_activity_sparse16(scheduler, targetactor)
         as.counter = rand(UInt8) >> 3
@@ -22,3 +26,5 @@ Plugins.symbol(::ActivityService) = :activity
     end
     return false
 end
+
+end # module

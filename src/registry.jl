@@ -27,18 +27,12 @@ mutable struct RegistryHelper{TCore} <: Actor{TCore}
     core::TCore
 end
 
-abstract type LocalRegistry <: Plugin end
-
-mutable struct DefLocalRegistry <: LocalRegistry
+mutable struct LocalRegistryImpl <: CircoCore.LocalRegistry
     register::Dict{String, Addr}
     helperactor::RegistryHelper
-    DefLocalRegistry(;options...) = new(Dict())
+    LocalRegistryImpl(;options...) = new(Dict())
 end
-Plugins.symbol(::DefLocalRegistry) = :registry
-
-function __init__()
-    Plugins.register(DefLocalRegistry)
-end
+__init__() = Plugins.register(LocalRegistryImpl)
 
 abstract type RegistryException end
 struct RegisteredException <: RegistryException
@@ -50,23 +44,23 @@ struct NoRegistryException <: RegistryException
     msg::String
 end
 
-schedule_start(registry::DefLocalRegistry, scheduler) = begin
+schedule_start(registry::LocalRegistryImpl, scheduler) = begin
     registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
     spawn(scheduler.service, registry.helperactor)
 end
 
-function registername(registry::DefLocalRegistry, name::String, handler::Addr)
+function CircoCore.registername(registry::LocalRegistryImpl, name::String, handler::Addr)
     haskey(registry.register, name) && throw(RegisteredException(name))
     registry.register[name] = handler
     return true
 end
 
-function getname(registry::DefLocalRegistry, name::String)::Union{Addr, Nothing}
+function CircoCore.getname(registry::LocalRegistryImpl, name::String)::Union{Addr, Nothing}
     get(registry.register, name, nothing)
 end
 
-specialmsg(registry::DefLocalRegistry, scheduler, message) = false
-specialmsg(registry::DefLocalRegistry, scheduler, message::AbstractMsg{NameQuery}) = begin
+specialmsg(registry::LocalRegistryImpl, scheduler, message) = false
+specialmsg(registry::LocalRegistryImpl, scheduler, message::AbstractMsg{NameQuery}) = begin
     @debug "Registry specialmsg $message"
     send(scheduler.service,
         registry.helperactor,

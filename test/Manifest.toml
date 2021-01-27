@@ -57,9 +57,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[Jive]]
 deps = ["Distributed", "FileWatching", "Pkg", "Printf", "REPL", "Test"]
-git-tree-sha1 = "ff84824ba0a1b7eff332033acf65c136d8035a86"
+git-tree-sha1 = "ff989dc22fffa69c9b9625ddbcea4d0a6867fae4"
 uuid = "ba5e3d4b-8524-549f-bc71-e76ad9e9deed"
-version = "0.2.13"
+version = "0.2.14"
 
 [[JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -126,9 +126,10 @@ deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markd
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Plugins]]
-path = "../../Plugins.jl"
+deps = ["InteractiveUtils"]
+git-tree-sha1 = "c62a028bd6f9ad463fe5d1a260288ea610f24ec8"
 uuid = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
-version = "0.4.2"
+version = "0.5.0"
 
 [[Printf]]
 deps = ["Unicode"]

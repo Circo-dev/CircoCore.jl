@@ -22,9 +22,9 @@ mutable struct ActorMock
 end
 
 const NUM_SAMPLES = 20000
-@testset "ActivityService" begin
+@testset "SparseActivity" begin
     scheduler = SchedulerMock()
-    as = ActivityService()
+    as = CircoCore.Activity.SparseActivityImpl()
     actor = ActorMock(0, 0)
     for i = 1:NUM_SAMPLES
         CircoCore.localdelivery(as, scheduler, nothing, actor)

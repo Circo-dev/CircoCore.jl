@@ -6,7 +6,6 @@ version = "0.2.7"
 [deps]
 ActorInterfaces = "7e194583-e687-41a0-9133-1c22a29c80af"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-Jive = "ba5e3d4b-8524-549f-bc71-e76ad9e9deed"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Plugins = "231a7ae5-8495-40ed-9891-ff920a14b9bd"
@@ -16,5 +15,5 @@ Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 
 [compat]
 DataStructures = "^0.18"
-Plugins = "^0.4"
+Plugins = "^0.5"
 julia = "^1"
