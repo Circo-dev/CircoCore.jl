@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: MPL-2.0
-import Base.show
+module Registry
+
+using Plugins
+using ..CircoCore
 
 """
     NameQuery(name::String) <: Request
@@ -24,12 +27,18 @@ mutable struct RegistryHelper{TCore} <: Actor{TCore}
     core::TCore
 end
 
-mutable struct LocalRegistry <: Plugin
+abstract type LocalRegistry <: Plugin end
+
+mutable struct DefLocalRegistry <: LocalRegistry
     register::Dict{String, Addr}
     helperactor::RegistryHelper
-    LocalRegistry(;options...) = new(Dict())
+    DefLocalRegistry(;options...) = new(Dict())
 end
-Plugins.symbol(::LocalRegistry) = :registry
+Plugins.symbol(::DefLocalRegistry) = :registry
+
+function __init__()
+    Plugins.register(DefLocalRegistry)
+end
 
 abstract type RegistryException end
 struct RegisteredException <: RegistryException
@@ -41,23 +50,23 @@ struct NoRegistryException <: RegistryException
     msg::String
 end
 
-schedule_start(registry::LocalRegistry, scheduler) = begin
+schedule_start(registry::DefLocalRegistry, scheduler) = begin
     registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
     spawn(scheduler.service, registry.helperactor)
 end
 
-function registername(registry::LocalRegistry, name::String, handler::Addr)
+function registername(registry::DefLocalRegistry, name::String, handler::Addr)
     haskey(registry.register, name) && throw(RegisteredException(name))
     registry.register[name] = handler
     return true
 end
 
-function getname(registry::LocalRegistry, name::String)::Union{Addr, Nothing}
+function getname(registry::DefLocalRegistry, name::String)::Union{Addr, Nothing}
     get(registry.register, name, nothing)
 end
 
-specialmsg(registry::LocalRegistry, scheduler, message) = false
-specialmsg(registry::LocalRegistry, scheduler, message::AbstractMsg{NameQuery}) = begin
+specialmsg(registry::DefLocalRegistry, scheduler, message) = false
+specialmsg(registry::DefLocalRegistry, scheduler, message::AbstractMsg{NameQuery}) = begin
     @debug "Registry specialmsg $message"
     send(scheduler.service,
         registry.helperactor,
@@ -68,3 +77,5 @@ specialmsg(registry::LocalRegistry, scheduler, message::AbstractMsg{NameQuery}) 
         )
     return true
 end
+
+end # module

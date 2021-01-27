@@ -1,4 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
+module RemoteMessaging
+
+using Plugins
+using ..CircoCore
+import ..CircoCore: AbstractCoreState
+
 using Serialization
 using Sockets
 using DataStructures
@@ -9,19 +15,25 @@ struct PostException
     message::String
 end
 
-mutable struct PostOffice <: Plugin
+abstract type PostOffice <: Plugin end
+
+mutable struct UDPPostOffice <: PostOffice
     outsocket::UDPSocket
     inqueue::Deque{Any}
     stopped::Bool
     postcode::PostCode
     socket::UDPSocket
     intask
-    PostOffice(;options...) = begin
+    UDPPostOffice(;options...) = begin
         return new(UDPSocket(), Deque{Any}(), false)
     end
 end
 
 Plugins.symbol(::PostOffice) = :postoffice
+
+function __init__()
+    Plugins.register(UDPPostOffice)
+end
 
 addrinit() = nulladdr
 addrinit(scheduler, actor, actorid) = Addr(postcode(scheduler.plugins[:postoffice]), actorid)
@@ -43,31 +55,31 @@ function allocate_postcode()
     throw(PostException("No available port found for a Post Office"))
 end
 
-Plugins.setup!(post::PostOffice, scheduler) = begin
+Plugins.setup!(post::UDPPostOffice, scheduler) = begin
     postcode, socket = allocate_postcode()
     post.postcode = postcode
     post.socket = socket
 end
 
-schedule_start(post::PostOffice, scheduler) = begin
+schedule_start(post::UDPPostOffice, scheduler) = begin
     post.intask = @async arrivals(post) # TODO errors throwed here are not logged
 end
 
-schedule_stop(post::PostOffice, scheduler) = begin
+schedule_stop(post::UDPPostOffice, scheduler) = begin
     post.stopped = true
     yield()
 end
 
-Plugins.shutdown!(post::PostOffice) = close(post.socket)
+Plugins.shutdown!(post::UDPPostOffice) = close(post.socket)
 
-@inline letin_remote(post::PostOffice, scheduler::AbstractScheduler)::Bool = begin
+@inline letin_remote(post::UDPPostOffice, scheduler::AbstractScheduler)::Bool = begin
     for i = 1:min(length(post.inqueue), 30)
         deliver!(scheduler, popfirst!(post.inqueue))
     end
     return false
 end
 
-function arrivals(post::PostOffice)
+function arrivals(post::UDPPostOffice)
     try
         while !post.stopped
             rawmsg = recv(post.socket) # TODO: this blocks, so we will only exit if an extra message comes in after stopping
@@ -83,11 +95,11 @@ function arrivals(post::PostOffice)
     end
 end
 
-function send(post::PostOffice, msg::AbstractMsg)
+function send(post::UDPPostOffice, msg::AbstractMsg)
     remoteroutes(post, nothing, msg)
 end
 
-@inline function remoteroutes(post::PostOffice, scheduler, msg::AbstractMsg)::Bool
+@inline function remoteroutes(post::UDPPostOffice, scheduler, msg::AbstractMsg)::Bool
     @debug "PostOffice delivery at $(postcode(post)): $msg"
     try
         parts = split(postcode(target(msg)), ":")
@@ -102,3 +114,5 @@ end
     end
     return true
 end
+
+end # module

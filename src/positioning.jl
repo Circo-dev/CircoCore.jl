@@ -5,13 +5,19 @@ using ..CircoCore
 
 const HOST_VIEW_SIZE = 1000 # TODO eliminate
 
-mutable struct BasicPositioner <: Plugin
+abstract type Positioner <: Plugin end
+
+mutable struct SimplePositioner <: Positioner
     isroot::Bool
     hostid::UInt64 # TODO: eliminate non-core notions
     center::Pos
-    BasicPositioner(;options...) = new(
+    SimplePositioner(;options...) = new(
         length(get(options, :roots, [])) == 0 # TODO eliminate dirtiness
     )
+end
+
+function __init__()
+    Plugins.register(SimplePositioner)
 end
 
 function randpos(rng = Random.GLOBAL_RNG)
@@ -43,7 +49,7 @@ function hostpos(positioner, postcode)
     end
 end
 
-function Plugins.setup!(p::BasicPositioner, scheduler)
+function Plugins.setup!(p::SimplePositioner, scheduler)
     postoffice = get(scheduler.plugins, :postoffice, nothing)
     host = get(scheduler.plugins, :host, nothing)
     p.hostid = isnothing(host) ? 0 : host.hostid
@@ -57,7 +63,7 @@ function Plugins.setup!(p::BasicPositioner, scheduler)
     return nothing
 end
 
-function CircoCore.spawnpos(p::BasicPositioner, scheduler, actor, result::Ref{Pos})
+function CircoCore.spawnpos(p::SimplePositioner, scheduler, actor, result::Ref{Pos})
     result[] = randpos() + p.center
     return true
 end

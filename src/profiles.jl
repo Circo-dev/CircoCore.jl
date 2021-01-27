@@ -18,7 +18,7 @@ struct MinimalProfile <: AbstractProfile
     MinimalProfile(;options...) = new(options)
 end
 
-core_plugins(profile::MinimalProfile) = [CircoCore.OnMessage(;profile.options...)]
+core_plugins(profile::MinimalProfile) = [CircoCore.OnMessage]
 
 struct TinyProfile <: AbstractProfile
     options
@@ -28,9 +28,9 @@ end
 function core_plugins(profile::TinyProfile)
     options = profile.options
     return [
-        CircoCore.LocalRegistry(;options...),
-        CircoCore.ActivityService(;options...),
-        CircoCore.Space(;options...),
+        CircoCore.Registry.LocalRegistry,
+        CircoCore.ActivityService,
+        CircoCore.Space,
         core_plugins(MinimalProfile(;options...))...,
     ]
 end
@@ -43,8 +43,8 @@ end
 function core_plugins(profile::DefaultProfile)
     options = profile.options
     return [
-        CircoCore.Positioning.BasicPositioner(;options...),
-        CircoCore.PostOffice(;options...),
+        CircoCore.Positioning.Positioner,
+        CircoCore.RemoteMessaging.PostOffice,
         core_plugins(TinyProfile(;options...))...,
     ]
 end
