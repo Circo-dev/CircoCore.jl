@@ -63,15 +63,15 @@ using .ClassicTest
     CircoCore.send(s, stackaddr, Push(43))
     @test length(coordinator.received) == 0
     CircoCore.send(s, stackaddr, Pop(coordaddr))
-    sleep(0.01)
+    sleep(0.05)
     @test coordinator.received == Any[43]
     CircoCore.send(s, stackaddr, Pop(coordaddr))
-    sleep(0.01)
+    sleep(0.05)
     @test coordinator.received == Any[43, 42]
     CircoCore.send(s, stackaddr, Pop(coordaddr))
-    sleep(0.01)
+    sleep(0.05)
     @test coordinator.received == Any[43, 42, nothing]
     CircoCore.send(s, stackaddr, Pop(coordaddr))
-    sleep(0.01)
+    sleep(0.05)
     @test coordinator.received == Any[43, 42, nothing, nothing]
 end
