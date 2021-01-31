@@ -9,8 +9,6 @@ using Serialization
 using Sockets
 using DataStructures
 
-const PORT_RANGE = 24721:24999
-
 struct PostException
     message::String
 end
@@ -36,7 +34,7 @@ Plugins.customfield(::PostOffice, ::Type{AbstractCoreState}) = Plugins.FieldSpec
 function allocate_postcode()
     socket = UDPSocket()
     ipaddr = Sockets.getipaddr()
-    for port in PORT_RANGE
+    for port in CircoCore.PORT_RANGE
         postcode = "$(ipaddr):$port"
         bound = bind(socket, ipaddr, port)
         bound || continue

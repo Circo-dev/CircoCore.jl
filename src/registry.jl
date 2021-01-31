@@ -4,6 +4,8 @@ module Registry
 using Plugins
 using ..CircoCore
 
+export NameQuery, NameResponse
+
 """
     NameQuery(name::String) <: Request
 
@@ -44,7 +46,7 @@ struct NoRegistryException <: RegistryException
     msg::String
 end
 
-schedule_start(registry::LocalRegistryImpl, scheduler) = begin
+CircoCore.schedule_start(registry::LocalRegistryImpl, scheduler) = begin
     registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
     spawn(scheduler.service, registry.helperactor)
 end
@@ -59,8 +61,8 @@ function CircoCore.getname(registry::LocalRegistryImpl, name::String)::Union{Add
     get(registry.register, name, nothing)
 end
 
-specialmsg(registry::LocalRegistryImpl, scheduler, message) = false
-specialmsg(registry::LocalRegistryImpl, scheduler, message::AbstractMsg{NameQuery}) = begin
+CircoCore.specialmsg(registry::LocalRegistryImpl, scheduler, message) = false
+CircoCore.specialmsg(registry::LocalRegistryImpl, scheduler, message::AbstractMsg{NameQuery}) = begin
     @debug "Registry specialmsg $message"
     send(scheduler.service,
         registry.helperactor,

@@ -72,6 +72,7 @@ end
 ```
 """
 abstract type Actor{TCoreState} end
+coretype(::Actor{TCore}) where TCore = TCore
 
 abstract type AbstractAddr end
 postcode(address::AbstractAddr) = address.postcode
@@ -229,27 +230,6 @@ end
 """
 function onmessage(me::Actor, message, service) end
 
-"""
-    onmigrate(me::Actor, service)
-
-Lifecycle callback that marks a successful migration.
-
-It is called on the target scheduler, before any messages will be delivered.
-
-Note: Do not forget to import it or use its qualified name to allow overloading!
-
-# Examples
-```julia
-import CircoCore.onmigrate
-
-function onmigrate(me::MyActor, service)
-    @info "Successfully migrated, registering a name on the new scheduler"
-    registername(service, "MyActor", me)
-end
-```
-"""
-function onmigrate(me::Actor, service) end
-
 # scheduler
 abstract type AbstractScheduler{TMsg, TCoreState} end
 addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
@@ -257,6 +237,7 @@ addr(scheduler::AbstractScheduler) = Addr(postcode(scheduler), 0)
 abstract type Delivery <: Plugin end
 Plugins.symbol(::Delivery) = :delivery
 
+const PORT_RANGE = 24721:24999
 abstract type PostOffice <: Plugin end
 Plugins.symbol(::PostOffice) = :postoffice
 postcode(post::PostOffice) = post.postcode
