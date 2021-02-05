@@ -31,7 +31,8 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     Event, EventDispatcher, Subscribe, fire,
 
     # Space
-    Pos, pos, nullpos, Infoton
+    Pos, pos, nullpos, Infoton, Space
+    
 import Base: show, string
 import Plugins
 

@@ -3,7 +3,6 @@
 using LinearAlgebra
 
 const I = 1.0
-
 const TARGET_DISTANCE = 8.0
 
 """
@@ -22,8 +21,6 @@ pos(a::Actor) = a.core.pos
 A point in the 3D "actor space".
 
 You can access the coords by pos.x, pos.y, pos.z.
-
-Pos is implemented using an SVector{3, Float32}.
 """
 struct Pos <: AbstractVector{Float32}
     coords::Tuple{Float32, Float32, Float32}
@@ -95,8 +92,8 @@ infotoninit(sender::Addr, target, body, scheduler; energy = 1.0f0) = Infoton() #
 Plugins.customfield(::Space, ::Type{AbstractMsg}) = Plugins.FieldSpec("infoton", Infoton, infotoninit)
 
 @inline localdelivery(space::Space, scheduler, msg, targetactor) = begin
-    apply_infoton(targetactor, msg.infoton)
-    apply_infoton(targetactor, scheduler_infoton(scheduler, targetactor))
+    apply_infoton(space, targetactor, msg.infoton)
+    apply_infoton(space, targetactor, scheduler_infoton(space, scheduler, targetactor))
     return false
 end
 
@@ -105,13 +102,13 @@ end
 end
 
 """
-    apply_infoton(targetactor::Actor, infoton::Infoton)
+    apply_infoton(space::Space, targetactor::Actor, infoton::Infoton)
 
 An infoton acting on an actor.
 
 Please check the source and the examples for more info.
 """
-@inline @fastmath function apply_infoton(targetactor::Actor, infoton::Infoton)
+@inline @fastmath function apply_infoton(space::Space, targetactor::Actor, infoton::Infoton)
     diff = infoton.sourcepos - targetactor.core.pos
     difflen = norm(diff)
     energy = infoton.energy
@@ -123,7 +120,7 @@ Please check the source and the examples for more info.
     return nothing
 end
 
-@inline @fastmath function scheduler_infoton(scheduler, actor::Actor)
+@inline @fastmath function scheduler_infoton(space::Space, scheduler, actor::Actor)
     diff = scheduler.pos - actor.core.pos
     distfromtarget = 2000 - norm(diff) # TODO configuration +easy redefinition from applications (including turning it off completely?)
     energy = sign(distfromtarget) * distfromtarget * distfromtarget * -2e-6
