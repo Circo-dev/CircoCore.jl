@@ -45,8 +45,8 @@ end
 
 function generate_types(pluginstack::Plugins.PluginStack)
     return (
-        corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState, Symbol[], CircoCore),
-        msg_type = Plugins.customtype(pluginstack, :Msg, AbstractMsg, [:TBody], CircoCore),
+        corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState, Symbol[], Main),
+        msg_type = Plugins.customtype(pluginstack, :Msg, AbstractMsg, [:TBody], Main),
     )
 end
 

@@ -128,12 +128,15 @@ end
 isrunning(scheduler) = scheduler.state == running
 
 # For external calls # TODO find a better place
+function send(scheduler::AbstractScheduler{TMsg, TCoreState}, from::Addr, to::Addr, msgbody; kwargs...) where {TMsg, TCoreState}
+    msg = TMsg(from, to, msgbody, scheduler; kwargs...)
+    deliver!(scheduler, msg)
+end
+function send(scheduler::AbstractScheduler, to::Addr, msgbody; kwargs...)
+    send(scheduler, Addr(), to, msgbody; kwargs...)
+end
 function send(scheduler::AbstractScheduler, to::Actor, msgbody; kwargs...)
     send(scheduler, addr(to), msgbody; kwargs...)
-end
-function send(scheduler::AbstractScheduler{TMsg, TCoreState}, to::Addr, msgbody; kwargs...) where {TMsg, TCoreState}
-    msg = TMsg(Addr(), to, msgbody, scheduler; kwargs...)
-    deliver!(scheduler, msg)
 end
 
 @inline function deliver!(scheduler::AbstractScheduler, msg::AbstractMsg)
