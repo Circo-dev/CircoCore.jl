@@ -16,7 +16,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     ActivityService,
 
     # Messaging
-    PostCode, postcode, PostOffice, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
+    PostCode, postcode, PostOffice, PostException, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
     redirect, body, target, sender, nulladdr,
 
     Token, TokenId, Tokenized, token, Request, Response, Timeout, settimeout,
@@ -206,7 +206,7 @@ function onspawn(me::Actor, service) end
 """
     onmessage(me::Actor, message, service)
 
-Handle a message arriving at an actor.
+Hook to handle a message arriving at an actor.
 
 Only the payload of the message is delivered, there is currently no way to access the infoton or the sender address.
 If you need a reply, include the sender address in the request.
@@ -244,6 +244,10 @@ Plugins.symbol(::PostOffice) = :postoffice
 postcode(post::PostOffice) = post.postcode
 addr(post::PostOffice) = Addr(postcode(post), 0)
 
+struct PostException
+    message::String
+end
+
 abstract type LocalRegistry <: Plugin end
 Plugins.symbol(::LocalRegistry) = :registry
 
@@ -263,7 +267,7 @@ function getname end
 include("actorstore.jl")
 include("msg.jl")
 include("onmessage.jl")
-include("postoffice.jl")
+include("udp_postoffice.jl")
 include("token.jl")
 include("registry.jl")
 include("service.jl")

@@ -73,7 +73,8 @@ as of `v"0.2.0"`) Listing it at the end improves the performance.
 
 On the other hand, actor API endpoints like `send` are always statically dispatched,
 thus they can accept the service as their first argument, allowing the user to treat
-e.g. "`spawn(service`" as a single unit of thought and not forget to write out the meaningless `service`.
+e.g. "`spawn(service`" as a single unit of thought and not forget to write out the
+ballast `service`.
 
 Consistency is just as important as convenience. But performance is king.
 """

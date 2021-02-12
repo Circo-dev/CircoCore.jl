@@ -29,7 +29,7 @@ struct TimeoutKey
 end
 TimeoutKey(t::Timeout) = TimeoutKey(t.watcher, t.token)
 
-mutable struct TokenService
+mutable struct TokenService # TODO <: Plugin
     next_timeoutcheck_ts::Float64
     timeouts::Dict{TimeoutKey, Timeout}
     TokenService() = new(Base.Libc.time() + TIMEOUTCHECK_INTERVAL, Dict())

@@ -97,14 +97,17 @@ function setstate!(scheduler::AbstractScheduler, newstate::SchedulerState)
     return newstate
 end
 
-function lockop(op::Function, obj, cond_sym::Symbol = :())
-    cond = cond_sym == :() ? obj : getfield(obj, cond_sym)
+function lockop(op::Function, cond)
     lock(cond)
     try
         op(cond)
     finally
         unlock(cond)
     end
+end
+
+function lockop(op::Function, obj, cond_sym::Symbol)
+    lockop(op, getfield(obj, cond_sym))
 end
 
 function pause!(scheduler)

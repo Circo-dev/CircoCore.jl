@@ -9,10 +9,6 @@ using Serialization
 using Sockets
 using DataStructures
 
-struct PostException
-    message::String
-end
-
 mutable struct UDPPostOffice <: CircoCore.PostOffice
     outsocket::UDPSocket
     inqueue::Deque{Any}

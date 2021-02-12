@@ -29,7 +29,7 @@ function specialmsg end # Handle messages that are targeted to the scheduler (to
 scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, localroutes, specialmsg, letin_remote,
     actor_activity_sparse16, actor_activity_sparse256, spawnpos]
 
-# Plugin-Generated types
+# Plugin-assembled types
 
 abstract type AbstractCoreState end
 abstract type AbstractMsg{TBody} end
