@@ -8,7 +8,7 @@ schedule_continue(::Plugin, ::Any) = false
 schedule_stop(::Plugin, ::Any) = false
 stage(::Plugin, ::Any) = false
 
-prepare_hook = Plugins.create_lifecyclehook(prepare)
+prepare_hook = Plugins.create_lifecyclehook(prepare) # For staging. Will be called only once per ctx, do not use the plugin instance!
 schedule_start_hook = Plugins.create_lifecyclehook(schedule_start)
 schedule_pause_hook = Plugins.create_lifecyclehook(schedule_pause)
 schedule_continue_hook = Plugins.create_lifecyclehook(schedule_continue)
@@ -39,7 +39,7 @@ function call_lifecycle_hook(target, lfhook, args...)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception
-                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s
+                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s # TODO this prints something like #7
                 @error "Error in calling '$(trimhook(string(lfhook)))' lifecycle hook of plugin $(typeof(target.plugins[i])):" result
             end
         end
