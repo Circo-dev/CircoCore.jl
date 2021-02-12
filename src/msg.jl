@@ -2,15 +2,15 @@ struct MsgTemplate <: Plugins.TemplateStyle end
 Plugins.TemplateStyle(::Type{AbstractMsg}) = MsgTemplate()
 
 Plugins.typedef(::MsgTemplate, spec) = quote
-    struct $(spec.name){TBody} <: AbstractMsg{TBody}
+    struct TYPE_NAME{TBody} <: AbstractMsg{TBody}
         sender::Addr
         target::Addr
         body::TBody
         $(Plugins.structfields(spec))
     end;
-    $(spec.name)(sender::Addr, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(sender, target, body, $(msgfieldcalls(spec)...))
-    $(spec.name)(sender::Actor, target, body, args...; kwargs...) = $(spec.name){typeof(body)}(addr(sender), target, body, $(msgfieldcalls(spec)...))
-    $(spec.name)
+    TYPE_NAME(sender::Addr, target, body, args...; kwargs...) = TYPE_NAME{typeof(body)}(sender, target, body, $(msgfieldcalls(spec)...))
+    TYPE_NAME(sender::Actor, target, body, args...; kwargs...) = TYPE_NAME{typeof(body)}(addr(sender), target, body, $(msgfieldcalls(spec)...))
+    TYPE_NAME
 end
 
 msgfieldcalls(spec) = map(field -> :($(field.constructor)(sender, target, body, args...; kwargs...)), spec.fields)
