@@ -275,6 +275,7 @@ end
         if haswork(scheduler) || !isrunning(scheduler)
             return nothing
         else
+            scheduler.hooks.idle(scheduler)
             safe_sleep(sleeplength)
             if time_ns() - enter_ts > 1_000_000
                 sleeplength = min(sleeplength * 1.002, 0.03)
@@ -300,9 +301,9 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
         setstate!(scheduler, running)
         lockop(notify, scheduler, :startcond)
         while true
-            msg_batch::UInt8 = 255
+            msg_batch = UInt8(255)
             while msg_batch != 0 && haswork(scheduler)
-                msg_batch -= 1
+                msg_batch -= UInt8(1)
                 step!(scheduler)
             end
             if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
