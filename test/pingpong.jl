@@ -29,17 +29,18 @@ function CircoCore.onmessage(me::PingPonger, message::CreatePeer, service)
     sendping(service, me)
 end
 
-function CircoCore.onmessage(me::PingPonger, ::Ping, service)
+@inline function CircoCore.onmessage(me::PingPonger, ::Ping, service)
     sendpong(service, me)
 end
 
-function CircoCore.onmessage(me::PingPonger, ::Pong, service)
+@inline function CircoCore.onmessage(me::PingPonger, ::Pong, service)
     me.pongs_got += 1
     sendping(service, me)
 end
 
 @testset "PingPong" begin
-    ctx = CircoContext(;profile=CircoCore.Profiles.DefaultProfile())
+    ctx = CircoContext(;profile=CircoCore.Profiles.MinimalProfile(),
+     userpluginsfn=()->[CircoCore.PostOffice])
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:1]
     scheduler = Scheduler(ctx, pingers)
     for pinger in pingers

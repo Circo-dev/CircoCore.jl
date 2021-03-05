@@ -11,7 +11,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     pos::Pos # TODO -> state
     postcode::PostCode # TODO -> state
     actorcount::UInt64
-    actorcache::ActorStore
+    actorcache::ActorStore{Any}
     msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     state::SchedulerState # TODO state::TSchedulerState , plugin-assembled
@@ -217,7 +217,7 @@ end
 end
 
 @inline function step_kern1!(msg, scheduler)
-    targetbox = target(msg).box
+    targetbox = target(msg).box::ActorId
     targetactor = get(scheduler.actorcache, targetbox, nothing)
     step_kern!(scheduler, msg, targetactor)
 end
