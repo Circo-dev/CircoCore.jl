@@ -54,7 +54,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     end
 end
 
-Base.show(io::IO, ::Type{<:Scheduler}) = print(io, "Scheduler")
+Base.show(io::IO, ::Type{<:Scheduler}) = print(io, "Scheduler (concrete)")
 Base.show(io::IO, ::MIME"text/plain", scheduler::AbstractScheduler) = begin
     print(io, "Scheduler at $(postcode(scheduler)) with $(scheduler.actorcount) actors")
 end
@@ -296,22 +296,40 @@ end
         )
 end
 
+@inline function hotloop(scheduler)
+    msg_batch = UInt8(255)
+    while msg_batch != 0 && haswork(scheduler)
+        msg_batch -= UInt8(1)
+        step!(scheduler)
+    end
+end
+
+@enum StageType smallstage=1 bigstage=10 exitstage=100
+
+function ioloop(scheduler; remote, exit)::StageType
+    while true
+        hotloop(scheduler)
+        if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
+            @debug "Scheduler loop $(postcode(scheduler)) exiting."
+            return exitstage
+        end
+        process_remote_and_timeout(scheduler)
+    end
+end
+
+function smallstageloop(scheduler; remote, exit)
+    nextstage = ioloop(scheduler; remote = remote, exit = exit)
+    if nextstage != smallstage
+        return nextstage
+    end
+
+end
+
 function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     try
         setstate!(scheduler, running)
         lockop(notify, scheduler, :startcond)
-        while true
-            msg_batch = UInt8(255)
-            while msg_batch != 0 && haswork(scheduler)
-                msg_batch -= UInt8(1)
-                step!(scheduler)
-            end
-            if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
-                @debug "Scheduler loop $(postcode(scheduler)) exiting."
-                return
-            end
-            process_remote_and_timeout(scheduler)
-        end
+        smallstageloop(scheduler; remote = remote, exit = exit)
     catch e
         if e isa InterruptException
             @info "Interrupt to scheduler on thread $(Threads.threadid())"
