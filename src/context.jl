@@ -16,7 +16,7 @@ end
 
 function CircoContext(;options...)
     directprofget = (;options...) -> ((;options...) -> get(() -> Profiles.DefaultProfile(;options...), options, :profile))
-    profilefn = get(directprofget, options, :profilefn) # Use :profilefn is provided, :profile otherwise
+    profilefn = get(directprofget, options, :profilefn) # Use :profilefn if provided, :profile otherwise
     profile = profilefn(;options...)
     userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)
@@ -36,7 +36,7 @@ function instantiate_plugins(profile, userpluginsfn)
         error("The userpluginsfn option of CircoContext should return a tuple or an array.")
     end
     allplugins = [userplugins..., Profiles.core_plugins(profile)...]
-    return Plugins.PluginStack(allplugins, scheduler_hooks)
+    return Plugins.PluginStack(allplugins, scheduler_hooks; profile.options...)
 end
 
 function instantiate_plugins(ctx::AbstractContext)
