@@ -15,8 +15,9 @@ struct CircoContext <: AbstractContext
 end
 
 function CircoContext(;options...)
-    directprofget = (;options...) -> ((;options...) -> get(() -> Profiles.DefaultProfile(;options...), options, :profile))
-    profilefn = get(directprofget, options, :profilefn) # Use :profilefn if provided, :profile otherwise
+    # Use :profilefn if provided, :profile otherwise
+    directprofget = (;opts...) -> ((;opts...) -> get(() -> Profiles.DefaultProfile(;opts...), opts, :profile))
+    profilefn = get(directprofget, options, :profilefn)
     profile = profilefn(;options...)
     userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)

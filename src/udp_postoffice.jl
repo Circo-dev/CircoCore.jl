@@ -40,7 +40,7 @@ function allocate_postcode()
     throw(PostException("No available port found for a Post Office"))
 end
 
-Plugins.setup!(post::UDPPostOffice, scheduler) = begin
+CircoCore.setup!(post::UDPPostOffice, scheduler) = begin
     postcode, socket = allocate_postcode()
     post.postcode = postcode
     post.socket = socket
@@ -55,7 +55,7 @@ CircoCore.schedule_stop(post::UDPPostOffice, scheduler) = begin
     yield()
 end
 
-Plugins.shutdown!(post::UDPPostOffice) = close(post.socket)
+CircoCore.shutdown!(post::UDPPostOffice, scheduler) = close(post.socket)
 
 @inline CircoCore.letin_remote(post::UDPPostOffice, scheduler::AbstractScheduler)::Bool = begin
     for i = 1:min(length(post.inqueue), 30)
