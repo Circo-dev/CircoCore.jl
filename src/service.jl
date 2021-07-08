@@ -69,7 +69,7 @@ Please note that `service` is always the last argument of lifecycle callbacks
 like `onmessage`.
 It's because `onmessage` is dynamically dispatched, and `service` provides no
 information about where to dispatch. (Only one service instance exists
-as of `v"0.2.0"`) Listing it at the end improves the performance.
+as of `v"0.2.0"`) Listing it at the end improves performance.
 
 On the other hand, actor API endpoints like `send` are always statically dispatched,
 thus they can accept the service as their first argument, allowing the user to treat
@@ -78,6 +78,7 @@ ballast `service`.
 
 Consistency is just as important as convenience. But performance is king.
 """
+#TODO: eliminate energy
 @inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::Actor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
@@ -87,6 +88,10 @@ end
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
+end
+
+@inline function send(service::AbstractService, sender::Actor, to, messagebody; kwargs...)
+    send(service, sender, addr(to), messagebody; kwargs...)
 end
 
 @inline function bulksend(service::AbstractService, sender::Actor, targets, messagebody; energy = 1.0, kwargs...)

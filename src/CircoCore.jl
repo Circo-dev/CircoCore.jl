@@ -130,6 +130,8 @@ Addr(readable_address::String) = begin
 end
 string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
 
+Base.convert(Addr, x) = addr(x)
+
 """
     isnulladdr(a::Addr)
 
@@ -145,7 +147,7 @@ Return the box of the address, that is the id of the actor.
 
 When the actor migrates, its box remains the same, only the PostCode of the address changes.
 """
-box(a::Addr) = a.box
+box(a)::ActorId = a.box
 
 """
     isbaseaddress(addr::Addr)::Bool
@@ -172,6 +174,16 @@ Return the address of the actor.
 Call this on a spawned actor to get its address. Throws `UndefRefError` if the actor is not spawned.
 """
 addr(a::Actor) = a.core.addr::Addr
+
+"""
+    addr(entity)
+
+Return the address of entity.
+
+The default implementation returns the `addr` field, allowing you to use your own structs
+with such fields as message targets.
+"""
+addr(a) = a.addr
 
 """
     box(a::Actor)
