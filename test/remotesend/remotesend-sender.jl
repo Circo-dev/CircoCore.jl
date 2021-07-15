@@ -6,7 +6,7 @@ ctx = CircoContext()
 
 function sendtoremote(receiveraddress)
     scheduler = Scheduler(ctx)
-    println("Sending out $MESSAGE_COUNT messages")
+    println("Sending out $MESSAGE_COUNT messages to $receiveraddress")
     @time begin
         sentout = 0
         while sentout < MESSAGE_COUNT
