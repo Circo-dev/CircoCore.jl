@@ -14,14 +14,14 @@ struct CircoContext <: AbstractContext
     msg_type::Type
 end
 
-function CircoContext(;options...)
+function CircoContext(;target_module=Main, options...)
     # Use :profilefn if provided, :profile otherwise
     directprofget = (;opts...) -> ((;opts...) -> get(() -> Profiles.DefaultProfile(;opts...), opts, :profile))
     profilefn = get(directprofget, options, :profilefn)
     profile = profilefn(;options...)
     userpluginsfn = get(() -> (() -> []), options, :userpluginsfn)
     plugins = instantiate_plugins(profile, userpluginsfn)
-    types = generate_types(plugins)
+    types = generate_types(plugins; target_module)
     ctx = CircoContext(userpluginsfn, profile, plugins, options, types...)
     call_lifecycle_hook(ctx, prepare_hook)
     return ctx
@@ -44,10 +44,10 @@ function instantiate_plugins(ctx::AbstractContext)
     return instantiate_plugins(ctx.profile, ctx.userpluginsfn)
 end
 
-function generate_types(pluginstack::Plugins.PluginStack)
+function generate_types(pluginstack::Plugins.PluginStack; target_module=Main)
     return (
-        corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState, Symbol[], Main),
-        msg_type = Plugins.customtype(pluginstack, :Msg, AbstractMsg, [:TBody], Main),
+        corestate_type = Plugins.customtype(pluginstack, :CoreState, AbstractCoreState, Symbol[], target_module),
+        msg_type = Plugins.customtype(pluginstack, :Msg, AbstractMsg, [:TBody], target_module),
     )
 end
 
