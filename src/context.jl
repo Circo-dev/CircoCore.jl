@@ -14,7 +14,8 @@ struct CircoContext <: AbstractContext
     msg_type::Type
 end
 
-function CircoContext(;target_module=Main, options...)
+function CircoContext(; options...)
+    target_module = get(options, :target_module, Main)
     # Use :profilefn if provided, :profile otherwise
     directprofget = (;opts...) -> ((;opts...) -> get(() -> Profiles.DefaultProfile(;opts...), opts, :profile))
     profilefn = get(directprofget, options, :profilefn)

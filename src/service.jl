@@ -12,11 +12,11 @@ Base.show(io::IO, ::Type{<:AbstractService}) = print(io, "Circo Service")
 Service(ctx::AbstractContext, scheduler::AbstractScheduler) =
     Service{typeof(scheduler), ctx.msg_type, ctx.corestate_type}(scheduler, emptycore(ctx))
 
-emptycore(s::Service) = s.emptycore
+emptycore(s::AbstractService) = s.emptycore
+emptycore(sdl::AbstractScheduler) = emptycore(sdl.service)
 
-function plugin(service::AbstractService, symbol::Symbol)
-    return service.scheduler.plugins[symbol]
-end
+plugin(service::AbstractService, symbol::Symbol) = plugin(service.scheduler, symbol)
+plugin(sdl::AbstractScheduler, symbol::Symbol) = sdl.plugins[symbol]
 
 """
     send(service, sender::Actor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Real = 2.0)
@@ -158,7 +158,7 @@ Unschedule the actor from its current scheduler.
 end
 
 """
-    registername(service, name::String, actor::Actor)
+    registername(service, name::String, actor::Union{Addr,Actor})
 
 Register the given actor under the given name in the scheduler-local name registry.
 
@@ -166,11 +166,13 @@ Note that there is no need to unregister the name when migrating or dying
 
 # TODO implement manual and auto-unregistration
 """
-@inline function registername(service, name::String, actor::Actor)
+@inline function registername(service::AbstractService, name::String, actor::Addr)
     registry = get(service.scheduler.plugins, :registry, nothing)
     isnothing(registry) && throw(NoRegistryException("Cannot register name $name: Registry plugin not found"))
-    registername(registry, name, addr(actor))
+    registername(registry, name, actor)
 end
+registername(service::AbstractService, name::String, actor::Actor) = registername(service, name, addr(actor))
+registername(sdl::AbstractScheduler, name::String, actor_addr) = registername(sdl.service, name, actor_addr)
 
 """
     function getname(service, name::String)::Union{Addr, Nothing}

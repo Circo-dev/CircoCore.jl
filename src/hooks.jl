@@ -31,16 +31,17 @@ scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, localroutes, spe
     actor_activity_sparse16, actor_activity_sparse256, idle, spawnpos]
 
 # Plugin-assembled types
-
 abstract type AbstractCoreState end
 abstract type AbstractMsg{TBody} end
+
+# Helpers
 
 function call_lifecycle_hook(target, lfhook, args...)
     res = lfhook(target.plugins, target, args...)
     if !res.allok
         for (i, result) in enumerate(res.results)
             if result isa Tuple && result[1] isa Exception
-                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s # TODO this prints something like #7
+                trimhook(s) = endswith(s, "_hook") ? s[1:end-5] : s
                 @error "Error in calling '$(trimhook(string(lfhook)))' lifecycle hook of plugin $(typeof(target.plugins[i])):" result
             end
         end

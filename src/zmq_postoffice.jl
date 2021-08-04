@@ -39,7 +39,7 @@ function allocate_postcode()
             ipstr = String(take!(buf))
             postcode = "$(ipstr):$port"
             ZMQ.bind(socket, "tcp://" * postcode)
-            println("Bound to $postcode")
+            @info "ZMQPostOffice bound to $postcode"
             return postcode, socket
         catch e
             isa(e, ZMQ.StateError) || rethrow()

@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
+
+# Local, in-scheduler registry that can be queried from the outside
 module Registry
 
 using Plugins
@@ -11,7 +13,7 @@ export NameQuery, NameResponse
 
 A query that can be sent to a remote scheduler for querying its local registry.
 """
-struct NameQuery <: Request
+struct NameQuery <: Request # TODO add respondto
     name::String
     token::Token
     NameQuery(name, token) = new(name, token)
@@ -51,8 +53,13 @@ CircoCore.schedule_start(registry::LocalRegistryImpl, scheduler) = begin
     spawn(scheduler.service, registry.helperactor)
 end
 
-function CircoCore.registername(registry::LocalRegistryImpl, name::String, handler::Addr)
-    haskey(registry.register, name) && throw(RegisteredException(name))
+function CircoCore.registername(registry::LocalRegistryImpl, name::String, handler::Addr, initiator::Union{Addr,Nothing}=nothing)
+    if !isnothing(initiator) && initiator != handler
+        if haskey(registry.register, name)
+            throw(RegisteredException(name))
+        end
+        @info "Registering name $name to $handler by another actor: $(addr(initiator_actor))"
+    end
     registry.register[name] = handler
     return true
 end
