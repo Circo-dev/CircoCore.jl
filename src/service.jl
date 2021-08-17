@@ -137,24 +137,36 @@ end
 """
     become(service, old::Actor, reincarnated::Actor)
 
-Reincarnates the `old` actor into `new`, meaning that `old` will die, and `reincarnated`
-will be spawned reusing the address of `old`.
+Reincarnates the `old` actor into `new`, meaning that `old` will be unscheduled,
+and `reincarnated` will be scheduled reusing the address of `old`.
+
+The `onbecome` lifecycle callback will be called.
 
 Note: As the name suggests, `become` is the Circonian way of behavior change.
 """
 function become(service::AbstractService, old::Actor, reincarnated::Actor)
+    onbecome(old, reincarnated, service)
     reincarnated.core = old.core
-    die(service, old)
+    unschedule!(service.scheduler, old)
     return spawn(service, reincarnated)
 end
 
 """
     die(service, me::Actor)
 
-Unschedule the actor from its current scheduler.
+Permanently unschedule the actor from its current scheduler.
 """
 @inline function die(service::AbstractService, me::Actor)
-    unschedule!(service.scheduler, me)
+    _kill(service, me)
+end
+
+function _kill(service, actor)
+    try
+        ondeath(actor, service)
+    catch e
+        @warn "Exception in ondeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
+    end
+    unschedule!(service.scheduler, actor)
 end
 
 """

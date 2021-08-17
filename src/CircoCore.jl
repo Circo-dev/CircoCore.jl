@@ -199,7 +199,7 @@ box(a::Actor) = box(addr(a))::ActorId
 """
     CircoCore.onspawn(me::Actor, service)
 
-Lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
+Actor lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
 
 Note: Do not forget to import it or use its qualified name to allow overloading!
 
@@ -218,7 +218,7 @@ function onspawn(me::Actor, service) end
 """
     onmessage(me::Actor, message, service)
 
-Hook to handle a message arriving at an actor.
+Actor callback to handle a message arriving at an actor.
 
 Only the payload of the message is delivered, there is currently no way to access the infoton or the sender address.
 If you need a reply, include the sender address in the request.
@@ -242,6 +242,29 @@ end
 ```
 """
 function onmessage(me::Actor, message, service) end
+
+"""
+    function ondeath(me::Actor, service)
+
+Actor lifecycle callback to release resources when the actor dies (meaning unscheduled "permanently").
+
+The actor is still scheduled when called, but no more messages will be delivered to it.
+
+Note: Do not forget to import it or use its qualified name to allow overloading!
+"""
+function ondeath(me::Actor, service) end
+
+"""
+    function onbecome(me::Actor, reincarnation::Actor, service)
+
+Actor lifecycle callback marking the `become()` action.
+
+`reincarnation` points to the new incarnation of the actor.
+`me` is scheduled at the time of this callback, `reincarnation` is not.
+
+Exceptions thrown in `onbecome` will propagate to the initiating `become` call.
+"""
+function onbecome(me::Actor, reincarnation, service) end
 
 # scheduler
 abstract type AbstractScheduler{TMsg, TCoreState} end

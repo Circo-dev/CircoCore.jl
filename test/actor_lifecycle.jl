@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MPL-2.0
 
-# A Zygote creates a Cell which then repeatedly reincarnates. Both die after DEPTH incarnations
+# A Zygote creates a Cell which then repeatedly reincarnates and
+# sends back notifications from lifecycle callbacks.
+# Both die after DEPTH incarnations.
 
 using Test
 using CircoCore
@@ -9,9 +11,11 @@ using Plugins
 const DEPTH = 10
 
 mutable struct Zygote <: Actor{Any}
-    incarnation_count::Int
+    cell_incarnation_count::Int
+    cell_spawn_count::Int
+    cell_death_count::Int
     core::Any
-    Zygote() = new(0)
+    Zygote() = new(0, 0, 0)
 end
 
 mutable struct Cell{T} <: Actor{Any}
@@ -20,16 +24,13 @@ mutable struct Cell{T} <: Actor{Any}
     Cell{T}(zygote) where T = new{T}(zygote)
 end
 
-struct Reincarnate end
-struct Reincarnated
-    addr::Addr
-end
-
 CircoCore.onspawn(me::Zygote, service) = begin
     child = spawn(service, Cell{Val(1)}(addr(me)))
-    me.incarnation_count = 1
+    me.cell_incarnation_count = 1
     send(service, me, child, Reincarnate())
 end
+
+struct Reincarnate end
 
 getval(v::Val{V}) where V = V
 getval(c::Cell{T}) where T = getval(T)
@@ -42,15 +43,46 @@ CircoCore.onmessage(me::Cell, ::Reincarnate, service) = begin
         reincarnated = Cell{Val(depth + 1)}(me.zygote)
         @test become(service, me, reincarnated) == addr(me)
         send(service, reincarnated, addr(me), Reincarnate())
-        send(service, reincarnated, reincarnated.zygote, Reincarnated(addr(reincarnated)))
     end
 end
 
+struct Reincarnated
+    addr::Addr
+end
+
+CircoCore.onbecome(me::Cell, reincarnated, service) = begin
+    @test reincarnated isa Cell
+    @test getval(me) + 1 == getval(reincarnated)
+    send(service, me, me.zygote, Reincarnated(addr(me)))
+end
+
 CircoCore.onmessage(me::Zygote, msg::Reincarnated, service) = begin
-    me.incarnation_count += 1
-    if me.incarnation_count == DEPTH
-        die(service, me)
-    end
+    me.cell_incarnation_count += 1
+end
+
+struct Spawned
+    addr::Addr
+end
+
+CircoCore.onspawn(me::Cell, service) = begin
+    send(service, me, me.zygote, Spawned(me))
+end
+
+CircoCore.onmessage(me::Zygote, msg::Spawned, service) = begin
+    me.cell_spawn_count += 1
+end
+
+struct Died
+    addr::Addr
+end
+
+CircoCore.ondeath(me::Cell, service) = begin
+    send(service, me, me.zygote, Died(me))
+end
+
+CircoCore.onmessage(me::Zygote, msg::Died, service) = begin
+    me.cell_death_count += 1
+    die(service, me)
 end
 
 struct LifecyclePlugin <: Plugin
@@ -71,7 +103,9 @@ end
     zygote = Zygote()
     scheduler = Scheduler(ctx, [zygote])
     wait(run!(scheduler; remote = false, exit = true))
-    @test zygote.incarnation_count == DEPTH
+    @test zygote.cell_incarnation_count == DEPTH
+    @test zygote.cell_spawn_count == 1
+    @test zygote.cell_death_count == 1
     @test scheduler.plugins[:lifecycle].actor_spawning_calls[box(zygote)] == 1
     shutdown!(scheduler)
 end
