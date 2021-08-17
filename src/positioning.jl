@@ -24,16 +24,20 @@ function randpos(rng = Random.GLOBAL_RNG)
     )
 end
 
+flat_gridpoints(grids) = Pos.(vec(collect(Iterators.product(grids...))))
+
+function gridpos(idx)
+    @assert idx < 17300 # This method may fail to generate unique values for higher idxes (and it is slow anyway).
+    edge_length = floor(idx^(1/3)) / 2 + 1
+    edge = -edge_length:edge_length
+    points = sort(flat_gridpoints((edge, edge, edge)))
+    return points[idx]
+end
+
 function hostrelative_schedulerpos(positioner, postcode)
     # return randpos()
     p = port(postcode)
-    p == 24721 && return Pos(-1, 0, 0) * HOST_VIEW_SIZE
-    p == 24722 && return Pos(1, 0, 0) * HOST_VIEW_SIZE
-    p == 24723 && return Pos(0, -1, 0) * HOST_VIEW_SIZE
-    p == 24724 && return Pos(0, 1, 0) * HOST_VIEW_SIZE
-    p == 24725 && return Pos(0, 0, -1) * HOST_VIEW_SIZE
-    p == 24726 && return Pos(0, 0, 1) * HOST_VIEW_SIZE
-    return randpos()
+    return gridpos(p - 24721 + 1) * HOST_VIEW_SIZE
 end
 
 function hostpos(positioner, postcode)

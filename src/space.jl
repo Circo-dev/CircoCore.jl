@@ -26,6 +26,7 @@ struct Pos <: AbstractVector{Float32}
 end
 
 dist(a::Pos, b::Pos) = sqrt((a.coords[1]-b.coords[1])^2 + (a.coords[2]-b.coords[2])^2 + (a.coords[3]-b.coords[3])^2)
+Base.isless(a::Pos, b::Pos) = norm(a) < norm(b)
 Base.:*(a::Pos, x::Real) = Pos(a.coords[1] * x, a.coords[2] * x, a.coords[3] * x)
 Base.:/(a::Pos, x::Real) = Pos(a.coords[1] / x, a.coords[2] / x, a.coords[3] / x)
 Base.:+(a::Pos, b::Pos) = Pos(a.coords[1] + b.coords[1], a.coords[2] + b.coords[2], a.coords[3] + b.coords[3])

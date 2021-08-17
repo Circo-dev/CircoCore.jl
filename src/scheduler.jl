@@ -219,10 +219,10 @@ end
 @inline function step_kern1!(msg, scheduler)
     targetbox = target(msg).box::ActorId
     targetactor = get(scheduler.actorcache, targetbox, nothing)
-    step_kern!(scheduler, msg, targetactor)
+    step_kern!(targetactor, scheduler, msg)
 end
 
-@inline function step_kern!(scheduler, msg, targetactor)
+@inline function step_kern!(targetactor, scheduler, msg)
     if isnothing(targetactor)
         if !scheduler.hooks.localroutes(scheduler, msg)
             @debug "Cannot deliver on host: $msg"
