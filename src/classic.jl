@@ -45,7 +45,7 @@ function ActorInterfaces.Classic.spawn(behavior, ctx::CircoCtx)::CircoAddr
 end
 
 function ActorInterfaces.Classic.become(behavior, ctx::CircoCtx)
-    Circo.become(ctx.service, ctx.actor, ClassicActor(behavior, ctx.actor.core))
+    CircoCore.become(ctx.service, ctx.actor, ClassicActor(behavior, ctx.actor.core))
     return nothing
 end
 
