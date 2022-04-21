@@ -44,7 +44,7 @@ end
 
 @testset "Actor" begin
     @testset "Actor-Tree" begin
-        ctx = CircoContext()
+        ctx = CircoContext(;target_module=@__MODULE__)
         source = EventSource(emptycore(ctx))
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = Scheduler(ctx, [source; targets])

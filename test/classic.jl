@@ -51,7 +51,7 @@ using Test
 using .ClassicTest
 
 @testset "Stack" begin
-    ctx = CircoCore.CircoContext()
+    ctx = CircoCore.CircoContext(;target_module=@__MODULE__)
     s = CircoCore.Scheduler(ctx)
     CircoCore.run!(s)
 

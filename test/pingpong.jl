@@ -41,7 +41,7 @@ end
 const PINGER_PARALLELISM = 1
 
 @testset "PingPong" begin
-    ctx = CircoContext(;profile=CircoCore.Profiles.MinimalProfile(),
+    ctx = CircoContext(;target_module=@__MODULE__, profile=CircoCore.Profiles.MinimalProfile(),
      userpluginsfn=()->[CircoCore.PostOffice])
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:PINGER_PARALLELISM]
     scheduler = Scheduler(ctx, pingers)

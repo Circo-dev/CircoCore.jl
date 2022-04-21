@@ -24,7 +24,7 @@ function startsender(receiveraddress)
 end
 
 @testset "Remote Send" begin
-    ctx = CircoContext()
+    ctx = CircoContext(;target_module=@__MODULE__)
     receiver = Receiver(emptycore(ctx))
     scheduler = Scheduler(ctx, [receiver])
     sender = startsender(addr(receiver))

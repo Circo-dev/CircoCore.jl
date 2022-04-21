@@ -99,7 +99,7 @@ function CircoCore.actor_spawning(p::LifecyclePlugin, scheduler, actor)
 end
 
 @testset "Actor Lifecycle" begin
-    ctx = CircoContext(;userpluginsfn = (;options...) -> [LifecyclePlugin])
+    ctx = CircoContext(target_module = @__MODULE__; userpluginsfn = (;options...) -> [LifecyclePlugin])
     zygote = Zygote()
     scheduler = Scheduler(ctx, [zygote])
     wait(run!(scheduler; remote = false, exit = true))

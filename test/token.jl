@@ -65,7 +65,7 @@ function onmessage(me::Requestor, timeout::Timeout, service)
 end
 
 @testset "Token" begin
-    ctx = CircoContext()
+    ctx = CircoContext(;target_module=@__MODULE__)
     requestor = Requestor(emptycore(ctx))
     responder = Responder(emptycore(ctx))
     scheduler = Scheduler(ctx, [responder, requestor])

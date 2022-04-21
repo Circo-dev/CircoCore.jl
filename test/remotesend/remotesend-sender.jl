@@ -2,7 +2,8 @@ using CircoCore
 
 include("remotesend-base.jl")
 
-ctx = CircoContext()
+ctx = CircoContext(;target_module=@__MODULE__)
+println(@__MODULE__)
 
 function sendtoremote(receiveraddress)
     scheduler = Scheduler(ctx)

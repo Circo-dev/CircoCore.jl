@@ -57,7 +57,7 @@ end
 
 @testset "Actor" begin
     @testset "Actor-Tree" begin
-        ctx = CircoContext()
+        ctx = CircoContext(;target_module=@__MODULE__)
         creator = TreeCreator(emptycore(ctx))
         scheduler = Scheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
         for i in 1:17
