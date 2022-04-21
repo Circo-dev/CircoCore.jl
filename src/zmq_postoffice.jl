@@ -88,7 +88,7 @@ function arrivals(post::ZMQPostOffice)
         end
     catch e
 #        if !(e isa EOFError)
-            @info "Exception in arrivals", e
+            @error "Exception in arrivals" exception = (e, catch_backtrace())
 #        end
     end
 end

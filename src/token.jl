@@ -55,6 +55,7 @@ cleartimeout(tokenservice::TokenService, timeout::Timeout) = cleartimeout(tokens
     return true
 end
 
+# TODO optimize
 @inline function poptimeouts!(tokenservice::TokenService, currenttime = Base.Libc.time())::Vector{Timeout}
     retval = Vector{Timeout}()
     firedkeys= Vector{TimeoutKey}()

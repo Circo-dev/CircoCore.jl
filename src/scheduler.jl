@@ -174,7 +174,7 @@ end
     else
         push!(scheduler.msgqueue, msg)
     end
-    return nothing
+    return true
 end
 
 @inline function fill_corestate!(scheduler::AbstractScheduler{TMsg, TCoreState}, actor) where {TMsg, TCoreState}
