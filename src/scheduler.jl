@@ -21,10 +21,13 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     startup_actor_count::UInt16 # Number of actors created by plugins TODO eliminate
     plugins::Plugins.PluginStack
     hooks::THooks # TODO -> state
+    zygote::AbstractArray  
+    
     service::Service{Scheduler{THooks, TMsg, TCoreState}, TMsg, TCoreState}
+
     function Scheduler(
         ctx::AbstractContext,
-        actors::AbstractArray = [];
+        zygote::AbstractArray = [];
         pos = nullpos, # TODO: eliminate
         # msgqueue_capacity = 100_000
     )
@@ -44,12 +47,13 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
             Threads.Condition(_lock),
             0,
             plugins,
-            _hooks)
+            _hooks,
+            zygote)
         scheduler.service = Service(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
         postoffice = get(plugins, :postoffice, nothing)  # TODO eliminate
         scheduler.postcode = isnothing(postoffice) ? invalidpostcode : postcode(postoffice) # TODO eliminate
-        for a in actors; schedule!(scheduler, a); end
+
         return scheduler
     end
 end
@@ -77,6 +81,7 @@ function setstate!(scheduler::AbstractScheduler, newstate::SchedulerState)
             callhook(schedule_start_hook)
             callhook(schedule_continue_hook)
             scheduler.startup_actor_count = scheduler.actorcount - actorcount # TODO not just count and not here
+            for a in scheduler.zygote; schedule!(scheduler, a); end
         elseif curstate == paused
             callhook(schedule_continue_hook)
         end

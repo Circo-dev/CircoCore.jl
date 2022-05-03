@@ -79,19 +79,23 @@ ballast `service`.
 Consistency is just as important as convenience. But performance is king.
 """
 #TODO: eliminate energy
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::Actor, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender::Actor, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService, sender::Actor, to, messagebody; kwargs...)
+@inline function send(service::AbstractService, sender, to, messagebody; kwargs...)
     send(service, sender, addr(to), messagebody; kwargs...)
+end
+
+@inline function send(service::AbstractService, sender, to::Nothing, messagebody; kwargs...)
+    @error "Sending message to 'Nothing' is not possible!"
 end
 
 @inline function bulksend(service::AbstractService, sender::Actor, targets, messagebody; energy = 1.0, kwargs...)
