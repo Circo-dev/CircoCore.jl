@@ -22,7 +22,6 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     plugins::Plugins.PluginStack
     hooks::THooks # TODO -> state
     zygote::AbstractArray  
-    
     service::Service{Scheduler{THooks, TMsg, TCoreState}, TMsg, TCoreState}
 
     function Scheduler(

@@ -26,7 +26,8 @@ end
 @testset "Remote Send" begin
     ctx = CircoContext(;target_module=@__MODULE__)
     receiver = Receiver(emptycore(ctx))
-    scheduler = Scheduler(ctx, [receiver])
+    scheduler = Scheduler(ctx)
+    spawn(scheduler, receiver)
     sender = startsender(addr(receiver))
     scheduler(;exit=true)
     wait(sender) # Do not print test results before sender exit logs

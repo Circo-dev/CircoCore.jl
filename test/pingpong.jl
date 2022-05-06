@@ -45,8 +45,9 @@ const PINGER_PARALLELISM = 1
      userpluginsfn=()->[CircoCore.PostOffice])
     pingers = [PingPonger(nothing, emptycore(ctx)) for i=1:PINGER_PARALLELISM]
     scheduler = Scheduler(ctx, pingers)
+    scheduler(;remote = false, exit = true) # to spawn the zygote
     for pinger in pingers
-        send(scheduler, addr(pinger), CreatePeer())
+        send(scheduler, pinger, CreatePeer())
     end
     schedulertask = @async scheduler(; remote = false, exit = true)
 

@@ -59,9 +59,10 @@ end
     @testset "Actor-Tree" begin
         ctx = CircoContext(;target_module=@__MODULE__)
         creator = TreeCreator(emptycore(ctx))
-        scheduler = Scheduler(ctx, [creator])#; msgqueue_capacity=2_000_000
+        scheduler = Scheduler(ctx, [creator])
+        scheduler(;remote = false, exit = true) # to spawn the zygote
         for i in 1:17
-            send(scheduler, addr(creator), Start())
+            send(scheduler, creator, Start())
             @time scheduler(;remote = false, exit = true)
             @test creator.nodecount == 2^(i+1)-1
         end

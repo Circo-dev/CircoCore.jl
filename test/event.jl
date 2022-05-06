@@ -48,7 +48,8 @@ end
         source = EventSource(emptycore(ctx))
         targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
         scheduler = Scheduler(ctx, [source; targets])
-        send(scheduler, addr(source), Start())
+        scheduler(;remote = false, exit = true) # to spawn the zygote
+        send(scheduler, source, Start())
         @time scheduler(;remote = false, exit = true)
         for target in targets
             @test target.received_count == EVENT_COUNT
