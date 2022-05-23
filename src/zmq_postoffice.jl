@@ -63,7 +63,7 @@ CircoCore.schedule_stop(post::ZMQPostOffice, scheduler) = begin
     yield()
 end
 
-function shutdown!(post::ZMQPostOffice)
+CircoCore.shutdown!(post::ZMQPostOffice, scheduler) = begin
     close(post.socket)
     for socket in values(post.outsockets)
         ZMQ.close(socket)
@@ -87,9 +87,9 @@ function arrivals(post::ZMQPostOffice)
             push!(post.inqueue, msg)
         end
     catch e
-#        if !(e isa EOFError)
+        if !(e isa EOFError)
             @error "Exception in arrivals" exception = (e, catch_backtrace())
-#        end
+        end
     end
 end
 

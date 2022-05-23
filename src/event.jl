@@ -27,7 +27,7 @@ function onmessage(me::EventDispatcher, message::Subscribe{TEvent}, service) whe
     if !haskey(me.listeners, TEvent)
         me.listeners[TEvent] = Array{Addr}(undef, 0)
     end
-    push!(me.listeners[TEvent], message.subscriber)
+    push!(me.listeners[TEvent], message.subscriber) # TODO ack
 end
 
 function onmessage(me::EventDispatcher, message::TEvent, service) where {TEvent <: Event}
