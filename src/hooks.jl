@@ -19,6 +19,8 @@ stage_hook = Plugins.create_lifecyclehook(stage)
 function actor_activity_sparse16 end # An actor just received a message, called with 1/16 probability
 function actor_activity_sparse256 end # An actor just received a message, called with 1/256 probability
 function actor_spawning end # called when the actor is already spawned, but before onspawn.
+function actor_dying end # called when the actor will die, but before ondeath.
+function actor_state_write end # A write to an actor state will be applied (transaction commit)
 function idle end # called irregularly while the message queue is empty.
 function letin_remote end # Let external sources push messages into the queue (using deliver!).
 function localdelivery end # deliver a message to an actor (e.g. call onmessage)
@@ -27,7 +29,9 @@ function remoteroutes end # Deliver messages to external targets
 function spawnpos end # Provide initial position of an actor when it is spawned
 function specialmsg end # Handle messages that are targeted to the scheduler (to the box 0)
 
-scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, localroutes, specialmsg, letin_remote,
+scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, actor_dying,
+    actor_state_write,
+    localroutes, specialmsg, letin_remote,
     actor_activity_sparse16, actor_activity_sparse256, idle, spawnpos]
 
 # Plugin-assembled types

@@ -165,6 +165,7 @@ Permanently unschedule the actor from its current scheduler.
 end
 
 function _kill(service, actor)
+    service.scheduler.hooks.actor_dying(service.scheduler, actor)
     try
         ondeath(actor, service)
     catch e
