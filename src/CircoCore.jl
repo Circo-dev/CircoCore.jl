@@ -130,7 +130,7 @@ Addr(readable_address::String) = begin
 end
 string(a::Addr) = "$(a.postcode)/$(string(a.box, base=16))"
 
-Base.convert(Addr, x) = addr(x)
+Base.convert(::Type{Addr}, x::Actor) = addr(x)
 
 """
     isnulladdr(a::Addr)
