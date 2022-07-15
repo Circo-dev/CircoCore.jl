@@ -80,7 +80,7 @@ function setstate!(scheduler::AbstractScheduler, newstate::SchedulerState)
             callhook(schedule_start_hook)
             callhook(schedule_continue_hook)
             scheduler.startup_actor_count = scheduler.actorcount - actorcount # TODO not just count and not here
-            for a in scheduler.zygote; schedule!(scheduler, a); end
+            for a in scheduler.zygote; spawn(scheduler, a); end
         elseif curstate == paused
             callhook(schedule_continue_hook)
         end
@@ -189,28 +189,48 @@ end
 
 @inline is_scheduled(scheduler::AbstractScheduler, actor::Actor) = haskey(scheduler.actorcache, box(actor))
 
-# Provide the same API for plugins # TODO find a better place
-spawn(scheduler::AbstractScheduler, actor::Actor) = schedule!(scheduler, actor)
-
-@inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
+function spawn(scheduler::AbstractScheduler, actor::Actor)
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && is_scheduled(scheduler, actor)
-        return addr(actor)
+        error("Actor already spawned")
     end
+
     fill_corestate!(scheduler, actor)
-    scheduler.actorcache[box(actor)] = actor
+    retval = schedule!(scheduler, actor)
     scheduler.actorcount += 1
+
     if isfirstschedule
         scheduler.hooks.actor_spawning(scheduler, actor)
         onspawn(actor, scheduler.service)
     end
+    return retval
+end
+
+@inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
+    scheduler.actorcache[box(actor)] = actor
     return addr(actor)
 end
 
+function kill!(scheduler::AbstractScheduler, actor::Actor)
+    scheduler.hooks.actor_dying(scheduler, actor)
+    try
+        ondeath(actor, scheduler.service)
+    catch e
+        @warn "Exception in ondeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
+    end
+
+    if is_scheduled(scheduler, actor)
+        unschedule!(scheduler, actor)
+        scheduler.actorcount -= 1
+    else 
+        error("Actor wasn't scheduled!")
+    end
+end
+
 @inline function unschedule!(scheduler::AbstractScheduler, actor::Actor)
-    is_scheduled(scheduler, actor) || return nothing
+    if is_scheduled(scheduler, actor) 
     delete!(scheduler.actorcache, box(actor))
-    scheduler.actorcount -= 1
+    end
     return nothing
 end
 

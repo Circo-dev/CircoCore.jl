@@ -135,7 +135,7 @@ end
 ```
 """
 @inline function spawn(service::AbstractService, actor::Actor)::Addr
-    return schedule!(service.scheduler, actor)
+    return spawn(service.scheduler, actor)
 end
 
 """
@@ -162,16 +162,6 @@ Permanently unschedule the actor from its current scheduler.
 """
 @inline function die(service::AbstractService, me::Actor)
     _kill(service, me)
-end
-
-function _kill(service, actor)
-    service.scheduler.hooks.actor_dying(service.scheduler, actor)
-    try
-        ondeath(actor, service)
-    catch e
-        @warn "Exception in ondeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
-    end
-    unschedule!(service.scheduler, actor)
 end
 
 """
