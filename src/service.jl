@@ -160,8 +160,14 @@ end
 
 Permanently unschedule the actor from its current scheduler.
 """
-@inline function die(service::AbstractService, me::Actor)
-    _kill(service, me)
+@inline function die(service::AbstractService, me::Actor; exit = false)
+    kill!(service.scheduler, me)    
+    if exit    
+        if service.scheduler.actorcount <= service.scheduler.startup_actor_count
+            service.scheduler.exitflag = true
+            @info "Scheduler's exitflag raised"
+        end
+    end
 end
 
 """

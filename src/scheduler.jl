@@ -22,6 +22,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     plugins::Plugins.PluginStack
     hooks::THooks # TODO -> state
     zygote::AbstractArray  
+    exitflag::Bool  
     service::Service{Scheduler{THooks, TMsg, TCoreState}, TMsg, TCoreState}
 
     function Scheduler(
@@ -47,7 +48,8 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
             0,
             plugins,
             _hooks,
-            zygote)
+            zygote,
+            false)
         scheduler.service = Service(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
         postoffice = get(plugins, :postoffice, nothing)  # TODO eliminate
@@ -313,24 +315,21 @@ end
 end
 
 @inline function nomorework(scheduler::AbstractScheduler, remote::Bool, exit::Bool)
-    return !haswork(scheduler) &&
-        (
-            !remote ||
-            exit && scheduler.actorcount <= scheduler.startup_actor_count
-        )
+    return !haswork(scheduler) && !remote
 end
 
 function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     try
         setstate!(scheduler, running)
+        scheduler.exitflag = false
         lockop(notify, scheduler, :startcond)
         while true
             msg_batch = UInt8(255)
-            while msg_batch != 0 && haswork(scheduler)
+            while msg_batch != 0 && haswork(scheduler) && !scheduler.exitflag
                 msg_batch -= UInt8(1)
                 step!(scheduler)
             end
-            if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
+            if !isrunning(scheduler) || nomorework(scheduler, remote, exit) || scheduler.exitflag
                 @debug "Scheduler loop $(postcode(scheduler)) exiting."
                 return
             end
@@ -344,6 +343,7 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
         end
     finally
         isrunning(scheduler) && setstate!(scheduler, paused)
+        scheduler.exitflag = false
         lockop(notify, scheduler, :pausecond)
     end
 end

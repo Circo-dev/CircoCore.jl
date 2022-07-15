@@ -60,7 +60,7 @@ function onmessage(me::Requestor, timeout::Timeout, service)
     me.timeoutcount += 1
     if me.timeoutcount == MESSAGE_COUNT / 2
         println("Got $(me.timeoutcount) timeouts, exiting.")
-        die(service, me)
+        die(service, me; exit=true)
     end
 end
 
@@ -69,7 +69,7 @@ end
     requestor = Requestor(emptycore(ctx))
     responder = Responder(emptycore(ctx))
     scheduler = Scheduler(ctx, [responder, requestor])
-    scheduler(exit=true)
+    scheduler(;remote=true)
     @test requestor.responder == addr(responder)
     @test requestor.responsecount == MESSAGE_COUNT / 2
     @test length(scheduler.tokenservice.timeouts) == 0
