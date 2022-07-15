@@ -15,7 +15,7 @@ function sendtoremote(receiveraddress)
                 send(scheduler, Addr(receiveraddress), TestMessage(i, REMOTE_TEST_PAYLOAD))
                 sentout += 1
             end
-            scheduler(;exit = true)
+            scheduler(;remote = false)
             sleep(0.1)
         end
     end

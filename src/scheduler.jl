@@ -198,14 +198,14 @@ function spawn(scheduler::AbstractScheduler, actor::Actor)
     end
 
     fill_corestate!(scheduler, actor)
-    retval = schedule!(scheduler, actor)
+    schedule!(scheduler, actor)
     scheduler.actorcount += 1
 
     if isfirstschedule
         scheduler.hooks.actor_spawning(scheduler, actor)
         onspawn(actor, scheduler.service)
     end
-    return retval
+    return addr(actor)
 end
 
 @inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
@@ -314,11 +314,11 @@ end
     return !isempty(scheduler.msgqueue)
 end
 
-@inline function nomorework(scheduler::AbstractScheduler, remote::Bool, exit::Bool)
+@inline function nomorework(scheduler::AbstractScheduler, remote::Bool)
     return !haswork(scheduler) && !remote
 end
 
-function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
+function eventloop(scheduler::AbstractScheduler; remote = true)
     try
         setstate!(scheduler, running)
         scheduler.exitflag = false
@@ -329,7 +329,7 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
                 msg_batch -= UInt8(1)
                 step!(scheduler)
             end
-            if !isrunning(scheduler) || nomorework(scheduler, remote, exit) || scheduler.exitflag
+            if !isrunning(scheduler) || nomorework(scheduler, remote) || scheduler.exitflag
                 @debug "Scheduler loop $(postcode(scheduler)) exiting."
                 return
             end
@@ -348,19 +348,20 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     end
 end
 
-function (scheduler::AbstractScheduler)(;remote = true, exit = false)
+function (scheduler::AbstractScheduler)(;remote = true)
     logstart(scheduler)
-    eventloop(scheduler; remote = remote, exit = exit)
+    eventloop(scheduler; remote = remote)
 end
 
-function (scheduler::AbstractScheduler)(msgs; remote = false, exit = true)
+# NOTE remote keyword signals that there may be remote connection to actors and shouldn't stop automatically. In this case ( remot = true) scheduling stop when the last actor die() function called with "exit = true" keyword
+function (scheduler::AbstractScheduler)(msgs; remote = false)
     if msgs isa AbstractMsg
         msgs = [msgs]
     end
     for msg in msgs
         deliver!(scheduler, msg)
     end
-    scheduler(;remote = remote, exit = exit)
+    scheduler(;remote = remote)
 end
 
 function shutdown!(scheduler::AbstractScheduler)

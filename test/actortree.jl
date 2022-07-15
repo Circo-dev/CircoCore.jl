@@ -60,10 +60,10 @@ end
         ctx = CircoContext(;target_module=@__MODULE__)
         creator = TreeCreator(emptycore(ctx))
         scheduler = Scheduler(ctx, [creator])
-        scheduler(;remote = false, exit = true) # to spawn the zygote
+        scheduler(;remote = false) # to spawn the zygote
         for i in 1:17
             send(scheduler, creator, Start())
-            @time scheduler(;remote = false, exit = true)
+            @time scheduler(;remote = false)
             @test creator.nodecount == 2^(i+1)-1
         end
         shutdown!(scheduler)

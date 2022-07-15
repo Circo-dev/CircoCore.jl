@@ -48,9 +48,8 @@ end
         ctx = ctx = CircoContext(target_module = @__MODULE__)
         dummy = Dummy(emptycore(ctx))
 
-
-        sdl = Scheduler(ctx, [dummy])
-        sdl(;remote = false, exit = false)
+        sdl = Scheduler(ctx, [])
+        spawn(sdl, dummy)
 
         @test isempty(sdl.msgqueue)
         @test sdl.actorcount >= sdl.startup_actor_count
@@ -60,7 +59,7 @@ end
 
         @test !isempty(sdl.msgqueue)
 
-        sdl(;remote = false, exit = false)
+        sdl(;remote = false)
 
         @test isempty(sdl.msgqueue)
         @test sdl.actorcount >= sdl.startup_actor_count
@@ -73,8 +72,8 @@ end
         ctx = ctx = CircoContext(target_module = @__MODULE__)
         dummy = Dummy(emptycore(ctx))
 
-        sdl = Scheduler(ctx, [dummy])
-        sdl(;remote = false, exit = true)
+        sdl = Scheduler(ctx, [])
+        spawn(sdl, dummy)
         
         @test isempty(sdl.msgqueue)
         @test sdl.actorcount >= sdl.startup_actor_count
@@ -84,7 +83,7 @@ end
 
         @test !isempty(sdl.msgqueue)
 
-        sdl(;remote = false, exit = true)
+        sdl(;remote = false)
 
         @test isempty(sdl.msgqueue)
         @test sdl.actorcount == sdl.startup_actor_count
@@ -98,12 +97,12 @@ end
         actors = createDummyActors(10, ctx)
 
         finishedSignal = Channel{}(2)
-        sdl = Scheduler(ctx, actors)
-        sdl(;remote = false, exit = false) # initialize actors, cause without this we won't know they postcode
+        sdl = Scheduler(ctx, [])
+        map(a -> spawn(sdl, a), actors)
 
         @async begin
             @info "Start scheduling"
-            sdl(;remote = true, exit = true) #stops when all actors die
+            sdl(;remote = true) #stops when all actors die
             @info "Scheduling stopped"
 
             @test isempty(sdl.msgqueue)
