@@ -36,7 +36,7 @@ scheduler_hooks = [remoteroutes, localdelivery, actor_spawning, actor_dying,
 
 # Plugin-assembled types
 abstract type AbstractCoreState end
-abstract type AbstractMsg{TBody} end
+abstract type AbstractMsg{TBody} end # TODO rename to AbstractEnvelope
 
 # Helpers
 
