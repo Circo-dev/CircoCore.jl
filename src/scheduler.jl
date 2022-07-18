@@ -15,6 +15,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     msgqueue::Deque{Any}# CircularBuffer{Msg}
     tokenservice::TokenService
     state::SchedulerState # TODO state::TSchedulerState , plugin-assembled
+    maintask::Union{Task, Nothing} # The task that runs the event loop
     lock::ReentrantLock # TODO -> state (?)
     startcond::Threads.Condition # TODO -> state
     pausecond::Threads.Condition # TODO -> state
@@ -41,6 +42,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
             Deque{Any}(),#msgqueue_capacity),
             TokenService(),
             created,
+            nothing,
             _lock,
             Threads.Condition(_lock),
             Threads.Condition(_lock),
@@ -302,6 +304,9 @@ end
 
 function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     try
+        if isnothing(scheduler.maintask)
+            scheduler.maintask = current_task()
+        end
         setstate!(scheduler, running)
         lockop(notify, scheduler, :startcond)
         while true
@@ -325,6 +330,11 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     finally
         isrunning(scheduler) && setstate!(scheduler, paused)
         lockop(notify, scheduler, :pausecond)
+        if scheduler.maintask != current_task()
+            yieldto(scheduler.maintask)
+        else
+            scheduler.maintask = nothing
+        end
     end
 end
 
