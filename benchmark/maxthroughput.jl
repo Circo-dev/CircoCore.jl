@@ -26,7 +26,7 @@ end
 # Run remote schedulers
 @distributed for i = 1:nworkers()
     for scheduler in schedulers
-        scheduler(; remote = true, exit = true)
+        scheduler(; remote = true)
     end
 end
 
@@ -37,7 +37,8 @@ sleep(8)
 coordinator = Coordinator(all_pingers)
 scheduler = Scheduler(ctx, [coordinator])
 spawn(scheduler, coordinator)
-scheduler(; remote = true, exit = true)
+# TODO Check this if it's run correctly
+scheduler(; remote = true)
 
 # Stop remote schedulers
 @distributed for i = 1:nworkers()
