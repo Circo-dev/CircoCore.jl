@@ -82,7 +82,7 @@ end
 
 CircoCore.onmessage(me::Zygote, msg::Died, service) = begin
     me.cell_death_count += 1
-    die(service, me)
+    die(service, me; exit = true)
 end
 
 struct LifecyclePlugin <: Plugin
@@ -102,7 +102,7 @@ end
     ctx = CircoContext(target_module = @__MODULE__; userpluginsfn = (;options...) -> [LifecyclePlugin])
     zygote = Zygote()
     scheduler = Scheduler(ctx, [zygote])
-    wait(run!(scheduler; remote = false, exit = true))
+    wait(run!(scheduler; remote = false))
     @test zygote.cell_incarnation_count == DEPTH
     @test zygote.cell_spawn_count == 1
     @test zygote.cell_death_count == 1

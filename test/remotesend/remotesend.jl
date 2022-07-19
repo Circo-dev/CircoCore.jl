@@ -13,7 +13,7 @@ Receiver(core) = Receiver(TestMessage[], core)
 function onmessage(me::Receiver, message::TestMessage, service)
     push!(me.messages, message)
     if length(me.messages) >= MESSAGE_COUNT
-        die(service, me)
+        die(service, me; exit = true)
     end
 end
 
@@ -29,7 +29,7 @@ end
     scheduler = Scheduler(ctx)
     spawn(scheduler, receiver)
     sender = startsender(addr(receiver))
-    scheduler(;exit=true)
+    scheduler(;remote = false)
     wait(sender) # Do not print test results before sender exit logs
     @test length(receiver.messages) == MESSAGE_COUNT
     @test receiver.messages[end].data == REMOTE_TEST_PAYLOAD

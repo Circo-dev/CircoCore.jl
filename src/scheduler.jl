@@ -23,6 +23,7 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
     plugins::Plugins.PluginStack
     hooks::THooks # TODO -> state
     zygote::AbstractArray  
+    exitflag::Bool  
     service::Service{Scheduler{THooks, TMsg, TCoreState}, TMsg, TCoreState}
 
     function Scheduler(
@@ -49,7 +50,8 @@ mutable struct Scheduler{THooks, TMsg, TCoreState} <: AbstractScheduler{TMsg, TC
             0,
             plugins,
             _hooks,
-            zygote)
+            zygote,
+            false)
         scheduler.service = Service(ctx, scheduler)
         call_lifecycle_hook(scheduler, setup!)
         postoffice = get(plugins, :postoffice, nothing)  # TODO eliminate
@@ -82,7 +84,7 @@ function setstate!(scheduler::AbstractScheduler, newstate::SchedulerState)
             callhook(schedule_start_hook)
             callhook(schedule_continue_hook)
             scheduler.startup_actor_count = scheduler.actorcount - actorcount # TODO not just count and not here
-            for a in scheduler.zygote; schedule!(scheduler, a); end
+            for a in scheduler.zygote; spawn(scheduler, a); end
         elseif curstate == paused
             callhook(schedule_continue_hook)
         end
@@ -191,17 +193,16 @@ end
 
 @inline is_scheduled(scheduler::AbstractScheduler, actor::Actor) = haskey(scheduler.actorcache, box(actor))
 
-# Provide the same API for plugins # TODO find a better place
-spawn(scheduler::AbstractScheduler, actor::Actor) = schedule!(scheduler, actor)
-
-@inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
+function spawn(scheduler::AbstractScheduler, actor::Actor)
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && is_scheduled(scheduler, actor)
-        return addr(actor)
+        error("Actor already spawned")
     end
+
     fill_corestate!(scheduler, actor)
-    scheduler.actorcache[box(actor)] = actor
+    schedule!(scheduler, actor)
     scheduler.actorcount += 1
+
     if isfirstschedule
         scheduler.hooks.actor_spawning(scheduler, actor)
         onspawn(actor, scheduler.service)
@@ -209,10 +210,31 @@ spawn(scheduler::AbstractScheduler, actor::Actor) = schedule!(scheduler, actor)
     return addr(actor)
 end
 
+@inline function schedule!(scheduler::AbstractScheduler, actor::Actor)::Addr
+    scheduler.actorcache[box(actor)] = actor
+    return addr(actor)
+end
+
+function kill!(scheduler::AbstractScheduler, actor::Actor)
+    scheduler.hooks.actor_dying(scheduler, actor)
+    try
+        ondeath(actor, scheduler.service)
+    catch e
+        @warn "Exception in ondeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
+    end
+
+    if is_scheduled(scheduler, actor)
+        unschedule!(scheduler, actor)
+        scheduler.actorcount -= 1
+    else 
+        error("Actor wasn't scheduled!")
+    end
+end
+
 @inline function unschedule!(scheduler::AbstractScheduler, actor::Actor)
-    is_scheduled(scheduler, actor) || return nothing
+    if is_scheduled(scheduler, actor) 
     delete!(scheduler.actorcache, box(actor))
-    scheduler.actorcount -= 1
+    end
     return nothing
 end
 
@@ -294,28 +316,25 @@ end
     return !isempty(scheduler.msgqueue)
 end
 
-@inline function nomorework(scheduler::AbstractScheduler, remote::Bool, exit::Bool)
-    return !haswork(scheduler) &&
-        (
-            !remote ||
-            exit && scheduler.actorcount <= scheduler.startup_actor_count
-        )
+@inline function nomorework(scheduler::AbstractScheduler, remote::Bool)
+    return !haswork(scheduler) && !remote
 end
 
-function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
+function eventloop(scheduler::AbstractScheduler; remote = true)
     try
         if isnothing(scheduler.maintask)
             scheduler.maintask = current_task()
         end
         setstate!(scheduler, running)
+        scheduler.exitflag = false
         lockop(notify, scheduler, :startcond)
         while true
             msg_batch = UInt8(255)
-            while msg_batch != 0 && haswork(scheduler)
+            while msg_batch != 0 && haswork(scheduler) && !scheduler.exitflag
                 msg_batch -= UInt8(1)
                 step!(scheduler)
             end
-            if !isrunning(scheduler) || nomorework(scheduler, remote, exit)
+            if !isrunning(scheduler) || nomorework(scheduler, remote) || scheduler.exitflag
                 @debug "Scheduler loop $(postcode(scheduler)) exiting."
                 return
             end
@@ -329,6 +348,7 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
         end
     finally
         isrunning(scheduler) && setstate!(scheduler, paused)
+        scheduler.exitflag = false
         lockop(notify, scheduler, :pausecond)
         if scheduler.maintask != current_task()
             yieldto(scheduler.maintask)
@@ -338,19 +358,20 @@ function eventloop(scheduler::AbstractScheduler; remote = true, exit = false)
     end
 end
 
-function (scheduler::AbstractScheduler)(;remote = true, exit = false)
+function (scheduler::AbstractScheduler)(;remote = true)
     logstart(scheduler)
-    eventloop(scheduler; remote = remote, exit = exit)
+    eventloop(scheduler; remote = remote)
 end
 
-function (scheduler::AbstractScheduler)(msgs; remote = false, exit = true)
+# NOTE remote keyword signals that there may be remote connection to actors and shouldn't stop automatically. In this case ( remot = true) scheduling stop when the last actor die() function called with "exit = true" keyword
+function (scheduler::AbstractScheduler)(msgs; remote = false)
     if msgs isa AbstractMsg
         msgs = [msgs]
     end
     for msg in msgs
         deliver!(scheduler, msg)
     end
-    scheduler(;remote = remote, exit = exit)
+    scheduler(;remote = remote)
 end
 
 function shutdown!(scheduler::AbstractScheduler)

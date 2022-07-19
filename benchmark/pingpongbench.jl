@@ -63,7 +63,7 @@ function createbench(ctx)
     for pinger in pingers
         deliver!(scheduler, addr(pinger), CreatePeer())
     end
-    return (run! = () -> scheduler(; remote = false, exit = true),
+    return (run! = () -> scheduler(; remote = false),
         teardown! = () -> shutdown!(scheduler),
         scheduler = scheduler)
 end
@@ -89,7 +89,7 @@ for pinger in pingers
 end
 
 #run profiler here.........
-@profiler scheduler(; remote = false, exit = true)
+@profiler scheduler(; remote = false)
 
 data = Profile.fetch()
 @info "Analyzing"

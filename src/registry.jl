@@ -50,7 +50,7 @@ end
 
 CircoCore.schedule_start(registry::LocalRegistryImpl, scheduler) = begin
     registry.helperactor = RegistryHelper(registry, emptycore(scheduler.service))
-    spawn(scheduler.service, registry.helperactor)
+    spawn(scheduler, registry.helperactor)
 end
 
 function CircoCore.registername(registry::LocalRegistryImpl, name::String, handler::Addr, initiator::Union{Addr,Nothing}=nothing)
