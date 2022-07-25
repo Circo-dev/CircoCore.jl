@@ -116,7 +116,7 @@ end
             dummy = actors[index]
 
             send(sdl, dummy, Die(true))
-            sleep(0.1)
+            sleep(0.5)
             @test isempty(sdl.msgqueue)
             @test sdl.actorcount + index - length(actors) == sdl.startup_actor_count
             @test dummy.diemessagearrived == true
