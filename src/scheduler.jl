@@ -350,6 +350,7 @@ function eventloop(scheduler::AbstractScheduler; remote = true)
         isrunning(scheduler) && setstate!(scheduler, paused)
         scheduler.exitflag = false
         lockop(notify, scheduler, :pausecond)
+        @assert !isnothing(scheduler.maintask)
         if scheduler.maintask != current_task()
             yieldto(scheduler.maintask)
         else

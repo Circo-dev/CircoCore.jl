@@ -19,7 +19,7 @@ plugin(service::AbstractService, symbol::Symbol) = plugin(service.scheduler, sym
 plugin(sdl::AbstractScheduler, symbol::Symbol) = sdl.plugins[symbol]
 
 """
-    send(service, sender::Actor, to::Addr, messagebody::Any, energy::Real = 1; timeout::Real = 2.0)
+    send(service, sender::Actor, to::Addr, messagebody::Any; energy::Real = 1, timeout::Real = 2.0)
 
 Send a message from an actor to an another.
 
@@ -33,7 +33,7 @@ can be considered safe. You may be able to tune your system to get higher values
 If `messagebody` is a `Request`, a timeout will be set for the token of it. The `timeout` keyword argument
 can be used to control the deadline (seconds).
 
-`energy` sets the energy and sign of the Infoton attached to the message.
+`energy` sets the energy and sign of the Infoton attached to the message (if the infoton optimizer is running).
 
 # Examples
 
@@ -78,15 +78,14 @@ ballast `service`.
 
 Consistency is just as important as convenience. But performance is king.
 """
-#TODO: eliminate energy
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody, energy::Real = 1; kwargs...) where {TScheduler, TMsg, TCore}
-    message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody; kwargs...) where {TScheduler, TMsg, TCore}
+    message = TMsg(sender, to, messagebody, service.scheduler; kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody::TBody, energy::Real = 1; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody::TBody; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
-    message = TMsg(sender, to, messagebody, service.scheduler; energy = energy, kwargs...)
+    message = TMsg(sender, to, messagebody, service.scheduler; kwargs...)
     deliver!(service.scheduler, message)
 end
 
@@ -98,9 +97,9 @@ end
     @error "Sending message to 'Nothing' is not possible!"
 end
 
-@inline function bulksend(service::AbstractService, sender::Actor, targets, messagebody; energy = 1.0, kwargs...)
+@inline function bulksend(service::AbstractService, sender::Actor, targets, messagebody; kwargs...)
     for target in targets
-        send(service, sender, target, messagebody, energy; kwargs...)
+        send(service, sender, target, messagebody; kwargs...)
     end
 end
 

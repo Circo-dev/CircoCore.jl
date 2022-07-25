@@ -16,12 +16,7 @@ mutable struct Dummy <: Actor{Any}
     Dummy(core) = new(core, false)
 end
 
-function CircoCore.onmessage(me::Dummy, msg::StartMsg, service)
-    @info "Message arrived" msg
-end
-
 function CircoCore.onmessage(me::Dummy, msg::Die, service)
-    @info "Message arrived" msg
     me.diemessagearrived = true
 
     die(service, me; exit = msg.exit)
@@ -101,9 +96,7 @@ end
         map(a -> spawn(sdl, a), actors)
 
         @async begin
-            @info "Start scheduling"
             sdl(;remote = true) #stops when all actors die
-            @info "Scheduling stopped"
 
             @test isempty(sdl.msgqueue)
             @test sdl.actorcount == sdl.startup_actor_count
@@ -121,9 +114,6 @@ end
 
         for index in eachindex(actors)
             dummy = actors[index]
-
-            @info "Sending Die to " dummy
-            @info "postcodes" postcode(dummy) postcode(sdl)
 
             send(sdl, dummy, Die(true))
             sleep(0.1)
