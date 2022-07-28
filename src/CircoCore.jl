@@ -28,7 +28,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     getname, registername, NameQuery, NameResponse,
 
     # Events
-    Event, EventDispatcher, Subscribe, fire,
+    Event, EventDispatcher, Subscribe, UnSubscribe, fire,
 
     # Space
     Pos, pos, nullpos, Infoton, Space
