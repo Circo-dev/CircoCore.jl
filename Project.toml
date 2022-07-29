@@ -1,7 +1,7 @@
 name = "CircoCore"
 uuid = "b491a1cf-f6eb-411b-8d19-79c73dc191e5"
 authors = ["Krisztián Schäffer"]
-version = "0.2.14"
+version = "0.2.15"
 
 [deps]
 ActorInterfaces = "7e194583-e687-41a0-9133-1c22a29c80af"
