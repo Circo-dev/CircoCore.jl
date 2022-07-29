@@ -6,7 +6,11 @@ abstract type RecurringEvent <: Event end
 const RecurrentEvent = RecurringEvent
 
 """
+<<<<<<< HEAD
     Subscribe(eventtype::Type, subscriber::Addr, filter::Union{Nothing, String, Function} = nothing)
+=======
+    Subscribe(eventtype::Type, subscriber::Union{Actor, Addr}, filter::Union{Nothing, String, Function} = nothing)
+>>>>>>> event-topics
 
 Message for subscribing to events of the given `eventtype`.
 
@@ -28,6 +32,7 @@ struct Subscribe # TODO: <: Request + handle forwarding
     subscriber::Addr
     filter::Union{Nothing, String, Function}
     eventtype::Type
+    Subscribe(eventtype:: Type, subscriber::Actor, filter=nothing) = new(addr(subscriber), filter, eventtype)
     Subscribe(eventtype:: Type, subscriber::Addr, filter=nothing) = new(subscriber, filter, eventtype)
 end
 
