@@ -308,7 +308,7 @@ abstract type Signal end
 abstract type SignalCause end
 
 """
-    SigTerm(cause=Nothing; die=Nothing)
+    SigTerm(cause=Nothing; exit=Nothing)
 
 Signal to terminate an actor.
 
