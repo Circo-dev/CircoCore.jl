@@ -12,12 +12,12 @@ end
     ctx = CircoContext(;target_module=@__MODULE__)
     tester = SigTest(emptycore(ctx))
     scheduler = Scheduler(ctx, [tester])
-    scheduler(;remote = false) # to spawn the zygote
+    scheduler(;remote = false)
 
     @test CircoCore.is_scheduled(scheduler, tester) == true
     send(scheduler, tester, Die())
     actorcount = scheduler.actorcount
-    scheduler(;remote = false) # to spawn the zygote
+    scheduler(;remote = false)
     @test CircoCore.is_scheduled(scheduler, tester) == false
     @test scheduler.actorcount == actorcount - 1
 
