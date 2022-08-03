@@ -7,15 +7,13 @@ mutable struct SigTest <: Actor{Any}
 end
 
 @testset "SigTerm" begin
-    @test Die == CircoCore.SigTerm
-
     ctx = CircoContext(;target_module=@__MODULE__)
     tester = SigTest(emptycore(ctx))
     scheduler = Scheduler(ctx, [tester])
     scheduler(;remote = false)
 
     @test CircoCore.is_scheduled(scheduler, tester) == true
-    send(scheduler, tester, Die())
+    send(scheduler, tester, SigTerm())
     actorcount = scheduler.actorcount
     scheduler(;remote = false)
     @test CircoCore.is_scheduled(scheduler, tester) == false

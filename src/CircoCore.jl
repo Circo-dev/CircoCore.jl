@@ -31,7 +31,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     Event, EventDispatcher, Subscribe, UnSubscribe, fire,
 
     # Signals
-    Die,
+    SigTerm,
 
     # Space
     Pos, pos, nullpos, Infoton, Space
@@ -303,37 +303,11 @@ Plugins.symbol(::Positioner) = :positioner
 function registername end
 function getname end
 
-# lifecycle
-abstract type Signal end
-abstract type SignalCause end
-
-"""
-    SigTerm(cause=Nothing; exit=Nothing)
-
-Signal to terminate an actor.
-
-The default handler terminates the actor without delay.
-
-Also known as `Die`.
-"""
-struct SigTerm <: Signal
-    cause::Union{Nothing, SignalCause}
-    exit::Union{Nothing, Bool} # Whether the scheduler should exit when this was the last actor and no more work
-    SigTerm(cause=nothing; exit=nothing) = new(cause, exit)
-end
-const Die = SigTerm
-
-onmessage(me::Actor, msg::Die, service) = begin
-    @debug "$(box(me)): Dying on" msg
-    die(service, me; exit=isnothing(msg.exit) ? exitwhenlast(me) : msg.exit)
-end
-
-exitwhenlast(me::Actor) = true
-
 
 include("actorstore.jl")
 include("msg.jl")
 include("onmessage.jl")
+include("signal.jl")
 include("zmq_postoffice.jl")
 #include("udp_postoffice.jl")
 include("token.jl")
