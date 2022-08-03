@@ -30,6 +30,9 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     # Events
     Event, EventDispatcher, Subscribe, UnSubscribe, fire,
 
+    # Signals
+    SigTerm,
+
     # Space
     Pos, pos, nullpos, Infoton, Space
     
@@ -296,12 +299,15 @@ Plugins.symbol(::Space) = :space
 abstract type Positioner <: Plugin end
 Plugins.symbol(::Positioner) = :positioner
 
+# naming
 function registername end
 function getname end
+
 
 include("actorstore.jl")
 include("msg.jl")
 include("onmessage.jl")
+include("signal.jl")
 include("zmq_postoffice.jl")
 #include("udp_postoffice.jl")
 include("token.jl")

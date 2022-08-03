@@ -155,16 +155,19 @@ function become(service::AbstractService, old::Actor, reincarnated::Actor)
 end
 
 """
-    die(service, me::Actor)
+    die(service, me::Actor; exit=false)
 
 Permanently unschedule the actor from its current scheduler.
+
+if `exit` is true and this is the last actor on its scheduler,
+the scheduler will be terminated.
 """
 @inline function die(service::AbstractService, me::Actor; exit = false)
     kill!(service.scheduler, me)    
     if exit    
         if service.scheduler.actorcount <= service.scheduler.startup_actor_count
             service.scheduler.exitflag = true
-            @info "Scheduler's exitflag raised"
+            @debug "Scheduler's exitflag raised"
         end
     end
 end
