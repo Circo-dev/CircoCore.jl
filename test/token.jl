@@ -31,11 +31,11 @@ mutable struct Responder{TCore} <: Actor{TCore}
     core::TCore
 end
 
-function onspawn(me::Responder, service)
+function onmessage(me::Responder, ::OnSpawn, service)
     registername(service, string(TRequest), me)
 end
 
-function onspawn(me::Requestor, service)
+function onmessage(me::Requestor, ::OnSpawn, service)
     registername(service, string(TResponse), me)
     me.responder = getname(service, string(TRequest))
     for i=1:MESSAGE_COUNT

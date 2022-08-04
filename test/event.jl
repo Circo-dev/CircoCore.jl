@@ -31,12 +31,12 @@ mutable struct EventTarget{TCore} <: Actor{TCore}
 end
 EventTarget(core) = EventTarget(0, 0, core)
 
-function onspawn(me::TestEventSource, service)
+function onmessage(me::TestEventSource, ::OnSpawn, service)
     me.eventdispatcher = spawn(service, CircoCore.EventDispatcher(emptycore(service)))
     registername(service, "eventsource", me)
 end
 
-function onspawn(me::EventTarget, service)
+function onmessage(me::EventTarget, ::OnSpawn, service)
     eventsource = getname(service, "eventsource")
     send(service, me, eventsource, Subscribe(NonTopicEvent, addr(me)))
     send(service, me, eventsource, Subscribe(TopicEvent, addr(me), "topic3"))

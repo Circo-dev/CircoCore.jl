@@ -11,7 +11,7 @@ mutable struct Coordinator <: Actor{Any}
     end
 end
 
-CircoCore.onspawn(me::Coordinator, service) = begin
+CircoCore.onmessage(me::Coordinator, ::OnSpawn, service) = begin
     @info "Monitoring $(length(me.pingeraddrs)) pingers."
     sendreqs(me, service)
 end

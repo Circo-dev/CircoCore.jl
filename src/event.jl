@@ -63,7 +63,7 @@ function initdispatcher(me::Actor, service)
 end
 
 ontraitmessage(::EventSource, me::Actor, msg::Union{Subscribe, UnSubscribe}, service) = begin
-    @show initdispatcher(me, service)
+    initdispatcher(me, service)
     send(service, me, me.eventdispatcher, msg)
 end
 

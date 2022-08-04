@@ -24,7 +24,7 @@ mutable struct Cell{T} <: Actor{Any}
     Cell{T}(zygote) where T = new{T}(zygote)
 end
 
-CircoCore.onspawn(me::Zygote, service) = begin
+CircoCore.onmessage(me::Zygote, ::OnSpawn, service) = begin
     child = spawn(service, Cell{Val(1)}(addr(me)))
     me.cell_incarnation_count = 1
     send(service, me, child, Reincarnate())
@@ -50,13 +50,13 @@ struct Reincarnated
     addr::Addr
 end
 
-CircoCore.onbecome(me::Cell, reincarnated, service) = begin
-    @test reincarnated isa Cell
-    @test getval(me) + 1 == getval(reincarnated)
+CircoCore.onmessage(me::Cell, msg::OnBecome, service) = begin
+    @test msg.reincarnation isa Cell
+    @test getval(me) + 1 == getval(msg.reincarnation)
     send(service, me, me.zygote, Reincarnated(addr(me)))
 end
 
-CircoCore.onmessage(me::Zygote, msg::Reincarnated, service) = begin
+CircoCore.onmessage(me::Zygote, ::Reincarnated, service) = begin
     me.cell_incarnation_count += 1
 end
 
@@ -64,7 +64,7 @@ struct Spawned
     addr::Addr
 end
 
-CircoCore.onspawn(me::Cell, service) = begin
+CircoCore.onmessage(me::Cell, ::OnSpawn, service) = begin
     send(service, me, me.zygote, Spawned(me))
 end
 
@@ -76,7 +76,7 @@ struct Died
     addr::Addr
 end
 
-CircoCore.ondeath(me::Cell, service) = begin
+CircoCore.onmessage(me::Cell, ::OnDeath, service) = begin
     send(service, me, me.zygote, Died(me))
 end
 
