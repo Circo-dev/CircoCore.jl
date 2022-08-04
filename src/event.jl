@@ -57,14 +57,27 @@ struct EventSource end
 
 function initdispatcher(me::Actor, service)
     @assert hasfield(typeof(me), :eventdispatcher) "Missing field 'eventdispatcher::Addr' in $(typeof(me))"
-    if !isdefined(me, :eventdispatcher)
-        me.eventdispatcher = spawn(service, EventDispatcher(emptycore(service)))
-    end
+    @assert !isdefined(me, :eventdispatcher) || me.eventdispatcher == Addr()
+    me.eventdispatcher = spawn(service, EventDispatcher(emptycore(service)))
 end
 
 ontraitmessage(::EventSource, me::Actor, msg::Union{Subscribe, UnSubscribe}, service) = begin
-    initdispatcher(me, service)
     send(service, me, me.eventdispatcher, msg)
+end
+
+ontraitmessage(::EventSource, me::Actor, msg::OnSpawn, service) = begin
+    initdispatcher(me, service)
+end
+
+"""
+    EventSourceDied
+
+SigTerm cause for terminating event dispatchers.
+"""
+struct EventSourceDied end
+
+ontraitmessage(::EventSource, me::Actor, msg::OnDeath, service) = begin
+    send(service, me, me.eventdispatcher, SigTerm(EventSourceDied()))
 end
 
 """
@@ -76,7 +89,6 @@ To fire an event, the actor must have a field `eventdispatcher::Addr`,
 which will be filled automatically.
 """
 function fire(service, me::Actor, event::TEvent) where TEvent <: Event
-    initdispatcher(me, service)
     send(service, me, me.eventdispatcher, event)
 end
 
@@ -112,3 +124,4 @@ function onmessage(me::EventDispatcher, msg::Event, service)
         end
     end
 end
+

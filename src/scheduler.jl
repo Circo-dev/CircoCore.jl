@@ -191,7 +191,7 @@ end
     return nothing
 end
 
-@inline is_scheduled(scheduler::AbstractScheduler, actor::Actor) = haskey(scheduler.actorcache, box(actor))
+@inline is_scheduled(scheduler::AbstractScheduler, actor::Union{Actor, Addr}) = haskey(scheduler.actorcache, box(actor))
 
 function spawn(scheduler::AbstractScheduler{TMsg}, actor::Actor) where {TMsg}
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0

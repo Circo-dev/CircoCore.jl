@@ -32,7 +32,6 @@ end
 EventTarget(core) = EventTarget(0, 0, core)
 
 function onmessage(me::TestEventSource, ::OnSpawn, service)
-    me.eventdispatcher = spawn(service, CircoCore.EventDispatcher(emptycore(service)))
     registername(service, "eventsource", me)
 end
 
@@ -80,6 +79,11 @@ end
         @test target.received_nontopic_count == 2 * EVENT_COUNT
         @test target.received_topic_count == 3
     end
+
+    send(scheduler, source, SigTerm())
+    @test CircoCore.is_scheduled(scheduler, source.eventdispatcher)
+    scheduler(;remote = false)
+    @test !CircoCore.is_scheduled(scheduler, source.eventdispatcher)
 
     shutdown!(scheduler)
 end
