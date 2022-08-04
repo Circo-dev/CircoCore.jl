@@ -28,7 +28,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     getname, registername, NameQuery, NameResponse,
 
     # Events
-    Event, EventDispatcher, Subscribe, UnSubscribe, fire,
+    EventSource, Event, Subscribe, UnSubscribe, fire,
 
     # Signals
     SigTerm,

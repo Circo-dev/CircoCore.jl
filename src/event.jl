@@ -6,11 +6,7 @@ abstract type RecurringEvent <: Event end
 const RecurrentEvent = RecurringEvent
 
 """
-<<<<<<< HEAD
-    Subscribe(eventtype::Type, subscriber::Addr, filter::Union{Nothing, String, Function} = nothing)
-=======
     Subscribe(eventtype::Type, subscriber::Union{Actor, Addr}, filter::Union{Nothing, String, Function} = nothing)
->>>>>>> event-topics
 
 Message for subscribing to events of the given `eventtype`.
 
@@ -48,6 +44,17 @@ struct UnSubscribe
     eventtype::Type
 end
 
+
+"""
+    EventSource
+
+Trait for actors that can publish events.
+
+Manages subscriptions and dispatches events.
+You need to add a field `eventdispatcher::Addr` to your actor to use this trait.
+"""
+struct EventSource end
+
 function initdispatcher(me::Actor, service)
     @assert hasfield(typeof(me), :eventdispatcher) "Missing field 'eventdispatcher::Addr' in $(typeof(me))"
     if !isdefined(me, :eventdispatcher)
@@ -55,9 +62,9 @@ function initdispatcher(me::Actor, service)
     end
 end
 
-function onmessage(me::Actor, message::Union{Subscribe, UnSubscribe}, service)
-    initdispatcher(me, service)
-    send(service, me, me.eventdispatcher, message)
+ontraitmessage(::EventSource, me::Actor, msg::Union{Subscribe, UnSubscribe}, service) = begin
+    @show initdispatcher(me, service)
+    send(service, me, me.eventdispatcher, msg)
 end
 
 """

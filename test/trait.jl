@@ -30,11 +30,11 @@ end
 
 CircoCore.traits(::Type{TraitTester}) = (Trait1, Trait2(42), Trait3)
 
-CircoCore.onmessage(t::Union{Trait1, Trait2, Trait3}, me, msg::AllTraitMsg, service) = begin
+CircoCore.ontraitmessage(t::Union{Trait1, Trait2, Trait3}, me, msg::AllTraitMsg, service) = begin
     push!(me.gotmessages, (typeof(t), msg))
 end
 
-CircoCore.onmessage(t::Trait2, me, msg::SecondTraitMsg, service) = begin
+CircoCore.ontraitmessage(t::Trait2, me, msg::SecondTraitMsg, service) = begin
     push!(me.gotmessages, (typeof(t), t.config, msg))
 end
 
@@ -51,27 +51,14 @@ end
     send(scheduler, tester, AllTraitMsg(1))
     send(scheduler, tester, NonTraitedMsg(3))
     scheduler(;remote=false)
-    @test tester.gotmessages == [
-        (Trait2, 42, SecondTraitMsg(2)), (Nothing, SecondTraitMsg(2)),
-        (Trait1, AllTraitMsg(1)), (Trait2, AllTraitMsg(1)), (Trait3, AllTraitMsg(1)), (Nothing, AllTraitMsg(1)),
-        (Nothing, NonTraitedMsg(3))
-        ]
+    @test tester.gotmessages[1] == (Trait2, 42, SecondTraitMsg(2))
+    @test tester.gotmessages[2] == (Nothing, SecondTraitMsg(2))
+    @test tester.gotmessages[3] == (Trait1, AllTraitMsg(1))
+    @test tester.gotmessages[4] == (Trait2, AllTraitMsg(1))
+    @test tester.gotmessages[5] == (Trait3, AllTraitMsg(1))
+    @test tester.gotmessages[6] == (Nothing, AllTraitMsg(1))
+    @test tester.gotmessages[7] == (Nothing, NonTraitedMsg(3))
     shutdown!(scheduler)
 end
 
-struct AutoDieTrait
-    timeout::Float32
-end
-
-mutable struct AutoDieTraitTester <: Actor{Any}
-    core
-    AutoDieTraitTester() = new()
-end
-
-CircoCore.traits(::Type{AutoDieTraitTester}) = (AutoDieTrait(5))
-
-
-@testet "AutoDieTrait" begin
-    
-end
 end # module
