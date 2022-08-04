@@ -4,7 +4,7 @@ module TokenTest
 using Test
 using Dates
 using CircoCore
-import CircoCore: onspawn, onmessage
+import CircoCore: onmessage
 
 MESSAGE_COUNT = 100
 

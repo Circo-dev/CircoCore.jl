@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 using Test
 using CircoCore
-import CircoCore: onmessage, onspawn
+import CircoCore: onmessage
 
 const TARGET_COUNT = 13
 const EVENT_COUNT = 133
