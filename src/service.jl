@@ -110,7 +110,7 @@ Spawn the given actor on the scheduler represented by `service`, return the addr
 
 Part of the actor API, can be called from a lifecycle callback, providing the `service` you got.
 
-The `onspawn` callback of `actor` will run before this function returns.
+The `OnSpawn` message will be delivered to `actor` before this function returns.
 
 # Examples
 
@@ -147,10 +147,11 @@ The `onbecome` lifecycle callback will be called.
 
 Note: As the name suggests, `become` is the Circonian way of behavior change.
 """
-function become(service::AbstractService, old::Actor, reincarnated::Actor)
-    onbecome(old, reincarnated, service)
+function become(service::AbstractService{TScheduler, TMsg}, old::Actor, reincarnated::Actor) where {TScheduler, TMsg}
+    scheduler = service.scheduler
+    _immediate_delivery(old, scheduler,  TMsg(addr(scheduler), old, OnBecome(reincarnated), scheduler))
     reincarnated.core = old.core
-    unschedule!(service.scheduler, old)
+    unschedule!(scheduler, old)
     return spawn(service, reincarnated)
 end
 

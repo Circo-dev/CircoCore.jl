@@ -18,8 +18,8 @@ stage_hook = Plugins.create_lifecyclehook(stage)
 # Event hooks
 function actor_activity_sparse16 end # An actor just received a message, called with 1/16 probability
 function actor_activity_sparse256 end # An actor just received a message, called with 1/256 probability
-function actor_spawning end # called when the actor is already spawned, but before onspawn.
-function actor_dying end # called when the actor will die, but before ondeath.
+function actor_spawning end # called when the actor is already spawned, but before delivering OnSpawn.
+function actor_dying end # called when the actor will die, but before delivering OnDeath.
 function actor_state_write end # A write to an actor state will be applied (transaction commit)
 function idle end # called irregularly while the message queue is empty.
 function letin_remote end # Let external sources push messages into the queue (using deliver!).

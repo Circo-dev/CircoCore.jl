@@ -7,6 +7,9 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
 
     emptycore,
 
+    # Lifecycle
+    OnSpawn, OnDeath, OnBecome,
+
     #Plugins reexport
     Plugin, setup!, shutdown!, symbol,
 
@@ -28,7 +31,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     getname, registername, NameQuery, NameResponse,
 
     # Events
-    Event, EventDispatcher, Subscribe, UnSubscribe, fire,
+    EventSource, Event, Subscribe, UnSubscribe, fire,
 
     # Signals
     SigTerm,
@@ -197,26 +200,23 @@ Call this on a spawned actor to get its id (aka box). Throws `UndefRefError` if 
 """
 box(a::Actor) = box(addr(a))::ActorId
 
-# Actor lifecycle callbacks
+# Actor lifecycle messages
 
 """
-    CircoCore.onspawn(me::Actor, service)
+    OnSpawn
 
-Actor lifecycle callback that marks the first scheduling of the actor, called during spawning, before any `onmessage`.
-
-Note: Do not forget to import it or use its qualified name to allow overloading!
+Actor lifecycle message that marks the first scheduling of the actor,
+sent during spawning, before any other message.
 
 # Examples
 
 ```julia
-import CircoCore.onspawn
-
-funtion onspawn(me::MyActor, service)
+CircoCore.onmessage(me::MyActor, ::OnSpawn, service) = begin
     registername(service, "MyActor", me) # Register this actor in the local name service
 end
 ```
 """
-function onspawn(me::Actor, service) end
+struct OnSpawn end
 
 """
     onmessage(me::Actor, message, service)
@@ -247,27 +247,28 @@ end
 function onmessage(me::Actor, message, service) end
 
 """
-    function ondeath(me::Actor, service)
+    OnDeath
 
-Actor lifecycle callback to release resources when the actor dies (meaning unscheduled "permanently").
+Actor lifecycle message to release resources when the actor dies (meaning unscheduled "permanently").
 
-The actor is still scheduled when called, but no more messages will be delivered to it.
-
-Note: Do not forget to import it or use its qualified name to allow overloading!
+The actor is still scheduled when this message is delivered,
+but no more messages will be delivered after this.
 """
-function ondeath(me::Actor, service) end
+struct OnDeath end
 
 """
-    function onbecome(me::Actor, reincarnation::Actor, service)
+    OnBecome(reincarnation::Actor)
 
-Actor lifecycle callback marking the `become()` action.
+Actor lifecycle message marking the `become()` action.
 
 `reincarnation` points to the new incarnation of the actor.
-`me` is scheduled at the time of this callback, `reincarnation` is not.
+`me` is scheduled at the delivery time of this message, `reincarnation` is not.
 
-Exceptions thrown in `onbecome` will propagate to the initiating `become` call.
+Exceptions thrown while handling `OnBecome`` will propagate to the initiating `become` call.
 """
-function onbecome(me::Actor, reincarnation, service) end
+struct OnBecome
+    reincarnation::Actor
+end
 
 # scheduler
 abstract type AbstractScheduler{TMsg, TCoreState} end

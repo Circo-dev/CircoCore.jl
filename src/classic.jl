@@ -31,6 +31,10 @@ function onmessage(me::ClassicActor, msg, service)
     ActorInterfaces.Classic.onmessage(me.state, msg, CircoCtx(me, service))
 end
 
+function onmessage(me::ClassicActor, msg::Union{OnSpawn, OnDeath, OnBecome}, service)
+    @debug "Lifecycle events are not delivered to classic" # TODO add lifecycle to classic
+end
+
 function ActorInterfaces.Classic.self(ctx::CircoCtx)::CircoAddr
     return CircoAddr(addr(ctx.actor))
 end

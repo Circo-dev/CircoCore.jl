@@ -191,9 +191,9 @@ end
     return nothing
 end
 
-@inline is_scheduled(scheduler::AbstractScheduler, actor::Actor) = haskey(scheduler.actorcache, box(actor))
+@inline is_scheduled(scheduler::AbstractScheduler, actor::Union{Actor, Addr}) = haskey(scheduler.actorcache, box(actor))
 
-function spawn(scheduler::AbstractScheduler, actor::Actor)
+function spawn(scheduler::AbstractScheduler{TMsg}, actor::Actor) where {TMsg}
     isfirstschedule = !isdefined(actor, :core) || box(actor) == 0
     if !isfirstschedule && is_scheduled(scheduler, actor)
         error("Actor already spawned")
@@ -205,7 +205,9 @@ function spawn(scheduler::AbstractScheduler, actor::Actor)
 
     if isfirstschedule
         scheduler.hooks.actor_spawning(scheduler, actor)
-        onspawn(actor, scheduler.service)
+        _immediate_delivery(actor, scheduler,
+            TMsg(addr(scheduler), actor, OnSpawn(), scheduler)
+        )
     end
     return addr(actor)
 end
@@ -215,12 +217,12 @@ end
     return addr(actor)
 end
 
-function kill!(scheduler::AbstractScheduler, actor::Actor)
+function kill!(scheduler::AbstractScheduler{TMsg}, actor::Actor) where {TMsg}
     scheduler.hooks.actor_dying(scheduler, actor)
     try
-        ondeath(actor, scheduler.service)
+        _immediate_delivery(actor, scheduler,  TMsg(addr(scheduler), actor, OnDeath(), scheduler))
     catch e
-        @warn "Exception in ondeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
+        @warn "Exception in handling OnDeath of actor $(addr(actor)). Unscheduling anyway." exception = (e, catch_backtrace())
     end
 
     if is_scheduled(scheduler, actor)
@@ -240,17 +242,17 @@ end
 
 @inline function step!(scheduler::AbstractScheduler)
     msg = popfirst!(scheduler.msgqueue)
-    step_kern1!(msg, scheduler) # This outer kern degrades perf on 1.5, but not on 1.4
+    _immediate_delivery(msg, scheduler)
     return nothing
 end
 
-@inline function step_kern1!(msg, scheduler)
+@inline function _immediate_delivery(msg, scheduler)
     targetbox = target(msg).box::ActorId
     targetactor = get(scheduler.actorcache, targetbox, nothing)
-    step_kern!(targetactor, scheduler, msg)
+    _immediate_delivery(targetactor, scheduler, msg)
 end
 
-@inline function step_kern!(targetactor, scheduler, msg)
+@inline function _immediate_delivery(targetactor, scheduler, msg)
     if isnothing(targetactor)
         if !scheduler.hooks.localroutes(scheduler, msg)
             @debug "Cannot deliver on host: $msg"

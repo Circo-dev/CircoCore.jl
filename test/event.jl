@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 using Test
 using CircoCore
-import CircoCore: onmessage, onspawn
+import CircoCore: onmessage
 
 const TARGET_COUNT = 13
 const EVENT_COUNT = 133
@@ -16,11 +16,13 @@ struct TopicEvent <: Event
     value::String
 end
 
-mutable struct EventSource{TCore} <: Actor{TCore}
+mutable struct TestEventSource{TCore} <: Actor{TCore}
     eventdispatcher::Addr
     core::TCore
 end
-EventSource(core) = EventSource(Addr(), core)
+TestEventSource(core) = TestEventSource(Addr(), core)
+
+CircoCore.traits(::Type{<:TestEventSource}) = (EventSource,)
 
 mutable struct EventTarget{TCore} <: Actor{TCore}
     received_nontopic_count::Int64
@@ -29,12 +31,11 @@ mutable struct EventTarget{TCore} <: Actor{TCore}
 end
 EventTarget(core) = EventTarget(0, 0, core)
 
-function onspawn(me::EventSource, service)
-    me.eventdispatcher = spawn(service, EventDispatcher(emptycore(service)))
+function onmessage(me::TestEventSource, ::OnSpawn, service)
     registername(service, "eventsource", me)
 end
 
-function onspawn(me::EventTarget, service)
+function onmessage(me::EventTarget, ::OnSpawn, service)
     eventsource = getname(service, "eventsource")
     send(service, me, eventsource, Subscribe(NonTopicEvent, addr(me)))
     send(service, me, eventsource, Subscribe(TopicEvent, addr(me), "topic3"))
@@ -42,7 +43,7 @@ function onspawn(me::EventTarget, service)
     send(service, me, eventsource, Subscribe(TopicEvent, addr(me), event -> event.topic == "topic5"))
 end
 
-function onmessage(me::EventSource, message::Start, service)
+function onmessage(me::TestEventSource, message::Start, service)
     for i=1:EVENT_COUNT
         fire(service, me, NonTopicEvent("Test event #$i"))
         fire(service, me, TopicEvent("topic$i", "Topic event #$i"))
@@ -57,29 +58,32 @@ function onmessage(me::EventTarget, message::TopicEvent, service)
     me.received_topic_count += 1
 end
 
-@testset "Actor" begin
-    @testset "Actor-Tree" begin
-        ctx = CircoContext(;target_module=@__MODULE__)
-        source = EventSource(emptycore(ctx))
-        targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
-        scheduler = Scheduler(ctx, [source; targets])
-        scheduler(;remote = false) # to spawn the zygote
-        send(scheduler, source, Start())
-        scheduler(;remote = false)
-        for target in targets
-            @test target.received_nontopic_count == EVENT_COUNT
-            @test target.received_topic_count == 3
-        end
-
-        # unsubscribe and rerun
-        send(scheduler, source, UnSubscribe(addr(source), TopicEvent))
-        send(scheduler, source, Start())
-        scheduler(;remote = false)
-        for target in targets
-            @test target.received_nontopic_count == 2 * EVENT_COUNT
-            @test target.received_topic_count == 3
-        end
-
-        shutdown!(scheduler)
+@testset "Event" begin
+    ctx = CircoContext(;target_module=@__MODULE__)
+    source = TestEventSource(emptycore(ctx))
+    targets = [EventTarget(emptycore(ctx)) for i=1:TARGET_COUNT]
+    scheduler = Scheduler(ctx, [source; targets])
+    scheduler(;remote = false) # to spawn the zygote
+    send(scheduler, source, Start())
+    scheduler(;remote = false)
+    for target in targets
+        @test target.received_nontopic_count == EVENT_COUNT
+        @test target.received_topic_count == 3
     end
+
+    # unsubscribe and rerun
+    send(scheduler, source, UnSubscribe(addr(source), TopicEvent))
+    send(scheduler, source, Start())
+    scheduler(;remote = false)
+    for target in targets
+        @test target.received_nontopic_count == 2 * EVENT_COUNT
+        @test target.received_topic_count == 3
+    end
+
+    send(scheduler, source, SigTerm())
+    @test CircoCore.is_scheduled(scheduler, source.eventdispatcher)
+    scheduler(;remote = false)
+    @test !CircoCore.is_scheduled(scheduler, source.eventdispatcher)
+
+    shutdown!(scheduler)
 end

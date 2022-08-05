@@ -19,4 +19,3 @@ onmessage(me::Actor, msg::SigTerm, service) = begin
 end
 
 exitwhenlast(me::Actor) = true
-
