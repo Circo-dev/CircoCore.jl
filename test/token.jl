@@ -22,7 +22,7 @@ mutable struct Requestor{TCore} <: Actor{TCore}
     Requestor(core) = new{typeof(core)}(0, 0, 0, Addr(), core)
 end
 
-struct TReply <: Reply
+struct TReply <: Response
     requestid::UInt64
     token::Token
 end

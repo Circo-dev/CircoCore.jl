@@ -26,13 +26,6 @@ abstract type Request <: Tokenized end
 abstract type Response <: Tokenized end
 
 """
-    abstract type Reply <: Response end
-
-`Reply` is a type of `Response` that fulfills a `Request` successfully.
-"""
-abstract type Reply <: Response end
-
-"""
     abstract type Failure <: Response end
 
 `Failure` is a type of `Response` to a `Request` that fails to fulfill it.
