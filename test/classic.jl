@@ -74,4 +74,6 @@ using .ClassicTest
     CircoCore.send(s, stackaddr, Pop(coordaddr))
     sleep(0.05)
     @test coordinator.received == Any[43, 42, nothing, nothing]
+
+    CircoCore.shutdown!(s)
 end

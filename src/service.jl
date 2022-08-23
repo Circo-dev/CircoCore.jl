@@ -78,12 +78,12 @@ ballast `service`.
 
 Consistency is just as important as convenience. But performance is king.
 """
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody; kwargs...) where {TScheduler, TMsg, TCore}
+@inline function send(service::AbstractService{TScheduler, TMsg}, sender, to::Addr, messagebody; kwargs...) where {TScheduler, TMsg, TCore}
     message = TMsg(sender, to, messagebody, service.scheduler; kwargs...)
     deliver!(service.scheduler, message)
 end
 
-@inline function send(service::AbstractService{TScheduler, TMsg, TCore}, sender, to::Addr, messagebody::TBody; timeout = 2.0, kwargs...) where {TScheduler, TMsg, TCore, TBody <: Request}
+@inline function send(service::AbstractService{TScheduler, TMsg}, sender, to::Addr, messagebody::Request; timeout = 2.0, kwargs...) where {TScheduler, TMsg}
     settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
     message = TMsg(sender, to, messagebody, service.scheduler; kwargs...)
     deliver!(service.scheduler, message)
@@ -164,7 +164,7 @@ if `exit` is true and this is the last actor on its scheduler,
 the scheduler will be terminated.
 """
 @inline function die(service::AbstractService, me::Actor; exit = false)
-    kill!(service.scheduler, me)    
+    kill!(service.scheduler, me)
     if exit    
         if service.scheduler.actorcount <= service.scheduler.startup_actor_count
             service.scheduler.exitflag = true

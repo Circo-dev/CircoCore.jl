@@ -9,11 +9,28 @@ struct Token
     Token() = new(rand(TokenId))
     Token(id::TokenId) = new(id)
 end
+
+"""
+    abstract type Tokenized end
+
+Tokenized messages can be tracked automatically by the scheduler.
+
+When an actor sends out a [`Request`](@ref), a timeout will be set up
+to track the fulfillment of the request. When a `Response` with the same token
+is received, the timeout will be cancelled. See also: [`send`](@ref).
+"""
 abstract type Tokenized end
 token(t::Tokenized) = t.token
 
 abstract type Request <: Tokenized end
 abstract type Response <: Tokenized end
+
+"""
+    abstract type Failure <: Response end
+
+`Failure` is a type of `Response` to a `Request` that fails to fulfill it.
+"""
+abstract type Failure <: Response end
 
 struct Timeout
     watcher::Addr
