@@ -13,11 +13,15 @@ mutable struct ZMQPostOffice <: CircoCore.PostOffice
     outsockets::Dict{PostCode, ZMQ.Socket}
     inqueue::Deque{Any}
     stopped::Bool
+    ip::IPv4
     postcode::PostCode
     socket::ZMQ.Socket
     intask
-    ZMQPostOffice(;options...) = begin
-        return new(Dict(), Deque{Any}(), false)
+    ZMQPostOffice(;zmq_postoffice_ip::Union{IPv4, Nothing}=nothing, _...) = begin
+        if isnothing(zmq_postoffice_ip)
+            zmq_postoffice_ip = haskey(ENV, "ZMQ_POSTOFFICE_IP") ? IPv4(ENV["ZMQ_POSTOFFICE_IP"]) : getipaddr() # TODO support ipv6
+        end
+        return new(Dict(), Deque{Any}(), false, zmq_postoffice_ip)
     end
 end
 
@@ -30,12 +34,12 @@ __init__() = Plugins.register(ZMQPostOffice)
 CircoCore.postcode(post::ZMQPostOffice) = post.postcode
 CircoCore.addr(post::ZMQPostOffice) = Addr(postcode(post), 0)
 
-function allocate_postcode()
+function allocate_postcode(ip)
     socket = ZMQ.Socket(ZMQ.PULL)
     for port in CircoCore.PORT_RANGE
         try
             buf = IOBuffer()
-            print(buf, Sockets.getipaddr())
+            print(buf, ip)
             ipstr = String(take!(buf))
             postcode = "$(ipstr):$port"
             ZMQ.bind(socket, "tcp://" * postcode)
@@ -49,7 +53,7 @@ function allocate_postcode()
 end
 
 CircoCore.setup!(post::ZMQPostOffice, scheduler) = begin
-    postcode, socket = allocate_postcode()
+    postcode, socket = allocate_postcode(post.ip)
     post.postcode = postcode
     post.socket = socket
 end
