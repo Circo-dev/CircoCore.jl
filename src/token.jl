@@ -45,6 +45,8 @@ end
 Timeout(watcher::Actor, token::Token, timeout_secs, cause = Timer(timeout_secs)) = Timeout{typeof(cause)}(addr(watcher), token, Base.Libc.time() + timeout_secs, cause)
 Base.isless(a::Timeout, b::Timeout) = isless(a.deadline, b.deadline)
 
+const TimerTimeout = Timeout{Timer}
+
 mutable struct TokenService # TODO <: Plugin
     next_timeoutcheck_ts::Float64
     timeouts::Dict{Token, Timeout}
