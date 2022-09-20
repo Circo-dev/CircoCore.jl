@@ -22,7 +22,7 @@ export CircoContext, Scheduler, AbstractScheduler, run!, pause!,
     PostCode, postcode, PostOffice, PostException, postoffice, Addr, addr, box, port, AbstractMsg, Msg,
     redirect, body, target, sender, nulladdr,
 
-    Token, TokenId, Tokenized, token, Request, Response, Failure, Timeout, settimeout,
+    Token, TokenId, Tokenized, token, Request, Response, Failure, Timeout, Timer, settimeout,
 
     # Actor API
     send, bulksend,

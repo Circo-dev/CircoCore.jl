@@ -169,7 +169,7 @@ end
 end
 
 @inline function deliver_locally!(scheduler::AbstractScheduler, msg::AbstractMsg{<:Response})
-    cleartimeout(scheduler.tokenservice, token(msg.body), target(msg))
+    cleartimeout(scheduler.tokenservice, token(msg.body))
     deliver_locally_kern!(scheduler, msg)
     return nothing
 end
