@@ -84,7 +84,7 @@ Consistency is just as important as convenience. But performance is king.
 end
 
 @inline function send(service::AbstractService{TScheduler, TMsg}, sender, to::Addr, messagebody::Request; timeout = 2.0, kwargs...) where {TScheduler, TMsg}
-    settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout))
+    settimeout(service.scheduler.tokenservice, Timeout(sender, token(messagebody), timeout, messagebody))
     message = TMsg(sender, to, messagebody, service.scheduler; kwargs...)
     deliver!(service.scheduler, message)
 end
@@ -203,11 +203,8 @@ See also: [`NameQuery`](@ref)
     return getname(registry, name)
 end
 
-@inline function settimeout(service::AbstractService, actor::Actor, timeout_secs::Real = 1.0)
-    token = Token()
-    timeout = Timeout(actor, token, timeout_secs)
-    settimeout(service.scheduler.tokenservice, timeout)
-    return token
+@inline function settimeout(service::AbstractService, actor::Actor, timeout_secs::Real = 0.0)
+    return settimeout(service.scheduler.tokenservice, Timeout(actor, Token(), timeout_secs))
 end
 
 @inline pos(service::AbstractService) = pos(service.scheduler) # TODO find its place
