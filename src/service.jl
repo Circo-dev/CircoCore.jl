@@ -207,4 +207,8 @@ end
     return settimeout(service.scheduler.tokenservice, Timeout(actor, Token(), timeout_secs))
 end
 
+@inline function cleartimeout(service::AbstractService, token::Token)
+    return cleartimeout(service.scheduler.tokenservice, token)
+end
+
 @inline pos(service::AbstractService) = pos(service.scheduler) # TODO find its place
