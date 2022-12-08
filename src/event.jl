@@ -93,14 +93,14 @@ function fire(service, me::Actor, event::TEvent) where TEvent <: Event
 end
 
 mutable struct EventDispatcher{TCore} <: Actor{TCore}
-    listeners::IdDict #{Type{<:Event}, Array{Subscribe}}
+    listeners::IdDict{Type{<:Event}, Vector{Subscribe}}
     core::TCore
 end
-EventDispatcher(core) = EventDispatcher(IdDict(), core)
+EventDispatcher(core) = EventDispatcher(IdDict{Type{<:Event}, Vector{Subscribe}}(), core)
 
 function onmessage(me::EventDispatcher, msg::Subscribe, service)
     if !haskey(me.listeners, msg.eventtype)
-        me.listeners[msg.eventtype] = Array{Subscribe}(undef, 0)
+        me.listeners[msg.eventtype] = Subscribe[]
     end
     push!(me.listeners[msg.eventtype], msg) # TODO ack
 end
@@ -116,7 +116,10 @@ function onmessage(me::EventDispatcher, msg::UnSubscribe, service)
 end
 
 function onmessage(me::EventDispatcher, msg::Event, service)
-    for subscription in get(me.listeners, typeof(msg), [])
+    listeners = get!(me.listeners, typeof(msg)) do
+        return Subscribe[]
+    end
+    for subscription in listeners
         if subscription.filter isa Nothing ||
             (hasfield(typeof(msg), :topic) && subscription.filter isa String && msg.topic == subscription.filter) ||
             (subscription.filter isa Function && subscription.filter(msg) == true)
